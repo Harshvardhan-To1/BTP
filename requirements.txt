@@ -1,0 +1,8 @@
+numpy>=1.26
+scipy>=1.11
+pandas>=2.0
+matplotlib>=3.8
+tqdm>=4.66
+# CPU build is sufficient; install with:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.2

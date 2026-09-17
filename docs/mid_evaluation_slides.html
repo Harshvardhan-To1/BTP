@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>BTP Mid-Evaluation 50% — Fronthaul Load Management</title>
+<style>
+  :root {
+    --bg: #0f1c24;
+    --panel: #162832;
+    --ink: #e8f1f4;
+    --muted: #9db4be;
+    --accent: #3ecf8e;
+    --accent2: #4aa8ff;
+    --warn: #f0b429;
+    --line: #2a4552;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink);
+    font-family: "IBM Plex Sans", "Segoe UI", sans-serif; }
+  .deck { height:100%; overflow:hidden; position:relative; }
+  .slide {
+    position:absolute; inset:0; padding:48px 64px; display:none;
+    background:
+      radial-gradient(1000px 500px at 10% -10%, #1d3a48 0%, transparent 60%),
+      radial-gradient(800px 400px at 100% 0%, #14352c 0%, transparent 55%),
+      var(--bg);
+  }
+  .slide.active { display:flex; flex-direction:column; }
+  h1 { font-size:42px; margin:0 0 12px; letter-spacing:-0.02em; }
+  h2 { font-size:28px; margin:0 0 18px; color:var(--accent); font-weight:600; }
+  h3 { font-size:18px; margin:18px 0 8px; color:var(--accent2); }
+  p, li { font-size:18px; line-height:1.45; color:var(--ink); }
+  .muted { color:var(--muted); font-size:15px; }
+  .eyebrow { text-transform:uppercase; letter-spacing:0.14em; font-size:12px;
+    color:var(--accent); margin-bottom:10px; font-weight:600; }
+  .grid { display:grid; gap:16px; }
+  .grid-2 { grid-template-columns:1fr 1fr; }
+  .grid-3 { grid-template-columns:1fr 1fr 1fr; }
+  .card {
+    background:rgba(255,255,255,0.03); border:1px solid var(--line);
+    border-radius:14px; padding:16px 18px;
+  }
+  .card strong { color:var(--accent); }
+  table { width:100%; border-collapse:collapse; font-size:15px; }
+  th, td { border-bottom:1px solid var(--line); padding:10px 8px; text-align:left; }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.06em; }
+  .fig { max-height:58vh; max-width:100%; object-fit:contain; border-radius:10px;
+    border:1px solid var(--line); background:#fff; }
+  .footer {
+    margin-top:auto; display:flex; justify-content:space-between; align-items:center;
+    color:var(--muted); font-size:13px; padding-top:18px;
+  }
+  .nav { position:fixed; right:24px; bottom:24px; display:flex; gap:8px; z-index:5; }
+  .nav button {
+    background:var(--panel); color:var(--ink); border:1px solid var(--line);
+    border-radius:999px; padding:10px 16px; cursor:pointer; font-size:14px;
+  }
+  .nav button:hover { border-color:var(--accent); color:var(--accent); }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  .kpi { font-size:32px; font-weight:700; color:var(--accent); }
+  ul { margin:8px 0 0 18px; }
+  pre.arch {
+    background:rgba(0,0,0,0.25); border:1px solid var(--line); border-radius:12px;
+    padding:16px; font-size:14px; line-height:1.5; overflow:auto;
+  }
+  .brand { font-size:56px; font-weight:700; letter-spacing:-0.03em; }
+  .brand span { color:var(--accent); }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 1 -->
+  <section class="slide active">
+    <div class="eyebrow">BTP Mid-Term Evaluation · 50%</div>
+    <div class="brand">Fronthaul <span>Load</span><br/>Management</div>
+    <p class="muted" style="margin-top:14px;font-size:18px">5G/6G C-RAN · IEEE TWC / JSAC track · September 2026</p>
+    <div class="grid grid-3" style="margin-top:36px">
+      <div class="card"><strong>CSEE</strong><br/>Delay-domain top-K<br/><span class="muted">O(MN log N)</span></div>
+      <div class="card"><strong>RAS-BFP</strong><br/>SRHT + QR + BFP<br/><span class="muted">O(rMN)</span></div>
+      <div class="card"><strong>ACAFS</strong><br/>Rank-adaptive split<br/><span class="muted">Thm 5 · 7.2x/7.1/6</span></div>
+    </div>
+    <div class="footer"><span>High-Performance Fronthaul Load Management</span><span>1 / 15</span></div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide">
+    <div class="eyebrow">Motivation</div>
+    <h2>The fronthaul bottleneck</h2>
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="kpi">~15.4 Gbps</div>
+        <p>Raw I/Q per cell at M=64, 100 MHz, 32-bit samples</p>
+      </div>
+      <div class="card">
+        <h3>Pain points</h3>
+        <ul>
+          <li>O-RAN BFP tops out near <strong>4×</strong> CR</li>
+          <li>Truncated SVD is accurate but too slow for slot timing</li>
+          <li>Fixed Split 6 wastes capacity on low-rank UEs</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer"><span>Problem statement</span><span>2 / 15</span></div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide">
+    <div class="eyebrow">System</div>
+    <h2>Proposed architecture</h2>
+    <pre class="arch mono">RU  3GPP TDL-A  →  Y ∈ ℂ^{M×N}
+      ├─ CSEE:     IFFT → top-K delay taps → BFP
+      └─ RAS-BFP:  SRHT sketch → thin QR → BFP(L, Q)
+            │  compressed bitstream
+DU  ACAFS(rank rₖ) → Split 7.2x / 7.1 / 6
+    Decoder → Ŷ  (bounded NMSE)</pre>
+    <div class="footer"><span>RU compression + DU split control</span><span>3 / 15</span></div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide">
+    <div class="eyebrow">Baselines</div>
+    <h2>What we compare against</h2>
+    <div class="grid grid-2">
+      <div class="card"><h3>O-RAN BFP</h3><p>Shared block exponent + mantissa truncation. Complexity O(MN). Limited compression (~4×).</p></div>
+      <div class="card"><h3>Truncated SVD</h3><p>Best rank-r approximation (Eckart–Young). High CR, but O(MN·min(M,N)) runtime.</p></div>
+    </div>
+    <div class="footer"><span>Baselines</span><span>4 / 15</span></div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide">
+    <div class="eyebrow">Proposed 1</div>
+    <h2>CSEE · Theorem 1</h2>
+    <p>Exploit TDL-A delay sparsity: keep top-K IFFT taps, quantize, FFT back.</p>
+    <div class="card mono" style="margin-top:16px">NMSE ≤ σ²_tail / σ²_Y  +  (Δ²/12)·K/(MN σ²_Y)</div>
+    <p style="margin-top:16px">Complexity <strong>O(MN log N)</strong> — several× faster than SVD at matched operating points.</p>
+    <div class="footer"><span>Circulant Structure Exploiting Encoder</span><span>5 / 15</span></div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide">
+    <div class="eyebrow">Proposed 2</div>
+    <h2>RAS-BFP · Theorems 2–4</h2>
+    <ol>
+      <li>SRHT sketch Z = ΩY ∈ ℂ^{r×N}</li>
+      <li>Thin QR → orthonormal Q</li>
+      <li>L = YQ · encode (L, Q) with column BFP</li>
+    </ol>
+    <div class="card mono" style="margin-top:14px">‖Y − LQᴴ‖²_F ≤ (1+εᵣ)‖Y − Yᵣ‖²_F &nbsp;|&nbsp; r* = √(B / (b(M+N)))</div>
+    <div class="footer"><span>Rank-Adaptive Sketched BFP</span><span>6 / 15</span></div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide">
+    <div class="eyebrow">Proposed 3</div>
+    <h2>ACAFS · Theorem 5</h2>
+    <table>
+      <tr><th>Rank fraction</th><th>Selected split</th><th>Relative BW</th></tr>
+      <tr><td>r/M &lt; 0.15</td><td>Split 7.2x</td><td>0.25</td></tr>
+      <tr><td>0.15 ≤ r/M &lt; 0.55</td><td>Split 7.1</td><td>0.45</td></tr>
+      <tr><td>r/M ≥ 0.55</td><td>Split 6</td><td>1.00</td></tr>
+    </table>
+    <p style="margin-top:16px">Uniform-rank analytical saving vs Split 6 ≈ <strong>33%</strong>; SNR sweeps show <strong>~30%+</strong> mean.</p>
+    <div class="footer"><span>Adaptive Context-Aware Functional Split</span><span>7 / 15</span></div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide">
+    <div class="eyebrow">Experiments</div>
+    <h2>Simulation setup</h2>
+    <table>
+      <tr><th>Parameter</th><th>Value</th></tr>
+      <tr><td>Channel</td><td>3GPP TR 38.901 TDL-A, 100 ns RMS</td></tr>
+      <tr><td>Antennas / Subcarriers</td><td>M=64 · N=1200</td></tr>
+      <tr><td>SNR range</td><td>−5 dB … +30 dB</td></tr>
+      <tr><td>Spatial model</td><td>Exponential correlation ρ=0.7</td></tr>
+    </table>
+    <div class="footer"><span>Common parameters for Exp1–4</span><span>8 / 15</span></div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide">
+    <div class="eyebrow">Results · Fig 1</div>
+    <h2>NMSE vs Compression Ratio</h2>
+    <img class="fig" src="../results/figures/exp1_nmse_vs_cr.png" alt="Fig1"/>
+    <div class="footer"><span>CSEE / RAS-BFP Pareto vs BFP + theory bounds</span><span>9 / 15</span></div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide">
+    <div class="eyebrow">Results · Fig 2</div>
+    <h2>Runtime vs antennas M</h2>
+    <img class="fig" src="../results/figures/exp2_complexity.png" alt="Fig2"/>
+    <div class="footer"><span>SVD scales worst; CSEE & RAS-BFP stay practical</span><span>10 / 15</span></div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide">
+    <div class="eyebrow">Results · Fig 3</div>
+    <h2>ACAFS fronthaul load reduction</h2>
+    <img class="fig" src="../results/figures/exp3_acafs.png" alt="Fig3"/>
+    <div class="footer"><span>BW cut vs fixed Split 6 + split mix</span><span>11 / 15</span></div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide">
+    <div class="eyebrow">Results · Fig 4</div>
+    <h2>SNR robustness</h2>
+    <img class="fig" src="../results/figures/exp4_snr_sweep.png" alt="Fig4"/>
+    <div class="footer"><span>Stable NMSE across −5…30 dB</span><span>12 / 15</span></div>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide">
+    <div class="eyebrow">Summary</div>
+    <h2>Comparison matrix</h2>
+    <table>
+      <tr><th>Metric</th><th>BFP</th><th>SVD</th><th>CSEE</th><th>RAS-BFP</th></tr>
+      <tr><td>CR</td><td>~3.9×</td><td>~16×</td><td><strong>~12.7× / 63×</strong></td><td>~16×</td></tr>
+      <tr><td>NMSE @20 dB</td><td>~−46</td><td>~−21</td><td>~−21 / −19</td><td>~−18</td></tr>
+      <tr><td>Encode M=64</td><td>~3 ms</td><td>~20–30 ms</td><td><strong>~5 ms</strong></td><td><strong>~7 ms</strong></td></tr>
+      <tr><td>Theory</td><td>Emp.</td><td>Trunc.</td><td>Thm 1</td><td>Thm 2–4</td></tr>
+    </table>
+    <div class="footer"><span>Operating point K=300 / K=60 for CSEE</span><span>13 / 15</span></div>
+  </section>
+
+  <!-- 14 -->
+  <section class="slide">
+    <div class="eyebrow">Next 50%</div>
+    <h2>Roadmap</h2>
+    <div class="grid grid-2">
+      <div class="card"><strong>1–2 · Hardware</strong><p>C++ / AVX-512 / CUDA · target &lt;100 µs encode</p></div>
+      <div class="card"><strong>3 · O-RAN</strong><p>ACAFS as near-RT RIC E2 xApp</p></div>
+      <div class="card"><strong>4 · SDR</strong><p>USRP N310 / OpenAirInterface OTA</p></div>
+      <div class="card"><strong>5 · Paper</strong><p>IEEE TWC / JSAC camera-ready</p></div>
+    </div>
+    <div class="footer"><span>Remaining workplan</span><span>14 / 15</span></div>
+  </section>
+
+  <!-- 15 -->
+  <section class="slide">
+    <div class="eyebrow">Close</div>
+    <h1>50% milestone achieved</h1>
+    <ul>
+      <li>Theorems 1–5 formulated and coded</li>
+      <li>Full TDL-A simulator + four figure suites</li>
+      <li>Live Jupyter demonstration notebook</li>
+      <li>Clear path to RIC / SDR / paper submission</li>
+    </ul>
+    <p style="margin-top:28px;font-size:28px;color:var(--accent)">Thank you — questions?</p>
+    <div class="footer"><span>BTP Mid-Evaluation</span><span>15 / 15</span></div>
+  </section>
+
+</div>
+
+<div class="nav">
+  <button onclick="go(-1)">← Prev</button>
+  <button onclick="go(1)">Next →</button>
+</div>
+
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  let i = 0;
+  function show(n){
+    i = (n + slides.length) % slides.length;
+    slides.forEach((s,k)=>s.classList.toggle('active', k===i));
+  }
+  function go(d){ show(i+d); }
+  document.addEventListener('keydown', e=>{
+    if(e.key==='ArrowRight' || e.key===' ') go(1);
+    if(e.key==='ArrowLeft') go(-1);
+    if(e.key==='Home') show(0);
+    if(e.key==='End') show(slides.length-1);
+  });
+</script>
+</body>
+</html>
