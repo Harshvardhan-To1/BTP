@@ -1,6 +1,6 @@
 # BTP Mid-Term Evaluation Report
 
-**Project:** Fronthaul Load Management in 5G C-RAN / O-RAN — compression, split selection and capacity-constrained allocation
+**Project:** Fronthaul Load Management in 5G C-RAN / O-RAN — matrix decomposition for compression, matrix inversion cost, and capacity-constrained allocation
 **Stage:** mid-term evaluation · **Date:** September 2026
 **Scope of evidence:** Python/numpy simulation on 3GPP TR 38.901 TDL-A channels. No hardware, no real traces.
 
@@ -10,7 +10,7 @@ Status labels: **[repo]** existed in the repository before this iteration · **[
 
 ## 1. Summary
 
-Massive-MIMO uplink over an O-RAN split-7.2x fronthaul carries 2·M·N·16 bits per OFDM symbol per RU — 34.4 Gbps for M = 64 antennas and N = 1200 subcarriers — and several RUs share one link. The project builds and evaluates the chain that manages that load:
+Massive-MIMO uplink over an O-RAN split-7.2x fronthaul carries 2·M·N·16 bits per OFDM symbol per RU — 34.4 Gbps for M = 64 antennas and N = 1200 subcarriers — and several RUs share one link. A large part of the project is linear algebra: the received matrix has structure (23 propagation paths → rank ≤ 23, sparse in the delay domain), every compressor is a matrix decomposition that keeps the important part, and the cost of the matrix inversions in the receiver decides where processing can live. The project builds and evaluates the chain that manages that load:
 
 1. **Compression encoders** at the RU: O-RAN block floating point (BFP) and truncated SVD as baselines; **CSEE** (delay-domain top-K + BFP) and **RAS-BFP** (randomised sketch + QR + BFP) as proposed low-complexity encoders, each with an analytical rate-distortion predictor.
 2. **ACAFS**, a rank-adaptive stream / functional-split selector with a corrected fronthaul bandwidth model.

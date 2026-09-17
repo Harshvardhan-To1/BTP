@@ -1,12 +1,25 @@
 # Fronthaul Load Management in 5G C-RAN / O-RAN — B.Tech. Project
 
 A pure-Python (numpy/scipy) simulator for the uplink fronthaul between radio
-units (RUs) and a distributed unit (DU): **I/Q compression encoders**, a
-**rank-adaptive functional-split controller**, and a **capacity-constrained
-multi-cell bit allocator**, evaluated on 3GPP TR 38.901 TDL-A channels. A side
-benchmark (`matinv_bench/`) measures matrix-inversion cost (classical vs.
-learned) to quantify the DU/RU compute that a functional-split decision moves
-around.
+units (RUs) and a distributed unit (DU). The project has three parts, and two
+of them are linear algebra:
+
+* **A. Compression by matrix decomposition.** The 64 × 1200 received matrix
+  has structure (about 23 propagation paths → low rank, sparse in the delay
+  domain). Each encoder decomposes it, keeps the important part and quantises
+  it with O-RAN block floating point: truncated SVD, a randomised SVD
+  (RAS-BFP), and a delay-domain / IFFT truncation (CSEE). A rank-adaptive
+  controller (ACAFS) decides how many spatial streams to send.
+* **B. Cost of matrix inversion** (`matinv_bench/`). The receiver inverts a
+  matrix per resource-block group every slot; where that can run decides
+  which functional split is possible. Classical methods (LU, QR, SVD,
+  Gauss–Jordan, Newton–Schulz) are timed against three neural "InverseNet"
+  models that try to learn the inverse.
+* **C. Sharing one link.** A capacity-constrained allocator gives each RU a
+  compression setting so that the total rate fits the link, using a formula
+  for the error instead of trial encoding.
+
+Everything is evaluated on 3GPP TR 38.901 TDL-A channels in simulation.
 
 Status labels used throughout the docs and slides:
 **[repo]** present in the original repository · **[new]** implemented and
@@ -41,6 +54,11 @@ Key findings (all from simulation, details in `docs/mid_evaluation_report.md`):
   every candidate; it beats uniform static allocation by up to 11 dB at equal
   capacity, and a noise-aware objective improves signal distortion by a
   further 3–6 dB while releasing unused capacity.
+* Matrix inversion: LAPACK LU is fastest at every size (0.14 ms for 100×100,
+  5.9 ms for 500×500 on one CPU core). The learned inverters (unrolled
+  Newton–Schulz, 17 parameters; InverseNet-Ultra) generalise across sizes and
+  reach 4e-4 / 1e-6 relative error at n=100, but never beat LU — a clear
+  negative result for "learning the inverse" on well-conditioned matrices.
 
 ## Repository layout
 
@@ -116,7 +134,7 @@ for the current numbers (dim-500 rows use 20 held-out matrices).
 * `docs/research_review.md` — verified literature review with source links
 * `docs/change_summary.md` — every modification, why, files, validation
 * `docs/mid_evaluation_report.md` — the mid-evaluation report (rewritten)
-* `docs/mid_evaluation.pptx` / `.pdf` — the presentation (15 main + 5 backup slides, speaker notes on every slide), regenerated from `results/` by `python docs/build_slides.py`; `docs/presentation_prep.md` — 60–90 s intro, slide guide, 15 Q&A, demo script with expected outputs
+* `docs/mid_evaluation.pptx` / `.pdf` — the presentation (15 main + 2 reference + 5 backup slides, speaker notes on every slide), regenerated from `results/` by `python docs/build_slides.py`; `docs/presentation_prep.md` — 60–90 s intro, slide guide, 17 Q&A, demo script with expected outputs
 * `docs/mid_evaluation_slides.md|.html` — the **superseded** decks found in the repo (kept for the record; their claims are not endorsed)
 
 ## Troubleshooting (issues actually hit)
