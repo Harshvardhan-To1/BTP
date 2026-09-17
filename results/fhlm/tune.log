@@ -1,0 +1,36 @@
+[runner] 144 runs in 88s
+{
+ "point_forecast": {
+  "margin": 0.0
+ },
+ "proposed_cal": {
+  "gamma": 0.005
+ },
+ "queue_aware": {
+  "margin": 0.0,
+  "num_horizons": 1
+ },
+ "reactive_prop": {
+  "margin": 0.0,
+  "ewma_window": 20
+ }
+}
+            method                               params  weighted_violation_ratio
+0   point_forecast                      {"margin": 0.0}                  0.064384
+1   point_forecast                     {"margin": 0.25}                  0.074898
+2   point_forecast                      {"margin": 0.5}                  0.090617
+3     proposed_cal                     {"gamma": 0.005}                  0.051407
+4     proposed_cal                      {"gamma": 0.01}                  0.052802
+5     proposed_cal                      {"gamma": 0.02}                  0.055500
+6      queue_aware   {"margin": 0.0, "num_horizons": 1}                  0.076142
+7      queue_aware  {"margin": 0.25, "num_horizons": 1}                  0.088873
+8      queue_aware   {"margin": 0.0, "num_horizons": 3}                  0.095849
+9      queue_aware   {"margin": 0.0, "num_horizons": 6}                  0.105011
+10     queue_aware  {"margin": 0.25, "num_horizons": 3}                  0.116973
+11     queue_aware  {"margin": 0.25, "num_horizons": 6}                  0.125925
+12   reactive_prop   {"margin": 0.0, "ewma_window": 20}                  0.064765
+13   reactive_prop  {"margin": 0.25, "ewma_window": 20}                  0.067798
+14   reactive_prop   {"margin": 0.0, "ewma_window": 60}                  0.069092
+15   reactive_prop   {"margin": 0.5, "ewma_window": 20}                  0.070695
+16   reactive_prop  {"margin": 0.25, "ewma_window": 60}                  0.073101
+17   reactive_prop   {"margin": 0.5, "ewma_window": 60}                  0.076606

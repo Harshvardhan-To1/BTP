@@ -50,7 +50,7 @@ METHOD_LABELS = {
     "proposed_window": "Proposed rule with window quantiles (no ML)",
     "proposed": "Proposed: GBM quantiles + KKT allocation",
     "proposed_cal": "Proposed + online (ACI) calibration",
-    "oracle": "Oracle (true r*, not implementable)",
+    "oracle": "Oracle water-fill (true r*, not implementable; reference, not a bound)",
 }
 
 _FORECASTER_CACHE: Dict[str, QuantileGBMForecaster] = {}

@@ -244,6 +244,14 @@ def test_compiled_gbm_matches_sklearn_and_pipeline_trains():
     assert (np.diff(fast, axis=1) >= 0).all()
     big = model.predict_normalised(X[:400])            # > FAST_MAX_ROWS falls back to sklearn
     assert big.shape == (400, 3) and np.isfinite(big).all()
+    # models with different numbers of trees (early stopping) must compile correctly
+    from fhlm.forecast import CompiledGBM
+    from sklearn.ensemble import HistGradientBoostingRegressor
+    m1 = HistGradientBoostingRegressor(max_iter=7, random_state=0).fit(X, y)
+    m2 = HistGradientBoostingRegressor(max_iter=19, random_state=0).fit(X, y)
+    comp = CompiledGBM([m1, m2]).predict(X[:32])
+    ref = np.column_stack([m1.predict(X[:32]), m2.predict(X[:32])])
+    assert np.allclose(comp, ref, atol=1e-9)
 
 
 def test_oracle_and_controllers_never_see_future():

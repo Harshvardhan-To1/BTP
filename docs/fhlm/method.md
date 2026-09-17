@@ -169,8 +169,12 @@ weight is funded.
 
 **Complexity.** O(N K) to build the inverse CDFs and O(N n_iter) for the
 bisection (K = 6, n_iter = 60): a few tens of microseconds for N = 8. The
-measured decision time (Sec. 7) is dominated by the six scikit-learn
-`predict` calls of the forecaster (~2 ms each in Python), not by the rule.
+measured decision time (~3.4 ms per control epoch of 10 ms, pure Python on a
+4-core CPU, `results/fhlm/main_summary.csv`) is dominated by feature
+construction and by evaluating 6 x 300 trees; the trees are traversed with a
+vectorised numpy routine (`forecast.CompiledGBM`, ~1.8 ms for 8 cells) because
+scikit-learn's `predict` loops over trees in Python (~12 ms). The rule itself
+is negligible; the deadline-aware reactive baseline needs ~0.08 ms.
 
 **Calibrated variant (`proposed_cal`).** After each horizon is fully observed,
 per-cell offsets are updated as delta_i <- clip(delta_i + gamma (1[y_i > q_i(0.9)] - 0.1),

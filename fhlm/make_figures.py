@@ -11,6 +11,7 @@ import json
 import os
 
 import matplotlib
+import matplotlib.ticker
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,7 +30,7 @@ COLORS = {
 SHORT = {
     "static_equal": "Static equal", "reactive_prop": "Reactive prop.", "queue_aware": "Deadline-aware reactive",
     "point_forecast": "Point forecast", "proposed_window": "Proposed (window q.)", "proposed": "Proposed (GBM q.)",
-    "proposed_cal": "Proposed + ACI cal.", "oracle": "Oracle",
+    "proposed_cal": "Proposed + ACI cal.", "oracle": "Oracle water-fill",
 }
 
 plt.rcParams.update({"font.size": 10, "axes.titlesize": 11, "axes.labelsize": 10, "legend.fontsize": 8.5,
@@ -127,6 +128,7 @@ def fig_sweep(sweep: pd.DataFrame):
         ax.set_xscale("log")
         ax.set_xticks([2, 5, 10, 20])
         ax.set_xticklabels(["2", "5", "10", "20"])
+        ax.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
         ax.grid(alpha=0.3, which="both")
     axes[0].legend(fontsize=8)
     fig.suptitle("Effect of the control interval (scenario 'high'): when does prediction matter?", y=1.02)
@@ -193,32 +195,36 @@ def fig_demo(npz_path: str, cell: int = 0, start: int = 6000, length: int = 600)
     _save(fig, "fig6_demo_timeseries")
 
 
-def fig_paired(paired: pd.DataFrame):
-    """Relative reduction of the primary metric by the proposed method vs each baseline, per scenario,
-    on identical traces; whiskers = min/max over seeds, annotation = wins / n."""
-    if paired is None or paired.empty:
-        return
+def fig_paired(df: pd.DataFrame, reference: str = "proposed"):
+    """Per-seed relative reduction of the primary metric by the proposed method vs each baseline on the
+    identical trace: bars = mean over seeds, whiskers = min/max over seeds, text = wins / n."""
     baselines = [m for m in ["reactive_prop", "queue_aware", "point_forecast", "proposed_window", "proposed_cal"]
-                 if m in paired.baseline.unique()]
-    scen = [s for s in SCENARIO_ORDER if s in paired.scenario.unique()]
+                 if m in df.method.unique()]
+    scen = [s for s in SCENARIO_ORDER if s in df.scenario.unique()]
     fig, ax = plt.subplots(figsize=(10, 4.2))
     width = 0.8 / len(baselines)
     x = np.arange(len(scen))
     for k, m in enumerate(baselines):
-        g = paired[paired.baseline == m].set_index("scenario").reindex(scen)
-        rel = g["rel_reduction_pct"].values
-        lo = 100 * g["min_diff"].values / g["baseline_mean"].values
-        hi = 100 * g["max_diff"].values / g["baseline_mean"].values
+        rel_mean, rel_lo, rel_hi, wins, ns = [], [], [], [], []
+        for s in scen:
+            d = df[df.scenario == s]
+            ref = d[d.method == reference].set_index("seed")[PRIMARY_METRIC]
+            base = d[d.method == m].set_index("seed")[PRIMARY_METRIC].reindex(ref.index)
+            rel = 100 * (base - ref) / base.where(base > 0)
+            rel = rel.dropna()
+            rel_mean.append(rel.mean()); rel_lo.append(rel.min()); rel_hi.append(rel.max())
+            wins.append(int((base - ref > 0).sum())); ns.append(int(len(ref)))
+        rel_mean, rel_lo, rel_hi = map(np.array, (rel_mean, rel_lo, rel_hi))
         pos = x + (k - len(baselines) / 2 + 0.5) * width
-        ax.bar(pos, rel, width, color=COLORS[m], edgecolor="black", linewidth=0.3, label=f"vs {SHORT[m]}",
-               yerr=[rel - lo, hi - rel], capsize=2)
-        for p, r, w, n in zip(pos, rel, g["reference_wins"].values, g["n_seeds"].values):
-            ax.text(p, max(hi[list(pos).index(p)], 0) + 1.5, f"{int(w)}/{int(n)}", ha="center", fontsize=7)
+        ax.bar(pos, rel_mean, width, color=COLORS[m], edgecolor="black", linewidth=0.3, label=f"vs {SHORT[m]}",
+               yerr=[rel_mean - rel_lo, rel_hi - rel_mean], capsize=2)
+        for p, h, w, n in zip(pos, rel_hi, wins, ns):
+            ax.text(p, max(h, 0) + 1.5, f"{w}/{n}", ha="center", fontsize=7)
     ax.axhline(0, color="k", lw=0.8)
     ax.set_xticks(x)
     ax.set_xticklabels([SCENARIO_LABELS[s] for s in scen])
-    ax.set_ylabel("reduction of weighted violation ratio by proposed method [%]")
-    ax.set_title("Paired comparison on identical traces (bars: mean, whiskers: min/max over seeds, text: wins)")
+    ax.set_ylabel("reduction of weighted violation ratio\nby proposed method [%]")
+    ax.set_title("Paired per-seed comparison on identical traces (bar: mean, whiskers: min/max, text: wins/seeds)")
     ax.grid(axis="y", alpha=0.3)
     ax.legend(ncol=3, loc="upper right", fontsize=8)
     _save(fig, "fig8_paired_reduction")
@@ -250,9 +256,7 @@ def main():
                 fig_class_breakdown(df, s)
         fig_tradeoff(df)
         fig_decision_time(df)
-    paired_path = os.path.join(RESULTS_DIR, "main_paired.csv")
-    if os.path.exists(paired_path):
-        fig_paired(pd.read_csv(paired_path))
+        fig_paired(df)
     sweep_path = os.path.join(RESULTS_DIR, "sweep_runs.csv")
     if os.path.exists(sweep_path):
         fig_sweep(pd.read_csv(sweep_path))

@@ -151,13 +151,18 @@ class CompiledGBM:
         if not isinstance(models, (list, tuple)):
             models = [models]
         self.n_models = len(models)
-        preds = []
+        preds, owner = [], []
         self.baseline = np.zeros(self.n_models)
         for j, model in enumerate(models):
-            ps = [p[0] for p in model._predictors]
+            ps = [p[0] for p in model._predictors]   # models may have different tree counts (early stopping)
             preds.extend(ps)
+            owner.extend([j] * len(ps))
             self.baseline[j] = float(np.ravel(model._baseline_prediction)[0])
-        self.trees_per_model = len(preds) // self.n_models
+        self.tree_owner = np.asarray(owner, dtype=np.int64)
+        counts = np.bincount(self.tree_owner, minlength=self.n_models)
+        if (counts == 0).any():
+            raise ValueError("every model must have at least one tree")
+        self._model_starts = np.concatenate([[0], np.cumsum(counts)[:-1]]).astype(np.int64)
         self.n_trees = len(preds)
         max_nodes = max(len(p.nodes) for p in preds)
         self.max_depth = int(max(p.nodes["depth"].max() for p in preds)) + 1
@@ -209,7 +214,7 @@ class CompiledGBM:
             nxt = np.where(go_left, np.take(self._left_f, idx), np.take(self._right_f, idx)) + self._offset
             idx = np.where(leaf, idx, nxt)
         leaf_values = np.take(self._value_f, idx)                                  # [n_trees, n]
-        per_model = leaf_values.reshape(self.n_models, self.trees_per_model, n).sum(1)  # [n_models, n]
+        per_model = np.add.reduceat(leaf_values, self._model_starts, axis=0)      # [n_models, n]
         return (per_model + self.baseline[:, None]).T
 
 

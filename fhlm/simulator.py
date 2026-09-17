@@ -19,7 +19,7 @@ Model (downlink, O-DU -> O-RU U-plane):
 
 Information model: controllers observe the state that is tau slots old
 (telemetry delay) and never see future arrivals, except the explicit
-oracle controller used as an upper bound.
+oracle-informed reference controller (perfect point forecast, same water-fill rule).
 """
 from __future__ import annotations
 

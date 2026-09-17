@@ -193,10 +193,12 @@ class PointForecastWaterfill(Controller):
 
 
 class OracleWaterfill(Controller):
-    """Upper-bound reference: knows the actual arrivals over the horizon.
+    """Oracle-informed reference: knows the actual arrivals over the horizon.
 
-    Not implementable in practice; it bounds what an interval-level
-    point-forecast controller could achieve with the same allocation rule.
+    Not implementable in practice. It removes the forecast error from the
+    water-fill family, so it is a reference for what a perfect POINT forecast
+    buys under that rule; it is NOT a bound on other allocation rules (the
+    interval sweep shows the KKT rule beating it at short intervals).
     """
 
     name = "oracle"

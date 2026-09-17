@@ -38,11 +38,12 @@ resolved during the review.
    aggregation of eCPRI flows, dimensioning via high delay percentiles
    (G/G/1, N*D/D/1). Establishes the aggregation-switch/shared-link model and the
    statistical-multiplexing rationale used here.
-6. **"On the Fronthaul Statistical Multiplexing Gain"**, *IEEE Communications
-   Letters*, 2017 (arXiv:1701.08266, DOI 10.48550/arXiv.1701.08266). **[peer-reviewed;
-   author list to be confirmed from the publisher page]**
+6. **L. Wang, S. Zhou**, "On the Fronthaul Statistical Multiplexing Gain", *IEEE
+   Communications Letters*, 21(5), 2017. DOI 10.1109/LCOMM.2017.2653120
+   (arXiv:1701.08266). **[peer-reviewed]**
    Analytical blocking probability when several RRUs share one fronthaul link;
-   the gain grows with the cluster size. Motivates oversubscription (our default
+   the gain grows with the cluster size (e.g. 27.5% for 5 RRUs at 5% blocking,
+   40.6% in the large-cluster limit). Motivates oversubscription (our default
    aggregate cell peak = 2.4x link capacity).
 7. **S. Lagén, X. Gelabert, A. Hansson, M. Requena, L. Giupponi**, "Fronthaul
    Compression Control for Shared Fronthaul Access Networks", *IEEE Communications
