@@ -230,6 +230,31 @@ def fig_paired(df: pd.DataFrame, reference: str = "proposed"):
     _save(fig, "fig8_paired_reduction")
 
 
+def fig_compression(comp: pd.DataFrame):
+    """Part A lever (BFP width -> offered load) x Part B lever (allocation rule)."""
+    if comp is None or comp.empty:
+        return
+    methods = [m for m in METHOD_ORDER if m in comp.method.unique()]
+    widths = sorted(comp.mantissa_bits.unique())
+    load = comp.groupby("mantissa_bits")["realised_load"].mean().reindex(widths)
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3.9))
+    for ax, metric, title in zip(axes, [PRIMARY_METRIC, "violation_ratio_ll"],
+                                 ["Weighted violation ratio [%]", "Low-latency violation ratio [%]"]):
+        for m in methods:
+            g = comp[comp.method == m].groupby("mantissa_bits")[metric]
+            ax.errorbar(widths, g.mean().reindex(widths).values * 100, yerr=g.std().reindex(widths).fillna(0).values * 100,
+                        marker="o", color=COLORS[m], label=SHORT[m], capsize=2)
+        ax.set_xticks(widths)
+        ax.set_xticklabels([f"BFP-{b}\nload {load[b]:.2f}" for b in widths])
+        ax.set_xlabel("BFP mantissa bits (Part A)  →  mean offered load")
+        ax.set_ylabel(title)
+        ax.set_yscale("log")
+        ax.grid(alpha=0.3, which="both")
+    axes[0].legend(fontsize=8, loc="lower right")
+    fig.suptitle("Same user traffic, different compression: compression sets the load, allocation decides the loss", y=1.02)
+    _save(fig, "fig9_compression_vs_allocation")
+
+
 def fig_decision_time(df: pd.DataFrame):
     methods = [m for m in METHOD_ORDER if m in df.method.unique()]
     g = df.groupby("method")["decision_time_ms_mean"].mean().reindex(methods)
@@ -260,6 +285,9 @@ def main():
     sweep_path = os.path.join(RESULTS_DIR, "sweep_runs.csv")
     if os.path.exists(sweep_path):
         fig_sweep(pd.read_csv(sweep_path))
+    comp_path = os.path.join(RESULTS_DIR, "compression_runs.csv")
+    if os.path.exists(comp_path):
+        fig_compression(pd.read_csv(comp_path))
     fig_forecast_quality(os.path.join(RESULTS_DIR, "forecast_training_T20_d2.json"))
     fig_demo(os.path.join(RESULTS_DIR, "demo_timeseries.npz"))
 

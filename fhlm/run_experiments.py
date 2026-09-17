@@ -3,6 +3,7 @@
     python -m fhlm.run_experiments tune      # pick safety margins on VALIDATION seeds
     python -m fhlm.run_experiments main      # all methods x test scenarios x test seeds
     python -m fhlm.run_experiments sweep     # control-interval sweep (trains per-T forecasters)
+    python -m fhlm.run_experiments compression  # BFP width (Part A lever) x allocation rule (Part B lever)
     python -m fhlm.run_experiments demo      # one run with time series for the demo figure
 
 Every method in a comparison sees exactly the same traffic trace (same seed),
@@ -98,22 +99,44 @@ def build_controller(name: str, params: Dict[str, Any], interval: int, delay: in
     raise ValueError(name)
 
 
-def run_one(job: Tuple[str, int, str, Dict[str, Any], int, int, int, int, str]) -> Dict[str, Any]:
-    scenario, seed, method, params, interval, delay, slots, warmup, tag = job
+def with_compression(cfg, trace, mantissa_bits: int):
+    """Same user traffic, different BFP mantissa width (Part A lever).
+
+    The trace is generated with the reference network (BFP-9); here the
+    fronthaul bits per PRB-layer are rescaled to the new width, which changes
+    the offered fronthaul load and the per-cell caps but not the user bits.
+    """
+    from dataclasses import replace
+    from .traffic import TrafficTrace
+    ref_beta = cfg.network.fh_bits_per_prb_layer
+    net = replace(cfg.network, mantissa_bits=mantissa_bits)
+    ratio = net.fh_bits_per_prb_layer / ref_beta
+    new_trace = TrafficTrace(arrivals_bits=trace.arrivals_bits, se=trace.se,
+                             fh_demand_bits=trace.fh_demand_bits * ratio, regime_mult=trace.regime_mult,
+                             mean_fh_load=trace.mean_fh_load * ratio)
+    return replace(cfg, network=net), new_trace
+
+
+def run_one(job) -> Dict[str, Any]:
+    scenario, seed, method, params, interval, delay, slots, warmup, tag = job[:9]
+    mantissa = job[9] if len(job) > 9 else None
     cfg = make_config(scenario, seed, slots, warmup, interval, delay)
     trace = generate_traffic(cfg.network, cfg.traffic, cfg.num_slots, cfg.seed)
+    if mantissa is not None:
+        cfg, trace = with_compression(cfg, trace, mantissa)
     ctrl = build_controller(method, params, interval, delay)
     t0 = time.perf_counter()
     res = run_simulation(cfg, ctrl, trace=trace)
     row = {"scenario": scenario, "seed": seed, "method": method, "params": json.dumps(params or {}),
            "interval_slots": interval, "telemetry_delay_slots": delay, "wall_s": time.perf_counter() - t0,
-           "realised_load": trace.mean_fh_load}
+           "realised_load": trace.mean_fh_load, "mantissa_bits": cfg.network.mantissa_bits}
     row.update(res.metrics)
     if hasattr(ctrl, "stats"):
         row["controller_stats"] = json.dumps(ctrl.stats)
     if tag:
         os.makedirs(RAW_DIR, exist_ok=True)
-        fn = os.path.join(RAW_DIR, f"{tag}_{scenario}_s{seed}_T{interval}_{method}.json")
+        suffix = f"_b{mantissa}" if mantissa is not None else ""
+        fn = os.path.join(RAW_DIR, f"{tag}_{scenario}_s{seed}_T{interval}_{method}{suffix}.json")
         with open(fn, "w") as f:
             json.dump({"row": row, "per_cell": res.per_cell, "config": res.config,
                        "decision_times_ms": res.decision_times_ms[:200]}, f, indent=1, default=float)
@@ -239,6 +262,27 @@ def cmd_sweep(args):
     print(agg.to_string())
 
 
+def cmd_compression(args):
+    """Bridge between the two project parts: compression width (Part A) x allocation rule (Part B).
+
+    Same user traffic and seeds; only the BFP mantissa width changes, which
+    rescales the fronthaul bits per PRB-layer (and therefore the offered load).
+    """
+    tuned = load_tuning()
+    widths = args.mantissa or [6, 9, 12, 14]
+    methods = args.methods or ["reactive_prop", "queue_aware", "point_forecast", "proposed"]
+    seeds = TEST_SEEDS[:args.num_seeds]
+    jobs = [(args.scenario, seed, m, tuned.get(m, {}), args.interval, args.delay, args.slots, args.warmup,
+             "compression", b) for b in widths for seed in seeds for m in methods]
+    df = run_jobs(jobs, args.workers)
+    df.to_csv(os.path.join(RESULTS_DIR, "compression_runs.csv"), index=False)
+    agg = df.groupby(["mantissa_bits", "method"])[[PRIMARY_METRIC, "violation_ratio_ll", "violation_ratio_embb",
+                                                   "fh_utilisation", "realised_load"]].agg(["mean", "std"])
+    agg.columns = [f"{a}_{b}" for a, b in agg.columns]
+    agg.reset_index().to_csv(os.path.join(RESULTS_DIR, "compression_summary.csv"), index=False)
+    print(agg.to_string())
+
+
 def cmd_demo(args):
     tuned = load_tuning()
     cfg = make_config(args.scenario, TEST_SEEDS[0], args.slots, args.warmup, args.interval, args.delay)
@@ -264,7 +308,7 @@ def cmd_demo(args):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=["tune", "main", "sweep", "demo"])
+    ap.add_argument("command", choices=["tune", "main", "sweep", "compression", "demo"])
     ap.add_argument("--interval", type=int, default=20)
     ap.add_argument("--delay", type=int, default=2)
     ap.add_argument("--slots", type=int, default=DEFAULT_SLOTS)
@@ -275,9 +319,11 @@ def main(argv=None):
     ap.add_argument("--scenario", default="high")
     ap.add_argument("--intervals", nargs="*", type=int)
     ap.add_argument("--num-seeds", type=int, default=3)
+    ap.add_argument("--mantissa", nargs="*", type=int, help="BFP mantissa widths for the compression sweep")
     args = ap.parse_args(argv)
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    {"tune": cmd_tune, "main": cmd_main, "sweep": cmd_sweep, "demo": cmd_demo}[args.command](args)
+    {"tune": cmd_tune, "main": cmd_main, "sweep": cmd_sweep, "compression": cmd_compression,
+     "demo": cmd_demo}[args.command](args)
 
 
 if __name__ == "__main__":

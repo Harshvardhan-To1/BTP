@@ -270,3 +270,23 @@ def test_oracle_and_controllers_never_see_future():
     for slot, obs_slot, hist_len in seen:
         assert obs_slot == max(0, slot - cfg.control.telemetry_delay_slots)
         assert hist_len == obs_slot
+
+
+def test_compression_bridge_rescales_fronthaul_bits_only():
+    """Part A lever: changing the BFP width changes fronthaul bits, not user bits."""
+    from fhlm.run_experiments import with_compression
+    from fhlm.traffic import generate_traffic
+    cfg = small_cfg(slots=500)
+    trace = generate_traffic(cfg.network, cfg.traffic, cfg.num_slots, cfg.seed)
+    cfg6, tr6 = with_compression(cfg, trace, 6)
+    assert cfg6.network.mantissa_bits == 6
+    ratio = cfg6.network.fh_bits_per_prb_layer / cfg.network.fh_bits_per_prb_layer
+    assert ratio < 1.0
+    assert np.array_equal(tr6.arrivals_bits, trace.arrivals_bits)
+    assert np.allclose(tr6.fh_demand_bits, trace.fh_demand_bits * ratio)
+    assert np.isclose(tr6.mean_fh_load, trace.mean_fh_load * ratio)
+    # fewer fronthaul bits per PRB -> lower load -> no more violations than before
+    from fhlm.controllers import ReactiveProportional
+    a = run_simulation(cfg, ReactiveProportional(), trace=trace)
+    b = run_simulation(cfg6, ReactiveProportional(), trace=tr6)
+    assert b.metrics["weighted_violation_ratio"] <= a.metrics["weighted_violation_ratio"] + 1e-12
