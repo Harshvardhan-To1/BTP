@@ -1,98 +1,112 @@
-# Matrix Inversion Benchmark
+# Fronthaul Load Management (BTP) — shared O-RAN 7-2x fronthaul, uncertainty-aware budget coordination
 
-Dataset generation and inference-time benchmarking of matrix inversion
-techniques — classical linear algebra (LU, QR, SVD, Gauss-Jordan,
-Newton-Schulz) versus neural **InverseNet** models — on matrices of
-dimension **10, 100 and 500**.
+This repository contains a research prototype for **fronthaul load management**:
+N O-RAN split 7-2x cells share one packet-switched fronthaul aggregation link
+that is deliberately oversubscribed (statistical multiplexing). A coordinator
+decides, once per control interval, how much of the link each cell may use.
+The prototype implements a slot-level simulator, four baselines, an oracle, a
+gradient-boosted **quantile** forecaster of each cell's *deadline-feasible*
+fronthaul rate, and the proposed **uncertainty-aware KKT allocation rule**, plus
+the experiment pipeline, tests and the mid-evaluation presentation.
 
-## What's here
+Everything in `fhlm/`, `tests/`, `docs/fhlm/`, `results/fhlm/` and
+`presentation/` was built for this. The pre-existing `matinv_bench/` (matrix
+inversion timing benchmark) and the older `docs/`, `experiments/` and
+`results/figures` files are kept untouched as historical material; note that
+`experiments/exp*.py` import a `src/` package that is not present in the
+repository, so those scripts are not runnable as committed.
+
+## Repository layout (new work)
 
 | Path | Purpose |
 |---|---|
-| `matinv_bench/generate_dataset.py` | Generates 1000 (matrix, inverse) pairs per dimension |
-| `matinv_bench/inversenet.py` | InverseNet architectures (MLP and learned Newton-Schulz) |
-| `matinv_bench/train_inversenet.py` | Trains the InverseNet models |
-| `matinv_bench/methods.py` | Classical inversion techniques |
-| `matinv_bench/benchmark.py` | Times every method, writes CSV / markdown / plot |
-| `results/` | Benchmark outputs (`benchmark_results.csv`, `benchmark_summary.md`, `inference_time.png`) |
-| `models/` | Trained InverseNet checkpoints (the 86 MB dim-100 MLP is gitignored; retrain to reproduce) |
+| `fhlm/config.py` | Network / traffic / control configuration and derived fronthaul constants (bits per PRB-layer, link capacity per slot) |
+| `fhlm/traffic.py` | Synthetic traffic generator (Gamma background + heavy-tailed ON/OFF bursts + regimes + SE drift) |
+| `fhlm/demand.py` | Deadline-feasible rate r*(a, D) and backlog-rate conversion |
+| `fhlm/simulator.py` | Slot-level simulator: age-tracked DU queues, budgets, capacity constraint, violation accounting, metrics |
+| `fhlm/controllers.py` | Baselines: static equal share, reactive proportional, deadline-aware reactive, point-forecast water-fill, oracle |
+| `fhlm/forecast.py` | Feature construction, dataset builder, GBM quantile forecaster, window-quantile reference, forecast metrics |
+| `fhlm/proposed.py` | Proposed controller: quantile forecasts -> constrained-newsvendor / KKT allocation (+ optional online calibration) |
+| `fhlm/scenarios.py` | Scenario definitions and disjoint train / validation / test seed ranges |
+| `fhlm/train.py` | Trains the forecaster on training seeds, reports validation quality |
+| `fhlm/run_experiments.py` | `tune`, `main`, `sweep`, `demo` commands; writes raw JSON + CSV summaries |
+| `fhlm/make_figures.py` | Generates the figures used in the slides from saved results |
+| `tests/test_fhlm.py` | Capacity compliance, non-negative queues, accounting, zero load, overload, reproducibility, r* tightness, KKT properties, no-future-leakage |
+| `docs/fhlm/` | `method.md` (system model, formulation, propositions), `literature_review.md`, `results_summary.md`, `presentation_notes.md` (opening, demo script, Q&A) |
+| `results/fhlm/` | Raw per-run metrics (`raw/*.json`), summaries (`*.csv`, `tuning.json`), forecast reports, `figures/` |
+| `presentation/` | `mid_evaluation.pptx` (editable, with speaker notes) and the script that builds it |
+| `models/fhlm_quantile_gbm_T*_d2.pkl` | Trained quantile forecasters (one per control interval used) |
 
-## Dataset
-
-For each dimension `n ∈ {10, 100, 500}` we draw 1000 samples
-
-```
-A = G / sqrt(n) + 2·I,    G_ij ~ N(0, 1)
-```
-
-By the circular law the eigenvalues of `G/sqrt(n)` lie in the unit disk, so
-`A`'s spectrum lives in a disk centered at 2 — every sample is safely
-invertible and well conditioned. Inverses are computed in float64 and both
-arrays are stored as float32 in `data/matrices_dim{n}.npz` (~2 GB for
-dim 500, hence `data/` is gitignored — regenerate with one command below).
-The first 80% of each file is the training split for the neural models; all
-benchmarking happens on the held-out last 20%.
-
-## Methods benchmarked
-
-**Classical** (numpy / scipy, float32):
-
-- **LU decomposition** — `scipy.linalg.lu_factor` + `lu_solve` against the identity
-- **LAPACK getri** — `numpy.linalg.inv` (also LU-based; the tuned reference)
-- **Gauss-Jordan elimination** — vectorized numpy with partial pivoting
-- **QR decomposition** — `A⁻¹ = R⁻¹Qᵀ`
-- **SVD** — `A⁻¹ = V S⁻¹ Uᵀ`
-- **Newton-Schulz iteration** — classic `X ← X(2I − AX)` to a 1e-6 residual
-
-**Neural (InverseNet)** (PyTorch, float32, CPU):
-
-- **InverseNet-MLP** — flatten the matrix, regress the flattened inverse with a
-  3-layer MLP. Only practical for dims 10 and 100: at dim 500 the input/output
-  layers alone would need >2 billion parameters.
-- **InverseNet-NS** — a *learned* Newton-Schulz network: the iteration
-  `X ← X(βₖI − γₖAX)` is unrolled for 8 steps with the per-step scalars and the
-  initial-guess scale learned. Parameter count is dimension-independent, so it
-  scales to dim 500.
-
-Timing is per matrix (batch size 1) with 5 warmup calls, on CPU. Accuracy is
-reported as the identity residual `‖XA − I‖_F / √n` and the relative error
-against the stored true inverse.
-
-## Reproduce
+## Installation
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt   # or install torch from the CPU index
-.venv/bin/python -m matinv_bench.generate_dataset --dims 10 100 500 --num-samples 1000
-.venv/bin/python -m matinv_bench.train_inversenet --dims 10 100 500
-.venv/bin/python -m matinv_bench.benchmark --dims 10 100 500
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt        # numpy, scipy, pandas, matplotlib, scikit-learn, pytest, python-pptx
 ```
 
-Results land in `results/`. See `results/benchmark_summary.md` for the tables
-and `results/inference_time.png` for the time-vs-dimension plot.
+CPU only; the whole pipeline (training + all experiments) runs in well under an
+hour on a 4-core laptop.
 
-## Headline findings (this machine: 4-core CPU, float32)
+## Exact commands
 
-Exact tables: `results/benchmark_summary.md`. Medians are the robust statistic
-here — occasional CPU contention skews a few means (e.g. LU at dim 500:
-median 4.2 ms vs mean 25 ms).
+```bash
+# 1. tests (~15 s)
+python -m pytest tests/test_fhlm.py -q
 
-- **LAPACK-backed LU** (`numpy.linalg.inv` / scipy `lu_factor`+`lu_solve`) is
-  the fastest accurate method at every dimension: ~5 µs (dim 10), ~0.1 ms
-  (dim 100), ~4-6 ms (dim 500), with residuals at float32 machine-precision
-  level (~1e-7).
-- **QR** is ~2-3× slower than LU and **SVD** ~7-10× slower at dims 100-500,
-  with no accuracy benefit on these well-conditioned inputs.
-- **Pure-numpy Gauss-Jordan** is fine at dim 10 (0.045 ms) but its Python-level
-  pivot loop makes it the slowest classical method at dim 500 (~188 ms).
-- **Classical Newton-Schulz** (iterate to 1e-6) is surprisingly competitive on
-  well-conditioned matrices: ~18 ms at dim 500.
-- **InverseNet-MLP** trains to low loss but generalizes poorly: held-out
-  relative error is ~0.36 (dim 10) and ~0.53 (dim 100) — unusable as an
-  inverse — and the architecture cannot scale to dim 500 (>2B parameters).
-  Direct regression of matrix inverses is a hard learning problem.
-- **InverseNet-NS** (learned 8-step Newton-Schulz) generalizes far better
-  (relative error ~5e-4 at dims 10/100, ~7e-3 at dim 500) because it embeds
-  the algorithmic structure, but at 115 ms per dim-500 matrix on CPU it does
-  not beat LU. Being pure batched matmuls, it is the one method whose relative
-  standing would improve dramatically on a GPU with batched inference.
+# 2. train the quantile forecaster on TRAIN seeds, validate on VAL seeds (~25 s)
+python -m fhlm.train --out models/fhlm_quantile_gbm_T20_d2.pkl --report results/fhlm/forecast_training_T20_d2.json
+
+# 3. tune safety margins of the baselines on VALIDATION seeds (never on test)
+python -m fhlm.run_experiments tune --slots 10000 --warmup 500
+
+# 4. main comparison: 8 controllers x 5 scenarios x 5 test seeds, identical traces
+python -m fhlm.run_experiments main
+
+# 5. control-interval sweep (trains a forecaster per interval automatically)
+python -m fhlm.run_experiments sweep --intervals 4 10 20 40 --num-seeds 3
+
+# 6. single demonstration run with time series (used for the demo figure)
+python -m fhlm.run_experiments demo --scenario high
+
+# 7. figures for the slides
+python -m fhlm.make_figures
+
+# 8. rebuild the presentation from the saved results
+python presentation/build_presentation.py
+```
+
+A 30-second demonstration: `python -m fhlm.run_experiments demo --scenario high --slots 6000`.
+
+## Architecture in one paragraph
+
+Traffic is exogenous (`traffic.py`) and identical for every controller of a
+comparison. The simulator (`simulator.py`) advances slot by slot: arrivals join
+age-tracked DU queues, every T slots it builds an `Observation` containing only
+information that is tau slots old, asks the controller for budgets, projects
+them onto {sum r_i <= C_u, r_i <= cap_i}, then serves each queue FIFO within
+its budget and air-interface cap, drops bits that exceeded their deadline and
+records metrics. Controllers (`controllers.py`, `proposed.py`) are pure
+functions of the observation; the forecast-based ones call a
+`QuantileGBMForecaster` (`forecast.py`) trained offline on training seeds.
+
+## What is done / what is not
+
+Done and tested: simulator, traffic model, five baselines + oracle, forecasting
+pipeline (train/validation/test separation, no data-fitted preprocessing),
+proposed controller with feasibility guarantee, tuning on validation seeds,
+main comparison over 5 scenarios x 5 seeds, interval sweep, ablations (point vs
+quantile, ML vs window quantiles, calibration on/off), figures, presentation.
+
+Not done (future work): fronthaul transport queue with oversubscribed budgets
+and switch-side drops; adaptive compression (bit-width) as a second lever;
+uplink direction; real traffic traces; an implementation of the coordinator
+as an xApp; compiled inference to bring the decision time to well below 1 ms.
+See `docs/fhlm/results_summary.md` for the honest reading of the results,
+including where the proposed method does not help.
+
+## Historical material (not part of the current work)
+
+`matinv_bench/` and `REPORT.md` describe an earlier matrix-inversion timing
+benchmark; `docs/mid_evaluation_*.md|html` and `experiments/exp*.py` refer to a
+CSEE/RAS-BFP/ACAFS compression study whose source package (`src/`) is not in
+this repository. They are left unchanged.
