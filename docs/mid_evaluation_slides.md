@@ -1,3 +1,9 @@
+> **SUPERSEDED (2026-09-17).** This deck was written for code that was never committed (`src/` was
+> missing) and contains claims that the reconstructed simulator does not support (see `docs/audit.md`:
+> inverted split-6 bandwidth model, full-SVD baseline timing, fake fast-rank curve, CSEE evaluated on
+> unmodulated symbols, 32-bit CR reference). Use `docs/mid_evaluation.pptx` and `docs/presentation_prep.md`.
+> Kept only as a record of the starting point.
+
 # BTP Mid-Term Evaluation — Presentation Deck (15 Slides)
 
 **Title:** High-Performance Fronthaul Load Management in 5G/6G C-RAN  
