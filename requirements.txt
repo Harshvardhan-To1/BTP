@@ -6,3 +6,7 @@ tqdm>=4.66
 # CPU build is sufficient; install with:
 #   pip install torch --index-url https://download.pytorch.org/whl/cpu
 torch>=2.2
+pytest>=8.0
+# only needed to regenerate docs/mid_evaluation.pptx (python docs/build_slides.py)
+python-pptx>=1.0
+pillow>=10.0
