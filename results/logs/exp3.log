@@ -1,0 +1,13 @@
+[fig] results/figures/exp3_acafs.pdf|png
+SNR  -5 dB: rank  63.0 (fast  60.0, |err| 3.00)  saving split6  81.5%  beam-space   0.0%  t_exact 0.65 ms  t_fast 0.43 ms
+SNR   0 dB: rank  62.4 (fast  58.2, |err| 4.15)  saving split6  81.7%  beam-space   0.0%  t_exact 0.69 ms  t_fast 0.44 ms
+SNR   5 dB: rank  60.4 (fast  54.0, |err| 6.30)  saving split6  82.3%  beam-space   0.0%  t_exact 0.63 ms  t_fast 0.44 ms
+SNR  10 dB: rank  54.5 (fast  45.0, |err| 9.45)  saving split6  84.0%  beam-space   0.0%  t_exact 0.59 ms  t_fast 0.41 ms
+SNR  15 dB: rank  38.8 (fast  29.0, |err| 9.80)  saving split6  82.3%  beam-space   7.2%  t_exact 0.61 ms  t_fast 0.42 ms
+SNR  16 dB: rank  33.7 (fast  24.8, |err| 8.90)  saving split6  64.2%  beam-space  33.1%  t_exact 0.65 ms  t_fast 0.41 ms
+SNR  17 dB: rank  27.7 (fast  20.6, |err| 7.15)  saving split6  59.0%  beam-space  54.5%  t_exact 0.61 ms  t_fast 0.44 ms
+SNR  18 dB: rank  20.8 (fast  15.9, |err| 4.85)  saving split6  67.4%  beam-space  67.4%  t_exact 0.59 ms  t_fast 0.41 ms
+SNR  19 dB: rank  14.3 (fast  12.2, |err| 2.15)  saving split6  77.5%  beam-space  77.5%  t_exact 0.59 ms  t_fast 0.43 ms
+SNR  20 dB: rank  10.9 (fast  10.3, |err| 0.65)  saving split6  82.7%  beam-space  82.7%  t_exact 0.61 ms  t_fast 0.41 ms
+SNR  25 dB: rank   8.8 (fast   8.6, |err| 0.20)  saving split6  84.3%  beam-space  84.3%  t_exact 0.61 ms  t_fast 0.42 ms
+SNR  30 dB: rank   8.4 (fast   8.3, |err| 0.10)  saving split6  84.3%  beam-space  84.3%  t_exact 0.61 ms  t_fast 0.47 ms

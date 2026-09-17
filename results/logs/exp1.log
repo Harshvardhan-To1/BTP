@@ -1,0 +1,5 @@
+=== Experiment 1 [data symbols], 30 realisations, SNR 20.0 dB ===
+=== Experiment 1 [reference symbols], 30 realisations, SNR 20.0 dB ===
+[fig] results/figures/exp1_nmse_vs_cr.pdf|png
+[data] BFP: CR 2.0 -> -46.4 dB | SVD: CR 8.0 -> -20.7 dB | CSEE: CR 46.7 -> -0.5 dB | RAS-BFP: CR 8.0 -> -16.7 dB
+[reference] BFP: CR 2.0 -> -46.4 dB | SVD: CR 8.0 -> -20.7 dB | CSEE: CR 46.7 -> -18.1 dB | RAS-BFP: CR 8.0 -> -16.7 dB
