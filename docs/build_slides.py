@@ -282,7 +282,7 @@ s = new_slide("Research context and the gap this project addresses", "Verified s
 lit_rows = [["Direction", "Representative work", "What it assumes / measures", "Relation to this project"]]
 for r in REFERENCES["comparison_rows"]:
     lit_rows.append(r)
-add_table(s, Inches(0.4), Inches(1.5), Inches(12.5), Inches(4.4), lit_rows, col_widths=[2.0, 3.3, 3.8, 3.4], size=10.5)
+add_table(s, Inches(0.4), Inches(1.45), Inches(12.5), Inches(4.6), lit_rows, col_widths=[1.8, 3.2, 3.6, 3.9], size=10)
 takeaway(s, REFERENCES["gap_statement"])
 notes(s, REFERENCES["lit_notes"])
 
@@ -539,9 +539,10 @@ Next: slot-level simulation with mixed symbol types, joining the split decision 
 
 # 14 --- references (main deck end)
 refs = REFERENCES["ieee_list"]
-for part, chunk in enumerate((refs[:11], refs[11:]), start=1):
+refs = sorted(refs, key=lambda r: int(r[1:r.index("]")]))
+for part, chunk in enumerate((refs[:15], refs[15:]), start=1):
     s = new_slide(f"References ({part}/2) — verified sources, see docs/research_review.md", section="References")
-    add_text(s, Inches(0.4), Inches(1.2), Inches(12.5), Inches(5.9), [(r, {"size": 11, "space": 3}) for r in chunk], bullet=False)
+    add_text(s, Inches(0.4), Inches(1.2), Inches(12.5), Inches(5.9), [(r, {"size": 10, "space": 2}) for r in chunk], bullet=False)
     notes(s, "Reference list. Every entry was checked against a primary page (publisher, arXiv record, or standards body) on 17 Sep 2026. Entries marked '(abstract)' were not read in full and are cited only for what their abstracts state.")
 
 # ============================================================================= BACKUP

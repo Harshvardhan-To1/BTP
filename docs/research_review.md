@@ -1,6 +1,6 @@
 # Research review — fronthaul load management (compression, split selection, capacity-constrained allocation)
 
-**Search cutoff: 17 September 2026.** Searches were run live (web search + fetching publisher / arXiv / standards pages). This is a relevance-driven selection of about 20 sources, not an exhaustive survey. Where a claim about a paper appears below, the *access level* column states whether the full text was inspected (`full`), only the abstract / publisher landing page (`abstract`), or a table of contents / annex listing of a standard (`toc`). Nothing is attributed to a paper beyond what was actually read.
+**Search cutoff: 17 September 2026.** Searches were run live (web search + fetching publisher / arXiv / standards pages). This is a relevance-driven selection of 29 sources (two independent search passes were merged; entries 22–29 came from the second pass and were verified against Crossref / arXiv / 3GPP records), not an exhaustive survey. Where a claim about a paper appears below, the *access level* column states whether the full text was inspected (`full`), only the abstract / publisher landing page (`abstract`), or a table of contents / annex listing of a standard (`toc`). Nothing is attributed to a paper beyond what was actually read.
 
 The review is organised around the three levers the repository actually implements (see `docs/problem_formulation.md`): (A) per-RU I/Q compression, (B) rank-adaptive stream count / functional split, (C) sharing one fronthaul link between several RUs. A fourth group (D) covers the numerical-linear-algebra and rate-allocation foundations the code relies on, and (E) the learning-based work that motivates what is and is not implemented as ML.
 
@@ -31,6 +31,16 @@ The review is organised around the three levers the repository actually implemen
 | 19 | N. Halko, P.-G. Martinsson, J. A. Tropp, "Finding Structure with Randomness: Probabilistic Algorithms for Constructing Approximate Matrix Decompositions," *SIAM Review*, 53(2), 217–288, 2011 | journal | full (arXiv 0909.4061) | https://doi.org/10.1137/090771806 |
 | 20 | J. A. Tropp, "Improved Analysis of the Subsampled Randomized Hadamard Transform," *Advances in Adaptive Data Analysis*, 3(1–2), 115–126, 2011 | journal | full (author preprint) | https://doi.org/10.1142/S1793536911000787 |
 | 21 | Y. Shoham, A. Gersho, "Efficient bit allocation for an arbitrary set of quantizers," *IEEE Trans. Acoustics, Speech, and Signal Processing*, 36(9), 1445–1453, 1988 | journal | abstract | https://doi.org/10.1109/29.90373 |
+| 22 | Aswathylakshmi P, R. K. Ganti, "Fronthaul Compression for Uplink Massive MIMO using Matrix Decomposition," *IEEE WCNC 2022*, pp. 2524–2529 | conference | full (arXiv 2110.12532) | https://doi.org/10.1109/WCNC51071.2022.9771783 |
+| 23 | F. Wiffen, W. H. Chin, A. Doufexi, "Distributed Dimension Reduction for Distributed Massive MIMO C-RAN with Finite Fronthaul Capacity," *Asilomar 2021*, pp. 1228–1236 | conference | full (arXiv 2201.12470) | https://doi.org/10.1109/IEEECONF53345.2021.9723180 |
+| 24 | L. Li, M. Bi, H. Xin, Y. Zhang, Y. Fu, X. Miao, A. M. Mikaeil, W. Hu, "Enabling Flexible Link Capacity for eCPRI-Based Fronthaul With Load-Adaptive Quantization Resolution," *IEEE Access*, vol. 7, pp. 102174–102185, 2019 | journal | full | https://doi.org/10.1109/ACCESS.2019.2930214 |
+| 25 | I. Kanno, M. Ito, Y. Amano, Y. Kishi, T. Choi, W.-Y. Chen, A. F. Molisch, "Adaptive Bit Allocation for SVD based Hybrid Processing of Uplink Cell-Free Massive MIMO under Limited Fronthaul Capacity," *IEEE VTC2023-Spring* | conference | abstract | https://doi.org/10.1109/VTC2023-Spring57618.2023.10201009 |
+| 26 | L. Liu, R. Zhang, "Optimized Uplink Transmission in Multi-Antenna C-RAN With Spatial Compression and Forward," *IEEE Trans. Signal Process.*, vol. 63, no. 19, pp. 5083–5095, 2015 | journal | abstract | https://doi.org/10.1109/TSP.2015.2450199 |
+| 27 | A. Martínez Alba, W. Kellerer, "Dynamic Functional Split Adaptation in Next-Generation Radio Access Networks," *IEEE Trans. Netw. Service Manag.*, vol. 19, no. 3, pp. 3239–3263, 2022 | journal | abstract | https://doi.org/10.1109/TNSM.2022.3178040 |
+| 28 | L. Wang, S. Zhou, "On the Fronthaul Statistical Multiplexing Gain," *IEEE Commun. Lett.*, vol. 21, no. 5, pp. 1099–1102, 2017 | journal | abstract | https://doi.org/10.1109/LCOMM.2017.2653120 |
+| 29 | 3GPP TR 38.901 V19.4.0, "Study on channel model for frequencies from 0.5 to 100 GHz," cl. 7.7.2–7.7.5 (TDL-A, delay scaling, correlation extension) | standard | full (clauses) | https://www.3gpp.org/ftp/Specs/archive/38_series/38.901/ |
+
+Also seen (metadata only, cited only as the baselines used by [22]): Choi–Evans–Gatherer, ICC 2016 (frequency-domain PCA compression); Aswathylakshmi & Ganti, GC Wkshps 2019 (QR approximation). Entry 29 is cited for the TDL-A definition only; the repository's TDL-A taps, RMS-delay-spread scaling (`delay_spread_ns=100`) and exponential antenna-correlation extension (`rho=0.7`) are the constructs those clauses define.
 
 Grey literature seen but **not** relied on: a 2025 Politecnico di Milano MSc thesis on BFP9 over-the-air measurements with OpenAirInterface / NVIDIA Aerial (abstract only; it reports that BFP9's penalty is negligible at low MCS and significant at high MCS, and demonstrates run-time bit-width switching). It is mentioned because it is the only source found that measures adaptive compression on hardware; it is not peer-reviewed.
 
@@ -74,6 +84,26 @@ Grey literature seen but **not** relied on: a 2025 Politecnico di Milano MSc the
 - **Content.** Optimal / near-optimal allocation of a bit budget across an arbitrary set of quantizers with irregular rate-distortion points by minimising `D_i + λ R_i` per quantizer and searching λ — equivalent to operating on the lower convex hull of each quantizer's R-D points.
 - **Relevance.** The multi-cell allocator in `src/control/allocator.py` is this algorithm (greedy marginal-gain on the convex hull ≡ λ-sweep), with RUs as the "quantizers" and fronthaul bits as the budget. We claim no algorithmic novelty; the engineering content is the analytical rate-distortion menu that makes the algorithm cheap to run per symbol.
 
+### [22] Aswathylakshmi & Ganti 2022 — matrix-decomposition fronthaul compression (full text)
+- **Setting.** Uplink massive MIMO RRH, `N_r = 64` antennas, `N`-point OFDM (1024 / 4096), `L = 12`-tap "TDLA30" channel with exponential antenna correlation 0.7, 64-QAM. Received matrix `Y ∈ ℂ^{N×N_r}`; the Fourier transform of the `L × N_r` tap matrix has rank ≤ `L`.
+- **Method.** Alternating-minimisation blind deconvolution at the RRH factors `Y_f` into a diagonal data matrix and a low-rank channel matrix; only `N` data samples plus `L·N_r` channel-tap samples are forwarded. Baselines: frequency-domain PCA (Choi–Evans–Gatherer, ICC 2016) and the authors' earlier QR approximation (GC Wkshps 2019).
+- **Findings (as read).** Sample-count compression ratios 36.6 (N=1024) / 53.9 (N=4096) single-user vs ≈5 for PCA; 9.2 / 13.5 for 4 users vs ≈1.3 for PCA. Uncoded SER with MRC matches the uncompressed system at CR 53.9; the multi-user ZF case loses diversity at high SNR after 10 iterations.
+- **Limitations.** Iterative encoder (10 iterations); `L` assumed known/bounded; CR counts *samples*, not bits (no quantiser); SER only; single cell.
+- **Relevance.** The **closest precedent for CSEE**: same 64-antenna TDL-A setting, same structural fact (few delay taps ⇒ low-rank / sparse delay domain). Two differences matter for our findings: (i) they *separate* the data symbols from the channel by blind deconvolution, which is exactly the step that CSEE lacks — this is the literature explanation for why CSEE only works on reference symbols; (ii) they count samples while we count bits after BFP quantisation, so their CRs are not comparable with ours. Also confirms PCA/SVD as the standard baseline family.
+
+### [24] Li et al. 2019 — load-adaptive quantisation resolution for eCPRI (full text)
+- **Setting.** eCPRI uplink, low-layer split; only loaded RBs are transported so fronthaul load is bursty and provisioning for peak wastes capacity.
+- **Method.** LAFQB: the RU's per-RE quantisation bit-width is adjusted per subframe from link load (loaded/total RBs) and the predicted short-term SINR; block scaling normalises before a uniform quantiser; a QR manager at the CU/DU feeds the bit-width back to the RU.
+- **Findings (as read).** MATLAB LTE uplink, one UE, EPA-5, HARQ+AMC, plus a 25 Gb/s optical link experiment: average bit-width 8 → 4.8 bits for a 2.0 % end-user throughput penalty; fixed 4.8-bit quantisation visibly hurts high-SINR users while the adaptive scheme does not; provisioned capacity 32.3 → ≈19.4 Gb/s at full load.
+- **Limitations.** Single UE / single cell; LTE; uniform (non-BFP) quantiser; SINR-threshold heuristic rather than a distortion-optimal allocation.
+- **Relevance.** The **closest prior art for the allocator**: bits per RE as a function of link load on a capacity-limited link. Ours differs by being multi-cell on a shared link, choosing among heterogeneous operating points from an analytical distortion predictor rather than SINR thresholds, and optimising sum / worst-cell NMSE. Their observation that fixed low resolution hurts high-SINR users is the effect our min-max ablation targets.
+
+### [23][25][26] Wiffen et al. 2021 (full), Kanno et al. 2023 (abstract), Liu & Zhang 2015 (abstract) — stream reduction and per-stream bit allocation
+- Wiffen et al.: per-RRH linear dimension reduction (conditional KLT) maximising joint mutual information; the information-bearing part of the received vector lies in an `r = min(M, K)`-dimensional subspace, so at least `r` coefficients per RRH suffice; with `N ≥ 3` of `M = 8` dimensions the information loss is small (i.i.d. fading, `L=4, K=8`). Theoretical backing for ACAFS sending *streams* instead of antennas.
+- Kanno et al. (abstract only): SVD at each AP reduces streams, each stream gets an adaptive number of bits under a fronthaul budget, optimising average SNR or sum capacity — the nearest published statement of "rank selection + per-stream bit allocation", single-link.
+- Liu & Zhang (abstract only): spatial compress-and-forward with fronthaul bit allocation in multi-antenna C-RAN — the information-theoretic ancestor of the same idea.
+- None of the three allocates across *cells sharing one link* or mixes non-SVD operating points.
+
 ### [16][17] Murti et al. 2022 / 2024 — RL for functional-split orchestration (full text)
 - **Setting.** vRAN with O-RAN-style split options; joint selection of splits, vCU/vDU placement, compute resources and routing to minimise long-term cost; testbed measurements show non-linear, high-variance demand→compute relationships; D3QN with action branching; real traces.
 - **Findings.** Up to 59 % (TNSM) / 69 % (EuCNC) cost saving vs. static benchmarks; transfer learning speeds convergence.
@@ -85,7 +115,7 @@ Grey literature seen but **not** relied on: a 2025 Politecnico di Milano MSc the
 ## 3. Synthesis
 
 ### 3.1 Which approaches fit this project
-- **Per-RU I/Q compression:** The standardised baseline is O-RAN BFP [5][6][10]; any proposed encoder must be compared against it at equal bit budget, as the repository now does. Structure-exploiting encoders (low-rank spatial [19], delay-domain sparse [15]) are established for CSI and for cell-free uplink [13][14]; using them on *received I/Q* is legitimate but must respect what modulation does to each structure (§3.2).
+- **Per-RU I/Q compression:** The standardised baseline is O-RAN BFP [5][6][10]; any proposed encoder must be compared against it at equal bit budget, as the repository now does. Structure-exploiting encoders (low-rank spatial [19][23], delay-domain sparse [15][22]) are established for CSI, for single-RRH uplink [22] and for cell-free uplink [13][14][25]; using them on *received I/Q* is legitimate but must respect what modulation does to each structure (§3.2).
 - **Rank-adaptive stream count / split:** Beam-space compression (send `r` streams instead of `M` antennas) is a standardised option (O-RAN Annex A.4) and the split-6 alternative is quantified by 3GPP [4]. A rule-based controller on the estimated rank is the appropriate first step; learned orchestration [16][17] belongs to a later stage.
 - **Shared capacity across RUs:** Lagén et al. [8][9] establish the problem; classic bit allocation [21] gives the solver. This is the layer the repository lacked and now implements (Exp5).
 
@@ -94,14 +124,14 @@ Grey literature seen but **not** relied on: a 2025 Politecnico di Milano MSc the
 |---|---|---|
 | BFP per 12-RE PRB with 4-bit exponent [5][6] | same | yes |
 | Modulation compression needs DU-side knowledge of the constellation (downlink) [7] | uplink received I/Q only | not applicable — we do not use it |
-| Delay-domain sparsity holds for the channel matrix [15] | holds for reference symbols (`H + W'`), destroyed on data symbols (`H·diag(x)`) — verified in Exp1/Exp4 | partially; now stated explicitly |
+| Delay-domain sparsity holds for the channel matrix [15][22]; [22] recovers it on data symbols only by blind deconvolution | holds for reference symbols (`H + W'`), destroyed on data symbols (`H·diag(x)`) — verified in Exp1/Exp4 | partially; now stated explicitly |
 | Low-rank spatial structure from few dominant paths [13][14][19] | TDL-A with 23 taps and spatial correlation ⇒ rank ≤ 23 | yes |
 | Split-6 traffic ≪ split-7 traffic [3][4] | corrected this iteration | yes (after fix) |
 | Evaluation by BLER / throughput on a full PHY-MAC simulator [7][8][10] | NMSE vs transported and vs noiseless matrix only | no — stated as a limitation |
 | Real traffic / traces [16][17] | i.i.d. channel realisations, one OFDM symbol | no — stated |
 
 ### 3.3 Gap the project addresses
-The O-RAN compression literature is per-PRB and per-RU [6][10]; the shared-fronthaul control literature is downlink and modulation-compression based [7][8][9]; the structured-compression literature targets CSI [15] or cell-free beamforming design [13][14]. None of the sources found combines (i) uplink I/Q encoders with a *closed-form rate-distortion predictor* usable per OFDM symbol, (ii) a shared-capacity allocation across RUs driven by those predictions, and (iii) a fidelity metric that separates signal loss from removed noise. That combination is an engineering contribution and a validation study — not a new algorithm.
+The O-RAN compression literature is per-PRB and per-RU [6][10]; the shared-fronthaul control literature is downlink and modulation-compression based [7][8][9]; the structured-compression literature targets CSI [15] or cell-free beamforming design [13][14]. The closest prior art is single-link: Li et al. [24] adapt bit-width to load and SINR on one eCPRI link, Kanno et al. [25] allocate bits per SVD stream at one AP, Aswathylakshmi & Ganti [22] exploit the same delay-domain structure as CSEE for one RRH. None of the sources found combines (i) uplink I/Q encoders with a *closed-form rate-distortion predictor* usable per OFDM symbol, (ii) a shared-capacity allocation across RUs driven by those predictions, and (iii) a fidelity metric that separates signal loss from removed noise. That combination is an engineering contribution and a validation study — not a new algorithm.
 
 ### 3.4 What was implemented and evaluated credibly for the mid-evaluation
 - Standard BFP and economy-SVD baselines at exact bit accounting [5][6][19].
@@ -116,4 +146,4 @@ The O-RAN compression literature is per-PRB and per-RU [6][10]; the shared-front
 - Learned components only where no analytical predictor exists (e.g. a rate-distortion predictor for RAS-BFP under SRHT, or a learned CSI basis as in [15]); RL orchestration [16][17] only if slot-level dynamics and unknown costs are introduced.
 
 ### 3.6 Comparability caveat
-Numbers in [6], [7], [8], [10] (SQNR, % fronthaul reduction, throughput percentiles, BLER) were obtained with different workloads, channel models and metrics from ours and are **not** directly comparable with the NMSE / CR figures in `results/`. They are cited for problem framing and baseline definitions only.
+Numbers in [6], [7], [8], [10], [22], [24] (SQNR, % fronthaul reduction, throughput percentiles, BLER) were obtained with different workloads, channel models and metrics from ours and are **not** directly comparable with the NMSE / CR figures in `results/`. They are cited for problem framing and baseline definitions only.
