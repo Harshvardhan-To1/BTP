@@ -184,6 +184,23 @@ def test_csee_menu_prediction_equals_pointwise(channel):
             assert np.isclose(menu[i, j], CSEEEncoder.theoretical_nmse_bound(Y, K, b), rtol=1e-6)
 
 
+def test_csee_noise_aware_prediction_tracks_clean_nmse():
+    for snr in (0.0, 20.0):
+        ch = TDLAChannel(ChannelConfig(M=16, N=240, SNR_dB=snr, seed=9))
+        Y, S = ch.generate_received_signal(ch.generate_H(), return_clean=True, symbol_type="reference")
+        Yd = CSEEEncoder.delay_domain(Y)
+        Ks, bl = [8, 24, 240], [6, 12]
+        pred = CSEEEncoder.predict_menu(Yd, Ks, bl, noise_var=10 ** (-snr / 10))
+        for i, K in enumerate(Ks):
+            for j, b in enumerate(bl):
+                e = CSEEEncoder(K, b)
+                meas = nmse_linear(S, e.decode(e.encode(Y)))
+                assert abs(10 * np.log10(pred[i, j]) - 10 * np.log10(meas)) < 2.5
+        # at low SNR keeping everything (K = N) must look worse for the signal than keeping few taps
+        if snr == 0.0:
+            assert pred[-1, -1] > pred[0, -1]
+
+
 def test_csee_needs_delay_sparsity(channel):
     cfg, H, Y_ref, S_ref, Y_dat = channel
     e = CSEEEncoder(K=24, bits=10)

@@ -90,19 +90,30 @@ class CSEEEncoder:
         return 2 * bits * M * K + 4 * M * n_blocks + _support_bits(K, N)
 
     @staticmethod
-    def predict_menu(Yd: np.ndarray, Ks, bits_list, block_size: int = DEFAULT_BLOCK) -> np.ndarray:
+    def predict_menu(Yd: np.ndarray, Ks, bits_list, block_size: int = DEFAULT_BLOCK,
+                     noise_var: float | None = None) -> np.ndarray:
         """Proposition-1 predictions for every (K, bits) pair, shape (len(Ks), len(bits_list)).
 
         Same numbers as :meth:`theoretical_nmse_bound` (estimate form) but the
         block maxima are computed once per K and the ``bits`` dependence is
         applied as a shift of ``log2(qmax)``, so a whole menu costs about one
         encoder pass instead of one per option.
+
+        ``noise_var`` (per-element variance sigma^2 of W in Y = S + W, known to
+        the RU from its noise estimate) switches to the *noise-aware* form,
+        which predicts the distortion against the noiseless S instead of Y:
+        the discarded tail is credited with the noise it contains, the kept
+        bins are charged with the noise they carry, and the denominator is the
+        signal energy.  In delay-domain units the white noise has total energy
+        M sigma^2 spread evenly over the N bins.
         """
         M, N = Yd.shape
         total = float((np.abs(Yd) ** 2).sum())
         out = np.zeros((len(Ks), len(bits_list)))
         if total == 0.0:
             return out
+        noise_total = 0.0 if noise_var is None else float(M * noise_var)
+        signal_total = max(total - noise_total, 1e-12 * total)
         energy = (np.abs(Yd) ** 2).sum(axis=0)
         order = np.argsort(-energy, kind="stable")
         cum = np.cumsum(energy[order])
@@ -121,11 +132,17 @@ class CSEEEncoder:
             nonzero = (np.abs(xb) > 0).sum(axis=-1)
             with np.errstate(divide="ignore"):
                 log_max = np.log2(max_abs)
+            if noise_var is None:
+                dist_fixed, den = tail, total
+            else:
+                noise_in_tail = noise_total * (N - K) / N
+                noise_in_kept = noise_total * K / N
+                dist_fixed, den = max(tail - noise_in_tail, 0.0) + noise_in_kept, signal_total
             for j, lq in enumerate(log_qmax):
                 e = np.ceil(log_max - lq)
                 e[~np.isfinite(e)] = 0.0
                 e_q = float((np.exp2(2.0 * e) * nonzero / 6.0).sum())
-                out[i, j] = (tail + e_q) / total
+                out[i, j] = (dist_fixed + e_q) / den
         return out
 
     @staticmethod

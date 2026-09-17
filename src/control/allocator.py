@@ -69,8 +69,15 @@ class Menu:
         return self.predicted.shape[0]
 
 
-def build_csee_menu(Y_batch: np.ndarray, Ks, bits_list, block_size: int = 12) -> Menu:
-    """CSEE operating points; predictions use Proposition 1 from one IFFT per cell."""
+def build_csee_menu(Y_batch: np.ndarray, Ks, bits_list, block_size: int = 12,
+                    noise_var=None) -> Menu:
+    """CSEE operating points; predictions use Proposition 1 from one IFFT per cell.
+
+    ``noise_var`` (scalar or per-cell array of sigma^2) switches the predicted
+    distortion to the noise-aware, signal-referenced form (see
+    :meth:`CSEEEncoder.predict_menu`); the controller then stops spending bits
+    on representing noise in low-SNR cells.
+    """
     t0 = time.perf_counter()
     n_cells, M, N = Y_batch.shape
     params, labels, rates = [], [], []
@@ -79,11 +86,14 @@ def build_csee_menu(Y_batch: np.ndarray, Ks, bits_list, block_size: int = 12) ->
             params.append({"K": int(K), "bits": int(b)})
             labels.append(f"CSEE K={K} b={b}")
             rates.append(CSEEEncoder.predicted_bits(M, N, K, b, block_size))
+    nv = None if noise_var is None else np.broadcast_to(np.asarray(noise_var, dtype=float), (n_cells,))
     pred = np.empty((n_cells, len(params)))
     for c in range(n_cells):
         Yd = CSEEEncoder.delay_domain(Y_batch[c])
-        pred[c] = CSEEEncoder.predict_menu(Yd, Ks, bits_list, block_size).reshape(-1)   # K-major, matches params order
-    return Menu("CSEE", labels, params, np.array(rates, dtype=float), pred, time.perf_counter() - t0)
+        pred[c] = CSEEEncoder.predict_menu(Yd, Ks, bits_list, block_size,
+                                           None if nv is None else float(nv[c])).reshape(-1)   # K-major
+    name = "CSEE" if noise_var is None else "CSEE-noise-aware"
+    return Menu(name, labels, params, np.array(rates, dtype=float), pred, time.perf_counter() - t0)
 
 
 def build_bfp_menu(Y_batch: np.ndarray, bits_list, block_size: int = 12) -> Menu:

@@ -26,9 +26,10 @@ matplotlib.rcParams.update({
 })
 COLORS = {"BFP": "#7f8c8d", "SVD": "#2980b9", "CSEE": "#e74c3c", "RAS-BFP": "#27ae60",
           "uniform-CSEE": "#7f8c8d", "uniform-BFP": "#34495e", "greedy-sum": "#e74c3c",
-          "greedy-max": "#8e44ad", "oracle": "#27ae60"}
+          "greedy-max": "#8e44ad", "greedy-clean": "#e67e22", "oracle": "#27ae60"}
 MARKERS = {"BFP": "s", "SVD": "^", "CSEE": "o", "RAS-BFP": "D",
-           "uniform-CSEE": "s", "uniform-BFP": "v", "greedy-sum": "o", "greedy-max": "P", "oracle": "D"}
+           "uniform-CSEE": "s", "uniform-BFP": "v", "greedy-sum": "o", "greedy-max": "P",
+           "greedy-clean": "X", "oracle": "D"}
 
 
 def _to_jsonable(obj):

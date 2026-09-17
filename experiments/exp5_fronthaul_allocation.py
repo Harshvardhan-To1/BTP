@@ -12,7 +12,10 @@ Policies
   uniform-BFP   same BFP bit width for all cells (O-RAN static config)  [baseline]
   greedy-sum    marginal-gain allocation on Prop.-1 predicted NMSE      [proposed]
   greedy-max    same, min-max objective (worst cell first)             [proposed]
-  oracle        greedy-sum on *measured* NMSE (ablation: prediction error cost)
+  greedy-clean  greedy-sum on the noise-aware Prop.-1 predictor, i.e. it
+                minimises predicted distortion of the *signal* using the RU's
+                noise-variance estimate                                 [proposed, objective ablation]
+  oracle        greedy-sum on *measured* NMSE vs Y (ablation: prediction error cost)
 
 Scenarios: capacity fractions {0.5 low load, 0.2, 0.1, 0.05 near saturation
 of the menu, 0.02, 0.005 overload}, ``--seeds`` independent channel draws; the
@@ -56,7 +59,7 @@ CAPACITY_FRACS = [0.5, 0.2, 0.1, 0.05, 0.02, 0.005]
 CSEE_KS = [24, 40, 60, 90, 120, 200, 300, 450, 600, 900, 1200]
 CSEE_BITS = [4, 6, 8, 10, 12, 14]
 BFP_BITS = [2, 3, 4, 6, 8, 10, 12, 16]
-POLICIES = ["uniform-CSEE", "uniform-BFP", "greedy-sum", "greedy-max", "oracle"]
+POLICIES = ["uniform-CSEE", "uniform-BFP", "greedy-sum", "greedy-max", "greedy-clean", "oracle"]
 
 
 def measure(menu, res, Y_batch, S_batch):
@@ -66,7 +69,7 @@ def measure(menu, res, Y_batch, S_batch):
         if res.dropped[c]:
             continue
         p = menu.params[res.choice[c]]
-        if menu.name == "CSEE":
+        if menu.name.startswith("CSEE"):
             enc = CSEEEncoder(p["K"], p["bits"]); e = enc.encode(Y_batch[c]); Yh = enc.decode(e)
             assert enc.bits_used(e) == menu.rates[res.choice[c]], "rate accounting mismatch"
         else:
@@ -87,6 +90,8 @@ def run(n_cells, seeds):
             Ys.append(Y); Ss.append(S)
         Y_batch, S_batch = np.stack(Ys), np.stack(Ss)
         csee = build_csee_menu(Y_batch, CSEE_KS, CSEE_BITS)
+        noise_vars = [10 ** (-s / 10) for s in snrs]                  # RU-side noise estimate (exact here)
+        csee_clean = build_csee_menu(Y_batch, CSEE_KS, CSEE_BITS, noise_var=noise_vars)
         bfp = build_bfp_menu(Y_batch, BFP_BITS)
         # Oracle distortions: measure every CSEE option once per cell (expensive; ablation only).
         measured = np.empty_like(csee.predicted)
@@ -100,20 +105,26 @@ def run(n_cells, seeds):
                 "uniform-BFP": (bfp, uniform_allocate(bfp.rates, bfp.predicted, C)),
                 "greedy-sum": (csee, greedy_allocate(csee.rates, csee.predicted, C, "sum")),
                 "greedy-max": (csee, greedy_allocate(csee.rates, csee.predicted, C, "max")),
+                "greedy-clean": (csee_clean, greedy_allocate(csee_clean.rates, csee_clean.predicted, C, "sum")),
                 "oracle": (csee, greedy_allocate(csee.rates, measured, C, "sum")),
             }
             for pol, (menu, res) in runs.items():
                 assert res.feasible, f"{pol} violated capacity"
                 vy, vc = measure(menu, res, Y_batch, S_batch)
+                ref = vc if pol == "greedy-clean" else vy               # what this policy predicted
                 rows.append({
                     "seed": seed, "capacity_frac": frac, "capacity_gbps": bits_per_symbol_to_gbps(C), "policy": pol,
                     "mean_nmse_db": 10 * np.log10(vy.mean()), "worst_nmse_db": 10 * np.log10(vy.max()),
                     "mean_nmse_clean_db": 10 * np.log10(vc.mean()),
+                    # per-cell dB averages: not dominated by the lowest-SNR cell
+                    "avg_cell_nmse_db": float(np.mean(10 * np.log10(vy + 1e-20))),
+                    "avg_cell_nmse_clean_db": float(np.mean(10 * np.log10(vc + 1e-20))),
                     "utilization": res.utilization, "dropped": int(res.dropped.sum()),
                     "decision_ms": res.decision_time_s * 1e3 + (menu.prediction_time_s * 1e3 if pol.startswith("greedy") else 0.0),
                     "alloc_only_ms": res.decision_time_s * 1e3,
+                    "worst_nmse_clean_db": 10 * np.log10(vc.max()),
                     "pred_abs_err_db": float(np.mean(np.abs(10 * np.log10(res.predicted[~res.dropped] + 1e-20)
-                                                            - 10 * np.log10(vy[~res.dropped] + 1e-20)))) if (~res.dropped).any() else 0.0,
+                                                            - 10 * np.log10(ref[~res.dropped] + 1e-20)))) if (~res.dropped).any() else 0.0,
                     "choices": ";".join(menu.labels[i] if i >= 0 else "DROP" for i in res.choice),
                 })
     return pd.DataFrame(rows), snrs, raw
@@ -121,19 +132,22 @@ def run(n_cells, seeds):
 
 def plot(df, n_cells, n_seeds):
     agg = df.drop(columns=["choices"]).groupby(["policy", "capacity_frac"]).agg(["mean", "std"])
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.6))
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8.6))
+    axes = axes.ravel()
     cap_gbps = df.groupby("capacity_frac")["capacity_gbps"].first()
+    panels = [("avg_cell_nmse_db", "(a) NMSE vs transported Y, averaged over cells in dB", "NMSE (dB)", 1.0),
+              ("avg_cell_nmse_clean_db", "(b) NMSE vs noiseless signal H, averaged over cells in dB", "NMSE (dB)", 1.0),
+              ("worst_nmse_db", "(c) worst cell NMSE vs transported Y", "NMSE (dB)", 1.0),
+              ("utilization", "(d) link utilisation", "used / capacity (%)", 100.0)]
     for pol in POLICIES:
         g = agg.loc[pol]
         x = cap_gbps.loc[g.index].values
         kw = dict(color=COLORS[pol], marker=MARKERS[pol], label=pol, capsize=3, lw=1.8)
-        axes[0].errorbar(x, g[("mean_nmse_db", "mean")], yerr=g[("mean_nmse_db", "std")], **kw)
-        axes[1].errorbar(x, g[("worst_nmse_db", "mean")], yerr=g[("worst_nmse_db", "std")], **kw)
-        axes[2].errorbar(x, 100 * g[("utilization", "mean")], yerr=100 * g[("utilization", "std")], **kw)
-    for ax, t, yl in zip(axes, ["(a) mean cell NMSE (measured)", "(b) worst cell NMSE (measured)", "(c) link utilisation"],
-                         ["NMSE vs Y (dB)", "NMSE vs Y (dB)", "used / capacity (%)"]):
+        for ax, (col, _, _, s) in zip(axes, panels):
+            ax.errorbar(x, s * g[(col, "mean")], yerr=s * g[(col, "std")], **kw)
+    for ax, (_, t, yl, _) in zip(axes, panels):
         ax.set_xscale("log"); ax.set_xlabel("shared fronthaul capacity (Gbps)"); ax.set_title(t); ax.set_ylabel(yl)
-    axes[2].set_ylim(0, 105); axes[0].legend(fontsize=8)
+    axes[3].set_ylim(0, 105); axes[0].legend(fontsize=8)
     fig.suptitle(f"Multi-cell fronthaul allocation: {n_cells} cells, SNR {{{','.join(map(str, CELL_SNRS[:n_cells]))}}} dB, "
                  f"{n_seeds} seeds (mean +- std); dropped cells count as 0 dB", fontsize=11)
     save_fig(fig, "exp5_allocation")
@@ -154,7 +168,8 @@ def main():
               "raw_bits_per_symbol": raw, "raw_gbps": bits_per_symbol_to_gbps(raw), "capacity_fracs": CAPACITY_FRACS,
               "csee_Ks": CSEE_KS, "csee_bits": CSEE_BITS, "bfp_bits": BFP_BITS})
     pd.set_option("display.width", 200)
-    cols = ["mean_nmse_db_mean", "mean_nmse_db_std", "worst_nmse_db_mean", "utilization_mean", "dropped_mean", "decision_ms_mean", "pred_abs_err_db_mean"]
+    cols = ["avg_cell_nmse_db_mean", "avg_cell_nmse_db_std", "avg_cell_nmse_clean_db_mean", "worst_nmse_db_mean",
+            "utilization_mean", "dropped_mean", "decision_ms_mean", "pred_abs_err_db_mean"]
     print(summary[cols].round(2).to_string())
 
 
