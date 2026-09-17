@@ -1,0 +1,30 @@
+=== dim 10: 200 held-out samples ===
+  LU decomposition (scipy lu_factor/lu_solve)   mean=    0.024 ms  median=    0.015 ms  resid=8.78e-08  rel=8.55e-08
+  LAPACK getri (numpy.linalg.inv)               mean=    0.006 ms  median=    0.006 ms  resid=3.32e-08  rel=4.76e-08
+  Gauss-Jordan elimination                      mean=    0.044 ms  median=    0.044 ms  resid=1.07e-07  rel=1.01e-07
+  QR decomposition                              mean=    0.014 ms  median=    0.014 ms  resid=1.88e-07  rel=1.81e-07
+  SVD                                           mean=    0.022 ms  median=    0.021 ms  resid=8.19e-08  rel=8.11e-08
+  Newton-Schulz iteration                       mean=    0.043 ms  median=    0.042 ms  resid=1.08e-07  rel=9.25e-08
+  InverseNet-MLP                                mean=    0.490 ms  median=    0.050 ms  resid=4.16e-01  rel=3.57e-01
+  InverseNet-NS (learned)                       mean=    0.116 ms  median=    0.114 ms  resid=2.82e-02  rel=4.02e-02
+  InverseNet-Ultra (learned high-order)         mean=    0.039 ms  median=    0.038 ms  resid=9.93e-02  rel=1.67e-01
+=== dim 100: 200 held-out samples ===
+  LU decomposition (scipy lu_factor/lu_solve)   mean=    0.093 ms  median=    0.092 ms  resid=1.60e-07  rel=1.38e-07
+  LAPACK getri (numpy.linalg.inv)               mean=    0.139 ms  median=    0.138 ms  resid=3.39e-08  rel=4.81e-08
+  Gauss-Jordan elimination                      mean=    1.382 ms  median=    1.383 ms  resid=3.39e-07  rel=3.04e-07
+  QR decomposition                              mean=    0.260 ms  median=    0.258 ms  resid=3.53e-07  rel=3.26e-07
+  SVD                                           mean=    1.236 ms  median=    1.230 ms  resid=1.80e-07  rel=1.48e-07
+  Newton-Schulz iteration                       mean=    0.401 ms  median=    0.403 ms  resid=2.75e-07  rel=2.17e-07
+  InverseNet-NS (learned)                       mean=    0.332 ms  median=    0.328 ms  resid=3.60e-04  rel=4.03e-04
+  InverseNet-Ultra (learned high-order)         mean=    0.400 ms  median=    0.397 ms  resid=8.46e-07  rel=1.15e-06
+=== dim 500: 20 held-out samples ===
+  LU decomposition (scipy lu_factor/lu_solve)   mean=   46.534 ms  median=    3.317 ms  resid=2.63e-07  rel=2.15e-07
+  LAPACK getri (numpy.linalg.inv)               mean=    6.032 ms  median=    5.865 ms  resid=3.43e-08  rel=4.83e-08
+  Gauss-Jordan elimination                      mean=  188.806 ms  median=  188.724 ms  resid=7.68e-07  rel=6.87e-07
+  QR decomposition                              mean=   53.518 ms  median=   25.957 ms  resid=4.00e-07  rel=3.56e-07
+  SVD                                           mean=   35.695 ms  median=   35.750 ms  resid=3.24e-07  rel=2.56e-07
+  Newton-Schulz iteration                       mean=   17.900 ms  median=   18.147 ms  resid=4.66e-07  rel=3.63e-07
+  InverseNet-NS (learned)                       mean=  112.129 ms  median=  116.988 ms  resid=4.85e-03  rel=7.41e-03
+  InverseNet-Ultra (learned high-order)         mean=   17.903 ms  median=   17.886 ms  resid=1.32e-06  rel=1.31e-06
+
+Wrote results/benchmark_results.csv, benchmark_summary.md and inference_time.png

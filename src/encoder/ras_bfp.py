@@ -69,18 +69,19 @@ class RASBFPEncoder:
     # -- sketch ---------------------------------------------------------------
     def _sketch(self, Y: np.ndarray, ell: int) -> np.ndarray:
         M = Y.shape[0]
+        if ell >= M:                       # nothing to compress in the antenna dimension: exact
+            return Y
         rng = np.random.default_rng(self.seed)
-        if self.sketch == "gaussian":
+        M_pad = 1 << (M - 1).bit_length()
+        # SRHT needs a power-of-two length; a padded Hadamard submatrix can lose
+        # rank when ell is close to M, so fall back to a Gaussian sketch there.
+        if self.sketch == "gaussian" or M_pad != M:
             Omega = (rng.standard_normal((ell, M)) + 1j * rng.standard_normal((ell, M))) / np.sqrt(2 * ell)
             return Omega @ Y
-        M_pad = 1 << (M - 1).bit_length()
         D = rng.choice([-1.0, 1.0], size=M)
-        Yd = Y * D[:, None]
-        if M_pad != M:
-            Yd = np.concatenate([Yd, np.zeros((M_pad - M, Y.shape[1]), dtype=Y.dtype)], axis=0)
-        HY = fwht(Yd) / np.sqrt(M_pad)
-        rows = rng.choice(M_pad, size=ell, replace=False)
-        return np.sqrt(M_pad / ell) * HY[rows]
+        HY = fwht(Y * D[:, None]) / np.sqrt(M)
+        rows = rng.choice(M, size=ell, replace=False)
+        return np.sqrt(M / ell) * HY[rows]
 
     # -- codec ----------------------------------------------------------------
     def encode(self, Y: np.ndarray) -> dict:
