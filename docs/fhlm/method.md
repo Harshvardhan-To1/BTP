@@ -70,8 +70,15 @@ configuration is not changed per slot, and multiple DU schedulers cannot
 consult each other within the sub-millisecond scheduling pipeline. The
 consequence is a reservation lead time of T + tau slots during which the
 budgets cannot react. We do **not** assume anything else that would favour
-forecasting; and we quantify how the advantage disappears as T shrinks
-(interval sweep experiment).
+forecasting; and we quantify the effect of T directly (interval sweep, T in
+{4, 10, 20, 40} slots, `results/fhlm/sweep_summary.csv`). Two findings bound
+the regime of validity: at T = 4 slots the proposed rule is far ahead of the
+reactive controllers *and* of the oracle-informed water-fill (so the
+allocation rule, not only the forecast, matters), while at T = 40 slots
+(5x the LL deadline) every deadline-aware controller over-reserves the LL
+peak rate and the deadline-unaware proportional controller is better on the
+weighted metric. Reserving a deadline-feasible rate is appropriate when the
+interval is at most a few multiples of the shortest deadline.
 
 ## 2. Deadline-feasible demand r*
 

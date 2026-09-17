@@ -558,11 +558,13 @@ def build(out: str = OUT):
     s = d.slide("Ablations: forecast quality and control interval", section="10 Ablation", notes=(
         "Left: the GBM quantiles are well calibrated on validation data — empirical coverage matches nominal "
         "levels within one point — and its median error is lower than persistence and window medians. Right: the "
-        "control-interval sweep on the high scenario. With very short intervals every reactive controller can "
-        "follow the traffic and prediction adds little; as the interval grows, the gap between reactive and "
-        "predictive controllers opens. This answers the question of when prediction is worth it: whenever "
-        "budgets must be held for a few milliseconds or more, which is the realistic regime for DU/switch "
-        "reconfiguration."))
+        "control-interval sweep on the high scenario, forecasters retrained per interval. Two honest findings. "
+        "At 2 ms the proposed rule is far ahead of every reactive controller and even of the oracle-informed "
+        "water-fill, which has a perfect point forecast: so the allocation rule itself, not only the forecast, "
+        "is doing work. At 20 ms — five times the low-latency deadline — reserving the LL peak rate for the whole "
+        "interval over-reserves, and the deadline-unaware proportional controller becomes better on the weighted "
+        "metric. So the method is appropriate when the control interval is at most a few multiples of the "
+        "shortest deadline; our default of 10 ms is inside that regime."))
     picture(s, os.path.join(FIG, "fig5_forecast_quality.png"), Inches(0.3), Inches(1.1), width=Inches(6.4))
     picture(s, os.path.join(FIG, "fig4_interval_sweep.png"), Inches(6.8), Inches(1.1), width=Inches(6.3))
     items = []

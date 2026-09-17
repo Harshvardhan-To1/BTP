@@ -10,7 +10,7 @@ fronthaul rate, and the proposed **uncertainty-aware KKT allocation rule**, plus
 the experiment pipeline, tests and the mid-evaluation presentation.
 
 Everything in `fhlm/`, `tests/`, `docs/fhlm/`, `results/fhlm/` and
-`presentation/` was built for this. The pre-existing `matinv_bench/` (matrix
+`models/fhlm_*` was built for this. The pre-existing `matinv_bench/` (matrix
 inversion timing benchmark) and the older `docs/`, `experiments/` and
 `results/figures` files are kept untouched as historical material; note that
 `experiments/exp*.py` import a `src/` package that is not present in the
@@ -31,11 +31,11 @@ repository, so those scripts are not runnable as committed.
 | `fhlm/train.py` | Trains the forecaster on training seeds, reports validation quality |
 | `fhlm/run_experiments.py` | `tune`, `main`, `sweep`, `demo` commands; writes raw JSON + CSV summaries |
 | `fhlm/make_figures.py` | Generates the figures used in the slides from saved results |
-| `tests/test_fhlm.py` | Capacity compliance, non-negative queues, accounting, zero load, overload, reproducibility, r* tightness, KKT properties, no-future-leakage |
-| `docs/fhlm/` | `method.md` (system model, formulation, propositions), `literature_review.md`, `results_summary.md`, `presentation_notes.md` (opening, demo script, Q&A) |
+| `fhlm/make_slides.py` | Builds the editable mid-evaluation deck (`.pptx`, speaker notes) from the saved results |
+| `tests/test_fhlm.py` | 13 tests: capacity compliance, non-negative queues, accounting, zero load, overload, reproducibility, r* tightness, KKT properties, no-future-leakage, compiled-GBM equality |
+| `docs/fhlm/` | `method.md` (system model, formulation, propositions), `literature_review.md`, `results_summary.md`, `presentation_notes.md` (opening, demo script, Q&A), `BTP_midterm_fronthaul_load_management.pptx` / `.pdf` |
 | `results/fhlm/` | Raw per-run metrics (`raw/*.json`), summaries (`*.csv`, `tuning.json`), forecast reports, `figures/` |
-| `presentation/` | `mid_evaluation.pptx` (editable, with speaker notes) and the script that builds it |
-| `models/fhlm_quantile_gbm_T*_d2.pkl` | Trained quantile forecasters (one per control interval used) |
+| `models/fhlm_quantile_gbm_T20_d2.pkl` | Trained quantile forecaster for the default interval (the sweep retrains T = 4/10/40 automatically, ~1-2 min each) |
 
 ## Installation
 
@@ -44,8 +44,9 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt        # numpy, scipy, pandas, matplotlib, scikit-learn, pytest, python-pptx
 ```
 
-CPU only; the whole pipeline (training + all experiments) runs in well under an
-hour on a 4-core laptop.
+CPU only. Measured on a 4-core VM: tests 6 s, training 25 s, tuning 90 s, main
+comparison 135 s, interval sweep ~6 min (includes training three forecasters),
+figures + slides 10 s. Peak memory < 4 GB (the T = 4 forecaster).
 
 ## Exact commands
 
@@ -56,10 +57,10 @@ python -m pytest tests/test_fhlm.py -q
 # 2. train the quantile forecaster on TRAIN seeds, validate on VAL seeds (~25 s)
 python -m fhlm.train --out models/fhlm_quantile_gbm_T20_d2.pkl --report results/fhlm/forecast_training_T20_d2.json
 
-# 3. tune safety margins of the baselines on VALIDATION seeds (never on test)
-python -m fhlm.run_experiments tune --slots 10000 --warmup 500
+# 3. tune baseline margins/windows and the ACI rate on VALIDATION seeds (never on test)
+python -m fhlm.run_experiments tune
 
-# 4. main comparison: 8 controllers x 5 scenarios x 5 test seeds, identical traces
+# 4. main comparison: 8 controllers x 5 scenarios x 5 test seeds, identical traces (+ paired analysis)
 python -m fhlm.run_experiments main
 
 # 5. control-interval sweep (trains a forecaster per interval automatically)
@@ -71,8 +72,8 @@ python -m fhlm.run_experiments demo --scenario high
 # 7. figures for the slides
 python -m fhlm.make_figures
 
-# 8. rebuild the presentation from the saved results
-python presentation/build_presentation.py
+# 8. rebuild the presentation from the saved results (PDF: soffice --headless --convert-to pdf docs/fhlm/*.pptx)
+python -m fhlm.make_slides
 ```
 
 A 30-second demonstration: `python -m fhlm.run_experiments demo --scenario high --slots 6000`.
@@ -97,12 +98,18 @@ proposed controller with feasibility guarantee, tuning on validation seeds,
 main comparison over 5 scenarios x 5 seeds, interval sweep, ablations (point vs
 quantile, ML vs window quantiles, calibration on/off), figures, presentation.
 
-Not done (future work): fronthaul transport queue with oversubscribed budgets
-and switch-side drops; adaptive compression (bit-width) as a second lever;
-uplink direction; real traffic traces; an implementation of the coordinator
-as an xApp; compiled inference to bring the decision time to well below 1 ms.
-See `docs/fhlm/results_summary.md` for the honest reading of the results,
-including where the proposed method does not help.
+Headline result (test seeds, priority-weighted deadline-violation ratio, paired
+on identical traces): the proposed rule beats the point-forecast controller by
+10-53 % and the deadline-aware reactive controller by 18-79 % on 5/5 seeds in
+every scenario including the held-out shift; it is a tie with the plain
+proportional controller under flash crowds (3/5), loses to it when budgets are
+held for 20 ms, gains little from the ML forecaster under shift, and online ACI
+calibration did not help. See `docs/fhlm/results_summary.md`.
+
+Not done (future work): real or public traffic traces; skill-weighted
+GBM/window blend as the fallback (replacing ACI); adaptive compression as a
+second lever; switch-level packet queue and T2a window; uplink direction; more
+seeds; a compiled implementation of the decision (currently 3.2 ms in Python).
 
 ## Historical material (not part of the current work)
 
