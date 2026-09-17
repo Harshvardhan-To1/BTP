@@ -171,18 +171,22 @@ def table(slide, df: pd.DataFrame, left, top, width, height, size=11, header_fil
 # ---------------------------------------------------------------------------
 # data
 # ---------------------------------------------------------------------------
+def _csv(name):
+    p = os.path.join(RESULTS_DIR, name)
+    return pd.read_csv(p) if os.path.exists(p) else None
+
+
+def _json(name):
+    p = os.path.join(RESULTS_DIR, name)
+    return json.load(open(p)) if os.path.exists(p) else None
+
+
 def load_results():
-    R = {}
-    p = os.path.join(RESULTS_DIR, "main_runs.csv")
-    R["main"] = pd.read_csv(p) if os.path.exists(p) else None
-    p = os.path.join(RESULTS_DIR, "main_paired.csv")
-    R["paired"] = pd.read_csv(p) if os.path.exists(p) else None
-    p = os.path.join(RESULTS_DIR, "sweep_runs.csv")
-    R["sweep"] = pd.read_csv(p) if os.path.exists(p) else None
-    p = os.path.join(RESULTS_DIR, "tuning.json")
-    R["tuning"] = json.load(open(p)) if os.path.exists(p) else None
-    p = os.path.join(RESULTS_DIR, "forecast_training_T20_d2.json")
-    R["forecast"] = json.load(open(p)) if os.path.exists(p) else None
+    R = {"main": _csv("main_runs.csv"), "paired": _csv("main_paired.csv"), "sweep": _csv("sweep_runs.csv"),
+         "comp": _csv("compression_runs.csv"), "tuning": _json("tuning.json"),
+         "forecast": _json("forecast_training_T20_d2.json")}
+    p = "results/benchmark_results.csv"           # Part A: matrix-inversion benchmark (earlier work)
+    R["matinv"] = pd.read_csv(p) if os.path.exists(p) else None
     return R
 
 
@@ -202,6 +206,32 @@ def summary_table(main: pd.DataFrame, scenarios, methods, labels) -> pd.DataFram
     return pd.DataFrame(rows)
 
 
+def matinv_table(bench: pd.DataFrame) -> pd.DataFrame:
+    """Median time (ms) and relative error for a few methods at n = 100 and 500."""
+    keep = {
+        "LAPACK getri (numpy.linalg.inv)": "LU via LAPACK (numpy.linalg.inv)",
+        "LU decomposition (scipy lu_factor/lu_solve)": "LU (scipy)",
+        "QR decomposition": "QR",
+        "SVD": "SVD",
+        "Newton-Schulz iteration": "Newton-Schulz iteration",
+        "InverseNet-Ultra (learned high-order)": "Learned iteration (InverseNet-Ultra)",
+        "InverseNet-MLP": "Direct neural net (InverseNet-MLP)",
+    }
+    rows = []
+    for raw, nice in keep.items():
+        row = {"Method": nice}
+        for n in (100, 500):
+            r = bench[(bench.method == raw) & (bench.dim == n)]
+            if len(r):
+                row[f"n={n}: median ms"] = f"{r.median_ms.iloc[0]:.2f}"
+                row[f"n={n}: rel. error"] = f"{r.rel_err_vs_true.iloc[0]:.0e}"
+            else:
+                row[f"n={n}: median ms"] = "n/a"
+                row[f"n={n}: rel. error"] = "n/a"
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
 # ---------------------------------------------------------------------------
 # slides
 # ---------------------------------------------------------------------------
@@ -209,14 +239,19 @@ def build(out: str = OUT):
     R = load_results()
     net, ctrl = NetworkConfig(), ControlConfig()
     d = Deck()
-    main, paired, sweep, tuning, fc = R["main"], R["paired"], R["sweep"], R["tuning"], R["forecast"]
+    main, paired, sweep, comp, tuning, fc, bench = (R["main"], R["paired"], R["sweep"], R["comp"], R["tuning"],
+                                                    R["forecast"], R["matinv"])
     SC = ["low", "moderate", "high", "overload_bursts", "shift"]
     SCL = {"low": "Low 0.50", "moderate": "Moderate 0.65", "high": "High 0.80", "overload_bursts": "Flash crowds",
            "shift": "Shift (held-out)"}
-    LAB = {"static_equal": "Static equal share", "reactive_prop": "Reactive proportional (EWMA)",
-           "queue_aware": "Deadline-aware reactive (persistence r*)", "point_forecast": "Point forecast (GBM median)",
-           "proposed_window": "Proposed rule, window quantiles (no ML)", "proposed": "Proposed (GBM quantiles + KKT)",
-           "proposed_cal": "Proposed + ACI calibration", "oracle": "Oracle water-fill (true r*, reference)"}
+    LAB = {"static_equal": "Static equal share", "reactive_prop": "Reactive proportional",
+           "queue_aware": "Deadline-aware reactive", "point_forecast": "Point forecast + water-fill",
+           "proposed_window": "Proposed rule, simple quantiles (no ML)", "proposed": "Proposed (GBM quantiles + KKT rule)",
+           "proposed_cal": "Proposed + online calibration", "oracle": "Oracle water-fill (knows the future)"}
+
+    SHORT_LAB = {"reactive_prop": "reactive prop.", "queue_aware": "deadline-aware", "point_forecast": "point forecast",
+                 "proposed": "proposed", "proposed_window": "proposed (no ML)", "proposed_cal": "proposed + cal.",
+                 "static_equal": "static", "oracle": "oracle"}
 
     def pr(scenario, baseline, col="rel_reduction_pct"):
         if paired is None:
@@ -229,349 +264,426 @@ def build(out: str = OUT):
             return float("nan")
         return float(main[(main.scenario == scenario) & (main.method == method)][metric].mean())
 
+    BLUE_FILL = RGBColor(0xE3, 0xF2, 0xFD)
+    ORANGE_FILL = RGBColor(0xFF, 0xF3, 0xE0)
+    RED_FILL = RGBColor(0xFF, 0xEB, 0xEE)
+
     # 1 Title ---------------------------------------------------------------
     s = d.slide("", notes=(
-        "Opening (60-90 s): Good morning. My BTP is on fronthaul load management in Open RAN. In a 7-2x split, "
-        "several radio units share one Ethernet fronthaul link that is deliberately over-subscribed to exploit "
-        "statistical multiplexing. The distributed unit must decide how much of that link each cell may use in the "
-        "next control interval, before it knows the traffic that will actually arrive, and the traffic is bursty. "
-        "I built a slot-level simulator of this problem, implemented five baseline controllers including an oracle, "
-        "and propose an allocation rule that uses a quantile forecast of each cell's deadline-feasible rate and a "
-        "newsvendor-style KKT rule that equalises the weighted probability that the marginal bit is needed. "
-        "On five test scenarios the rule reduces priority-weighted deadline violations by 10-50% against the "
-        "point-forecast controller and beats the deadline-aware reactive baseline on every seed, but it is only a "
-        "tie with the simplest proportional baseline under flash crowds, and online calibration did not help. "
-        "Everything I show is produced by the code in the repository."))
+        "Opening (60-90 s): Good morning. My project is about fronthaul load management in Open RAN. The "
+        "fronthaul is the link between the radio unit on the tower and the processing unit. It carries raw radio "
+        "samples, so it is one of the most loaded links in the network. There are two ways to manage that load. "
+        "The first is to make the data smaller: compress it. In the first part of my project I studied compression "
+        "methods based on matrix decomposition, and I benchmarked how fast the matrix operations behind them "
+        "(inversion, SVD, QR, learned iterations) actually run. The second way is to share one link well between "
+        "several cells. In the second part I built a simulator of a shared link, five reference controllers, and a "
+        "new allocation rule that uses a forecast of each cell's need, including how uncertain that forecast is. "
+        "On five test scenarios the rule reduces priority-weighted deadline violations by 10 to 50 percent "
+        "compared with the same controller using a plain forecast, and it beats the reactive controller on every "
+        "test seed. I will also show where it does not help. Everything I show is produced by code in the repository."))
     bg = s.shapes[0]; bg.height = H
-    text(s, "Fronthaul Load Management in Open RAN", Inches(0.8), Inches(1.6), Inches(11.7), Inches(0.9), size=36,
+    text(s, "Fronthaul Load Management in Open RAN", Inches(0.8), Inches(1.5), Inches(11.7), Inches(0.9), size=36,
          bold=True, color=WHITE)
-    text(s, "Uncertainty-aware, deadline-feasible budget allocation on a shared 7-2x fronthaul link",
-         Inches(0.8), Inches(2.5), Inches(11.7), Inches(0.8), size=22, color=RGBColor(0xCF, 0xD8, 0xE3))
-    text(s, "B.Tech. Project — mid-term evaluation", Inches(0.8), Inches(3.6), Inches(11.7), Inches(0.5), size=18,
+    text(s, "Part A: shrinking the load with matrix-decomposition compression\n"
+            "Part B: sharing one fronthaul link between cells with forecast-aware budgets",
+         Inches(0.8), Inches(2.45), Inches(11.7), Inches(1.2), size=20, color=RGBColor(0xCF, 0xD8, 0xE3))
+    text(s, "B.Tech. Project — mid-term evaluation", Inches(0.8), Inches(3.9), Inches(11.7), Inches(0.5), size=18,
          color=WHITE)
     text(s, "Student: <name>   |   Supervisor: <name>   |   Department of <dept>",
-         Inches(0.8), Inches(4.2), Inches(11.7), Inches(0.5), size=14, color=RGBColor(0xCF, 0xD8, 0xE3))
-    text(s, "Deliverables today: working simulator + 7 controllers + trained quantile forecaster + reproducible "
-         "experiments (5 scenarios x 5 seeds) + tests + this deck, all generated from the repository.",
-         Inches(0.8), Inches(5.4), Inches(11.7), Inches(0.9), size=13, color=WHITE, italic=True)
+         Inches(0.8), Inches(4.5), Inches(11.7), Inches(0.5), size=14, color=RGBColor(0xCF, 0xD8, 0xE3))
+    text(s, "What exists today: compression study + matrix-maths benchmark (Part A); working simulator, 7 controllers, "
+         "trained forecaster, 300+ experiment runs, tests and this deck (Part B). All generated from the repository.",
+         Inches(0.8), Inches(5.5), Inches(11.7), Inches(0.9), size=13, color=WHITE, italic=True)
 
-    # 2 Motivation ---------------------------------------------------------
-    s = d.slide("Why fronthaul load management?", section="1 Motivation", notes=(
-        "The 7-2x split moves the low-PHY into the radio unit; the fronthaul then carries frequency-domain IQ "
-        "samples per PRB, per layer, per symbol. Its bit rate is huge but, unlike 8, it depends on how many PRBs "
-        "are actually scheduled, so an operator can over-subscribe a shared link. Our default: 8 cells of 100 MHz, "
-        f"4 layers, BFP-9, whose summed peak is {net.oversubscription:.1f}x the usable 25GE capacity. The price of "
-        "over-subscription is that during coincident bursts someone has to back off, and the delay budget of "
-        "the low-latency cells is only a couple of milliseconds. So the question is how to split the link."))
+    # 2 The problem ---------------------------------------------------------
+    s = d.slide("The problem: the fronthaul carries a lot of data", section="1 Motivation", notes=(
+        "In Open RAN the radio unit does only the lowest layer of processing and sends frequency-domain radio "
+        "samples to the distributed unit. This is the 7-2x split. The data rate is large, but it depends on how "
+        "many resource blocks are scheduled, so it goes up and down with traffic. Operators use that: several "
+        f"radio units share one Ethernet link that is smaller than their total peak — in our setup {net.oversubscription:.1f} "
+        "times smaller. That works most of the time. When several cells burst at once, someone has to wait, and "
+        "low-latency traffic can only wait about two milliseconds. So there are two questions: how do we make the "
+        "data smaller, and how do we share the link when it is full?"))
     bullets(s, [
-        ("O-RAN 7-2x split: O-RU does low-PHY; the fronthaul carries frequency-domain IQ per PRB, layer, symbol", 0),
-        (f"Load-dependent: {net.fh_bits_per_prb_layer:,.0f} FH bits per scheduled PRB-layer-slot (BFP-9, 8% eCPRI/Eth. overhead)", 1),
-        (f"One 100 MHz / 4-layer cell peaks at {net.cell_peak_bits_per_slot(0) / 1e6 / net.slot_duration_s / 1e3:.1f} Gbit/s", 1),
-        ("Shared aggregation links are over-subscribed on purpose (statistical multiplexing)", 0),
-        (f"Default scenario: 8 cells, 25GE link, aggregate peak = {net.oversubscription:.1f}x usable capacity", 1),
-        ("When bursts coincide, some cell's IQ must be deferred or dropped; low-latency cells have ~2 ms of slack", 0),
-        ("Load management = deciding, every control interval, how much link each cell may use — before the traffic is known", 0, True),
-        ("Bad decisions → deadline violations (lost IQ / HARQ failures) or wasted link capacity", 1),
-    ], Inches(0.5), Inches(1.1), Inches(7.6), Inches(5.6), size=16)
-    # small diagram: cells -> switch -> link -> DU
+        ("In the 7-2x split, the radio unit (O-RU) sends radio samples (IQ data) to the processing unit (O-DU)", 0),
+        (f"Every scheduled resource block costs about {net.fh_bits_per_prb_layer:,.0f} bits on the link (9-bit compression, 8% packet overhead)", 1),
+        (f"One 100 MHz cell with 4 antenna layers can need up to {net.cell_peak_bits_per_slot(0) / net.slot_duration_s / 1e9:.1f} Gbit/s", 1),
+        ("Several cells share one link that is smaller than their total peak — on purpose (statistical multiplexing)", 0),
+        (f"Our setup: 8 cells on a 25 Gbit/s link; total peak = {net.oversubscription:.1f} × the link", 1),
+        ("When bursts coincide, some data must wait or be dropped. Low-latency cells can wait ~2 ms at most", 0),
+        ("Two ways to manage the load:", 0, True),
+        ("A. Make the data smaller — compression (matrix decomposition, quantisation)", 1),
+        ("B. Share the link well — decide every few milliseconds how much each cell may send", 1),
+    ], Inches(0.5), Inches(1.1), Inches(7.6), Inches(5.7), size=16)
     x0, y0 = Inches(8.3), Inches(1.4)
     for k in range(4):
-        box(s, f"O-RU {k + 1}\n{'LL' if k < 2 else 'eMBB'}", x0, y0 + Inches(1.05) * k, Inches(1.1), Inches(0.75),
-            fill=RGBColor(0xE3, 0xF2, 0xFD) if k < 2 else LIGHT, size=11)
+        box(s, f"O-RU {k + 1}\n{'low-latency' if k < 2 else 'eMBB'}", x0, y0 + Inches(1.05) * k, Inches(1.1), Inches(0.75),
+            fill=BLUE_FILL if k < 2 else LIGHT, size=10)
         arrow(s, x0 + Inches(1.1), y0 + Inches(1.05) * k + Inches(0.375), x0 + Inches(1.8), y0 + Inches(2.3))
-    box(s, "FH\nswitch", x0 + Inches(1.8), y0 + Inches(1.9), Inches(0.9), Inches(0.8), size=11)
+    box(s, "switch", x0 + Inches(1.8), y0 + Inches(1.9), Inches(0.9), Inches(0.8), size=11)
     arrow(s, x0 + Inches(2.7), y0 + Inches(2.3), x0 + Inches(3.6), y0 + Inches(2.3), color=RED, width=3)
-    text(s, "shared 25GE\n(bottleneck)", x0 + Inches(2.5), y0 + Inches(2.45), Inches(1.3), Inches(0.6), size=9,
+    text(s, "shared 25 Gbit/s\nlink (bottleneck)", x0 + Inches(2.5), y0 + Inches(2.45), Inches(1.3), Inches(0.6), size=9,
          color=RED, align=PP_ALIGN.CENTER)
     box(s, "O-DU\nscheduler +\nbudget controller", x0 + Inches(3.6), y0 + Inches(1.7), Inches(1.3), Inches(1.2),
-        fill=RGBColor(0xFF, 0xF3, 0xE0), size=10)
+        fill=ORANGE_FILL, size=10)
     text(s, "…", x0 + Inches(0.4), y0 + Inches(4.15), Inches(0.5), Inches(0.3), size=14)
 
-    # 3 System model -------------------------------------------------------
-    s = d.slide("System model and operating constraints", section="2 System model", notes=(
-        "Everything is in slots of 0.5 ms. Arrivals are user bits per cell per slot; the DU converts them to PRBs "
-        "using the cell's spectral efficiency and each PRB-layer costs a fixed number of fronthaul bits, so "
-        "fronthaul demand is application demand divided by spectral efficiency times the IQ constant — the two "
-        "are not interchangeable. Bits wait in a per-cell DU queue; a bit that waits longer than its class "
-        "deadline is discarded and counted as a violation. The controller sets per-cell budgets in bits per slot "
-        "that must sum to the usable link capacity, holds them for T=20 slots, and observes the state with a "
-        "2-slot telemetry delay. The DU scheduler then serves each queue FIFO up to its budget in every slot. "
-        "The controller does not see the future, and neither do any of the practical baselines."))
+    # 3 Project overview ----------------------------------------------------
+    s = d.slide("Project overview: two parts, two levers", section="Overview", notes=(
+        "The project has two parts. Part A, done earlier, is about making the data smaller. I compared the "
+        "standard O-RAN block-floating-point compression with methods that use matrix structure: truncated SVD, "
+        "a randomised sketch-plus-QR low-rank encoder, and a delay-domain sparsity encoder. Because all of these "
+        "rely on matrix decomposition or inversion, I also benchmarked how fast those operations run on a CPU, "
+        "including learned iterative inverters. Part B, the main work of this term, is about sharing the link. "
+        "Compression sets how much load reaches the link; the allocation rule decides who loses data when bursts "
+        "coincide. At the end I show an experiment that connects the two."))
+    box(s, "Part A — make the data smaller (earlier work)", Inches(0.5), Inches(1.2), Inches(6.0), Inches(0.55),
+        fill=TEAL, color=WHITE, bold=True, size=14)
     bullets(s, [
-        ("Time: NR slots of 0.5 ms (30 kHz SCS). Data: bits. Capacity: bits/slot", 0),
-        ("Cells: 3 low-latency (deadline 4 slots = 2 ms, priority 3) + 5 eMBB (20 slots = 10 ms, priority 1)", 0),
-        ("Demand mapping: FH bits = user bits / SE_i(t) × IQ bits per PRB-layer  (SE differs per cell and drifts)", 0),
-        ("Per-cell DU queue, FIFO, age-tracked; bits older than D_i are dropped = deadline violation", 0),
-        ("Shared link: Σ_i r_i ≤ C_u = 0.97 × 25 Gbit/s (3% reserved for C/M/S-plane); r_i ≤ per-cell peak", 0),
-        ("Controller: every T = 20 slots (10 ms) sets budgets r_i, fixed for the interval; sees state τ = 2 slots old", 0),
-        ("DU scheduler: serves each queue up to r_i per slot within the budget; link never queues (budgets enforce this)", 0),
-        ("Why decide in advance? Budgets are a reservation held for T slots and telemetry is delayed → the next", 0),
-        ("interval's arrivals are unknown at decision time; the ~10 ms control interval matches real DU/switch reconfiguration", 1),
+        "Compression of the IQ matrix Y (64 antennas × 1200 subcarriers) per slot",
+        "Baselines: O-RAN block floating point (BFP), truncated SVD",
+        "Studied: RAS-BFP (random sketch + QR → low rank), CSEE (keep the strongest delay taps)",
+        "ACAFS: pick the functional split per user from the channel rank",
+        "Benchmark of the matrix maths behind it: LU, QR, SVD, Newton-Schulz, learned inverters (n = 10 … 500)",
+        "Output: 4 figure suites, benchmark CSV, report. Compression source package is not in this repo (see status)",
+    ], Inches(0.5), Inches(1.85), Inches(6.0), Inches(3.6), size=13)
+    box(s, "Part B — share the link well (this term)", Inches(6.9), Inches(1.2), Inches(6.0), Inches(0.55),
+        fill=NAVY, color=WHITE, bold=True, size=14)
+    bullets(s, [
+        "Slot-level simulator of 8 cells on one 25 Gbit/s link, with queues, deadlines and priorities",
+        "Every 10 ms a controller sets how many bits per slot each cell may send",
+        "5 reference controllers, from 'equal share' to 'knows the future'",
+        "Proposed: forecast each cell's need as a range (quantiles), then split the link so that every cell is cut at the same weighted risk",
+        "200 test runs on 5 traffic scenarios, ablations, 14 unit tests",
+        "Output: raw metrics, figures, this deck — all regenerated by scripts",
+    ], Inches(6.9), Inches(1.85), Inches(6.0), Inches(3.6), size=13)
+    box(s, "How they connect: compression decides how much load reaches the link (Part A lever). "
+           "Allocation decides how the loss is shared when bursts coincide (Part B lever). "
+           "Slide 15 shows both levers on the same traffic.",
+        Inches(0.5), Inches(5.35), Inches(12.4), Inches(1.1), fill=LIGHT, size=13)
+
+    # 4 Part A: compression -------------------------------------------------
+    s = d.slide("Part A: compressing IQ data with matrix decomposition", section="Part A", notes=(
+        "The radio unit sees a matrix Y of 64 antennas by 1200 subcarriers every slot. Standard O-RAN "
+        "compression, block floating point, just shortens the numbers: about 4 times smaller, very fast, almost "
+        "lossless. To go further you have to use the structure of the matrix. Truncated SVD keeps the strongest "
+        "directions and reaches 16 times, but the SVD is slow. RAS-BFP gets the same rank with a random sketch "
+        "and a QR factorisation, 3 to 4 times faster. CSEE uses a different structure: the channel has few "
+        "strong delay taps, so an inverse FFT along the subcarriers, keep the top K taps, quantise. It reaches "
+        "13 to 60 times with about 4 to 6 times less compute than SVD. The figure shows error versus compression "
+        "ratio at 20 dB SNR on a 3GPP TDL-A channel. These are from the earlier report and figure files; the "
+        "compression source package is not in the repository, so I could not re-run them this term."))
+    picture(s, "results/figures/exp1_nmse_vs_cr.png", Inches(0.4), Inches(1.1), width=Inches(6.3))
+    bullets(s, [
+        ("Setup: Y ∈ C^(64 × 1200) per slot, 3GPP TDL-A channel, SNR 20 dB (simulated)", 0),
+        ("BFP (O-RAN standard): shared exponent + short mantissa. ~4× smaller, −46 dB error, ~3 ms", 0),
+        ("Truncated SVD: keep the r strongest directions. ~16× at −21 dB, but 18-30 ms per slot", 0),
+        ("RAS-BFP: random sketch Ω·Y → thin QR → Y ≈ L·Qᴴ, then BFP. ~16× at −18 dB, ~7 ms (3-4× faster than SVD)", 0),
+        ("CSEE: IFFT along subcarriers → keep top-K delay taps → BFP. ~13× at −21 dB (~5 ms); ~63× at −19 dB with K = 60", 0),
+        ("ACAFS: choose split 7.2x / 7.1 / 6 per user from the channel rank → in simulation 0 % saving below ~15 dB SNR, 55-75 % above (vs fixed split 6)", 0),
+        ("Status: figures and report exist (results/figures, docs/mid_evaluation_report.md); the src/ package is missing from the repo, so these numbers are quoted, not re-run", 0, True),
+    ], Inches(6.9), Inches(1.15), Inches(6.1), Inches(5.7), size=12, para_space=5)
+
+    # 5 Part A: matrix maths cost --------------------------------------------
+    s = d.slide("Part A: how fast is the matrix maths? (measured on CPU)", section="Part A", notes=(
+        "All of these compression methods, and also MIMO equalisation and precoding, need matrix decompositions or "
+        "inversions every slot. So I measured them. Left: encoder time versus number of antennas: SVD grows fastest, "
+        "the sketch and delay-domain encoders stay one to two orders of magnitude below it. Right: inversion "
+        "benchmark on well-conditioned random matrices, 200 held-out matrices per size. LU through LAPACK is the "
+        "fastest accurate method. QR and SVD cost several times more with no accuracy gain here. A direct neural "
+        "network that outputs the inverse fails: 50 percent error. A learned iteration that keeps the "
+        "Newton-Schulz structure works, with errors around one in a million at n=100, and has a fixed, "
+        "predictable cost, which matters for slot deadlines. Two lessons carry into Part B: a 500 microsecond slot "
+        "leaves room for n=100 but not n=500 matrices, and predictable cost matters as much as speed."))
+    picture(s, "results/figures/exp2_complexity.png", Inches(0.4), Inches(1.1), width=Inches(5.0))
+    if bench is not None:
+        tb = matinv_table(bench)
+        tbl = table(s, tb, Inches(5.6), Inches(1.15), Inches(7.4), Inches(2.8), size=9)
+        for j, w in enumerate((2.6, 1.2, 1.2, 1.2, 1.2)):
+            tbl.columns[j].width = Inches(w)
+    bullets(s, [
+        ("Encoder time grows fastest for SVD; sketch (RAS-BFP) and delay-domain (CSEE) encoders stay 10-100× below it", 0),
+        ("Inversion benchmark (right, medians, 200 held-out matrices per size, well-conditioned): LU via LAPACK is fastest and exact", 0),
+        ("A direct neural net that outputs the inverse does not work (≈ 50 % error). A learned Newton-Schulz iteration does (≈ 1e-6 at n = 100) and has a fixed, predictable cost", 0),
+        ("Lesson for slot deadlines (0.5 ms): n ≈ 100 matrices fit per slot on a CPU; n ≈ 500 do not → do them less often, incrementally, or on an accelerator", 0),
+        ("Lesson for Part B: predictable compute time matters as much as average speed — the allocation rule below is a closed form plus one scalar search", 0),
+    ], Inches(0.4), Inches(4.75), Inches(12.5), Inches(2.2), size=12, para_space=3)
+
+    # 6 Part B: system model -------------------------------------------------
+    s = d.slide("Part B: what is decided, when, and with what information", section="Part B — model", notes=(
+        "Now the sharing problem. Time runs in slots of half a millisecond. Each cell has a queue in the "
+        "processing unit. User bits are turned into resource blocks using the cell's spectral efficiency, and each "
+        "resource block costs a fixed number of fronthaul bits — so fronthaul load is not the same as user "
+        "traffic. A bit that waits in the queue longer than its class deadline is thrown away and counted as a "
+        "violation. Every 20 slots, that is 10 milliseconds, the controller gives each cell a budget in bits per "
+        "slot. The budgets must add up to the link capacity and are held for the whole interval. The controller "
+        "sees the state with a 2-slot delay and never sees the future. Why decide in advance? Because the budget "
+        "is a reservation that is held for 10 ms and telemetry is late; the next interval's traffic is unknown "
+        "when the decision is made."))
+    bullets(s, [
+        ("Time: slots of 0.5 ms. Data: bits. Link: bits per slot", 0),
+        ("8 cells: 3 low-latency (must be served within 4 slots = 2 ms, priority 3) and 5 eMBB (20 slots = 10 ms, priority 1)", 0),
+        ("Fronthaul bits = user bits ÷ spectral efficiency × bits per resource block — so fronthaul load ≠ user traffic", 0),
+        ("Each cell has a first-in-first-out queue in the O-DU; bits older than the deadline are dropped and counted", 0),
+        ("Link rule: budgets add up to at most 97 % of 25 Gbit/s (3 % kept for control traffic); no cell gets more than its own peak", 0),
+        ("Every T = 20 slots (10 ms) the controller sets the budgets; they are fixed for the interval", 0),
+        ("The controller sees the state 2 slots late; it never sees future arrivals (checked by a unit test)", 0),
+        ("Why decide in advance? A budget is a reservation held for 10 ms; the traffic in that window is not known yet", 0, True),
     ], Inches(0.5), Inches(1.1), Inches(7.4), Inches(5.7), size=15)
-    # timeline diagram
     x0, y0 = Inches(8.3), Inches(1.5)
-    box(s, "observe state\n(τ = 2 slots old)", x0, y0, Inches(1.6), Inches(0.9), size=11, fill=RGBColor(0xE3, 0xF2, 0xFD))
+    box(s, "look at the state\n(2 slots old)", x0, y0, Inches(1.6), Inches(0.9), size=11, fill=BLUE_FILL)
     arrow(s, x0 + Inches(1.6), y0 + Inches(0.45), x0 + Inches(2.0), y0 + Inches(0.45))
-    box(s, "decide budgets r_i\nΣ r_i ≤ C_u", x0 + Inches(2.0), y0, Inches(1.6), Inches(0.9), size=11,
-        fill=RGBColor(0xFF, 0xF3, 0xE0))
+    box(s, "set budgets r_i\nΣ r_i ≤ link", x0 + Inches(2.0), y0, Inches(1.6), Inches(0.9), size=11, fill=ORANGE_FILL)
     arrow(s, x0 + Inches(2.8), y0 + Inches(0.9), x0 + Inches(2.8), y0 + Inches(1.4))
-    box(s, "hold for T = 20 slots (10 ms)\nDU serves queue_i ≤ r_i per slot\narrivals unknown at decision time",
+    box(s, "hold for 20 slots (10 ms)\neach queue is served up to r_i per slot\nnew arrivals are unknown",
         x0, y0 + Inches(1.4), Inches(3.6), Inches(1.1), size=11)
     arrow(s, x0 + Inches(1.8), y0 + Inches(2.5), x0 + Inches(1.8), y0 + Inches(3.0))
-    box(s, "bits older than D_i → dropped\n(violation accounting per class)", x0, y0 + Inches(3.0), Inches(3.6),
-        Inches(0.9), size=11, fill=RGBColor(0xFF, 0xEB, 0xEE))
-    text(s, "Sources: O-RAN WG4 CUS-Plane spec (7-2x sections, BFP, T2a windows); Larsen et al., IEEE COMST 2019 "
-         "(load-dependent bit rate, ~8% Ethernet overhead); Pérez et al. 2018/2019 (packet-switched aggregation).",
+    box(s, "bits older than the deadline\nare dropped = violation", x0, y0 + Inches(3.0), Inches(3.6), Inches(0.9),
+        size=11, fill=RED_FILL)
+    text(s, "Sources: O-RAN WG4 CUS-plane spec (7-2x, BFP, timing windows); Larsen et al., IEEE COMST 2019 "
+         "(bit rate depends on load, ~8 % Ethernet overhead); Pérez et al. 2018/2019 (packet-switched aggregation).",
          x0, y0 + Inches(4.1), Inches(4.5), Inches(1.1), size=10, color=GREY, italic=True)
 
-    # 4 Literature ---------------------------------------------------------
-    s = d.slide("Focused literature review → the opportunity", section="3 Literature", notes=(
-        "Three groups of work. First the primary sources for the fronthaul model. Second, predictive or "
-        "anticipatory allocation: these papers forecast load, mostly with LSTMs or similar, then plan with the "
-        "point forecast; uncertainty is handled by a fixed margin if at all. Third, uncertainty-aware forecasting "
-        "and conformal/quantile methods, which so far have been applied to slicing or to cloud resources rather "
-        "than to a shared fronthaul with per-class deadlines. The gap I address is the middle: the allocation rule "
-        "that turns a predictive distribution into deadline-feasible budgets under one hard link constraint, "
-        "compared fairly against strong reactive and point-forecast controllers. Full list with DOIs is in "
-        "docs/fhlm/literature_review.md."))
+    # 7 Literature -----------------------------------------------------------
+    s = d.slide("What others have done, and the gap", section="Part B — literature", notes=(
+        "Three groups of work. First, the standards and surveys that define the fronthaul model. Second, work "
+        "that forecasts traffic and then plans capacity — mostly with neural networks and a single predicted "
+        "number, with uncertainty handled by a fixed safety margin if at all. Third, work on forecasts with "
+        "uncertainty, such as conformal prediction, applied to one traffic stream or to network slices. What I "
+        "did not find is a method that turns a forecast distribution of deadline-sensitive demand into per-cell "
+        "budgets under one shared link constraint, and tests it fairly against strong reactive and point-forecast "
+        "controllers. The full list with DOIs is in the literature review file."))
     bullets(s, [
-        ("A. Fronthaul itself (primary sources)", 0, True),
-        ("O-RAN WG4 CUS-Plane spec (7-2x, BFP, T2a windows) • Larsen et al., IEEE COMST 2019: bit rate varies with load for splits ≤ 7-2", 1),
-        ("Pérez et al., JOCN 2018 / IEEE Access 2019 (packet-switched eCPRI aggregation) • Wang & Zhou, IEEE Commun. Lett. 2017 (multiplexing gain)", 1),
-        ("Lagén et al., IEEE Commun. Mag. 2022: shared 7-2x link, reactive per-slot compression control — closest fronthaul work, no forecasting", 1),
-        ("B. Predictive / anticipatory capacity allocation", 0, True),
-        ("Bega et al., DeepCog (INFOCOM 2019 / JSAC 2020), AZTEC (INFOCOM 2020): DL capacity forecasts → slice allocation; fixed cost ratio", 1),
-        ("Predictive DBA for PON fronthaul (Mikaeil et al. 2018; Zhang et al. 2019); Kavehmadavani et al., TWC 2023: LSTM point forecasts + FH constraint", 1),
-        ("Typical treatment of uncertainty: a fixed safety margin on a point forecast; no per-cell deadline feasibility", 1),
-        ("C. Uncertainty-aware forecasting / conformal methods", 0, True),
-        ("Cohen et al., IEEE WCL 2023 (conformal URLLC pre-allocation, single stream) • Gibbs & Candès, NeurIPS 2021 (ACI)", 1),
-        ("Kasuluru et al. 2024 [preprint]: probabilistic PRB-load forecasts, percentile chosen globally, not from a coupled allocation", 1),
-        ("Gap: no work turns a predictive DISTRIBUTION of deadline-feasible demand into per-cell FH budgets under one hard link constraint, and tests it against strong reactive + point-forecast baselines", 0, True),
+        ("A. The fronthaul itself (standards and surveys)", 0, True),
+        ("O-RAN WG4 CUS-plane spec (7-2x, BFP, timing windows) • Larsen et al., IEEE COMST 2019: bit rate varies with load", 1),
+        ("Pérez et al., JOCN 2018 / IEEE Access 2019 (packet aggregation) • Wang & Zhou, IEEE Commun. Lett. 2017 (multiplexing gain)", 1),
+        ("Lagén et al., IEEE Commun. Mag. 2022: several 7-2x cells share one link, compression is adjusted per slot — reactive, no forecast", 1),
+        ("B. Forecast first, then allocate capacity", 0, True),
+        ("Bega et al., DeepCog (INFOCOM 2019 / JSAC 2020), AZTEC (INFOCOM 2020): deep-learning forecasts for network slices", 1),
+        ("Predictive bandwidth allocation for PON fronthaul (Mikaeil et al. 2018; Zhang et al. 2019); Kavehmadavani et al., TWC 2023", 1),
+        ("Common pattern: one predicted number + a fixed safety margin; no per-cell deadlines", 1),
+        ("C. Forecasts with uncertainty", 0, True),
+        ("Cohen et al., IEEE WCL 2023 (conformal prediction for one URLLC stream) • Gibbs & Candès, NeurIPS 2021 (adaptive conformal)", 1),
+        ("Kasuluru et al. 2024 [preprint]: probabilistic PRB-load forecasts; the percentile is picked globally", 1),
+        ("Gap: nobody turns a forecast RANGE of deadline-sensitive demand into per-cell budgets under one shared link, and checks it against strong reactive and point-forecast controllers", 0, True),
+    ], Inches(0.5), Inches(1.1), Inches(12.3), Inches(5.8), size=14)
+
+    # 8 Formulation ------------------------------------------------------------
+    s = d.slide("What we measure, and what 'demand' means here", section="Part B — formulation", notes=(
+        "The controller picks budgets that add up to the link capacity. Our main score, fixed before any tuning, is "
+        "the priority-weighted violation ratio: dropped bits divided by arrived bits, with low-latency bits "
+        "counting three times. The key modelling idea is the deadline-feasible rate, r-star. Given the arrivals "
+        "of the next interval and a deadline D, r-star is the smallest constant service rate at which no bit "
+        "waits longer than D. For eMBB with a 10 ms deadline it is close to the average rate; for low-latency "
+        "cells with a 2 ms deadline it is basically the peak 2 ms burst rate, which is much harder to predict. "
+        "We forecast r-star, not the volume. Its distribution is skewed: the typical value is low but "
+        "occasionally very high. A single predicted number under-reserves; a fixed margin over-reserves everywhere."))
+    bullets(s, [
+        ("Decision every 10 ms: budgets r_i ≥ 0, Σ r_i ≤ link capacity, r_i ≤ cell peak", 0),
+        ("Main score (fixed before tuning): priority-weighted deadline-violation ratio", 0, True),
+        ("= (3 × dropped low-latency bits + dropped eMBB bits) / (3 × arrived low-latency bits + arrived eMBB bits)", 1),
+        ("Also reported: violations per class, link utilisation, queueing delay, fairness (Jain index), decision time", 1),
+        ("'Demand' of a cell = deadline-feasible rate r*: the smallest constant rate that serves the next arrivals with no bit waiting longer than its deadline D", 0, True),
+        ("r* = max over time windows of (bits in window) / (window length + D)   — a standard network-calculus bound", 1),
+        ("For eMBB (D = 10 ms) r* ≈ average rate. For low-latency cells (D = 2 ms) r* ≈ peak 2-ms burst rate → hard to predict", 1),
+        ("Budget needed = rate to clear the current backlog in time + r* of the arrivals we have not seen yet", 1),
+        ("Why a single predicted number is not enough: r* is skewed (usually low, sometimes very high). The median under-reserves; a fixed margin wastes capacity on every cell", 0),
     ], Inches(0.5), Inches(1.1), Inches(12.3), Inches(5.8), size=15)
 
-    # 5 Formulation --------------------------------------------------------
-    s = d.slide("Problem formulation and evaluation objective", section="4 Formulation", notes=(
-        "The controller chooses budgets on the simplex defined by the link capacity and per-cell caps. Our "
-        "primary metric, fixed before any tuning, is the priority-weighted deadline-violation ratio: violated bits "
-        "weighted by class priority over arrived bits weighted the same way. The key modelling step is the "
-        "deadline-feasible rate r*: for a sequence of arrivals and a deadline D, r* is the smallest constant "
-        "service rate under which no bit waits longer than D. It is a max over windows of the window sum divided "
-        "by window length plus D — the network-calculus view of a deadline. For eMBB with D=20 it is close to the "
-        "horizon mean; for LL with D=4 it is essentially the peak 4-slot burst rate, which is much harder to "
-        "predict. Forecasting r* rather than volume is what makes the forecast deadline-aware."))
-    bullets(s, [
-        ("Decision each epoch k: budgets r ∈ {0 ≤ r_i ≤ cap_i, Σ r_i ≤ C_u}, held for slots kT … (k+1)T−1", 0),
-        ("Primary metric (fixed before tuning): priority-weighted deadline-violation ratio", 0, True),
-        ("V_w = Σ_i p_i · violated_bits_i / Σ_i p_i · arrived_bits_i     (p_LL = 3, p_eMBB = 1)", 1),
-        ("Supporting: per-class violation ratio, link utilisation, mean/p99 DU queueing delay, Jain fairness of service ratio, decision time", 1),
-        ("Deadline-feasible rate r*(a, D): smallest constant rate that serves arrivals a_1..a_H with no bit waiting > D slots", 0, True),
-        ("r*(a, D) = max over windows [s, e] of  Σ_{t=s..e} a_t / (e − s + 1 + D)     — network-calculus bound, exact for FIFO", 1),
-        ("Demand of a cell for the next interval = backlog-clearing rate + r* of the unseen arrivals", 1),
-        ("Why forecasting matters: r* of the NEXT interval is not observable; LL r* ≈ peak 4-slot burst rate (hard to predict)", 0),
-        ("Why not point forecasts: r* is right-skewed (bursts) → the median under-reserves, a fixed margin over-reserves everywhere", 0),
-    ], Inches(0.5), Inches(1.1), Inches(12.3), Inches(5.8), size=15)
-
-    # 6 Baselines ----------------------------------------------------------
-    s = d.slide("Baseline controllers (implemented; tuned on validation seeds)", section="5 Baselines", notes=(
-        "Five references. Static equal share ignores everything. Reactive proportional is the classic: backlog "
-        "plus an EWMA of recent demand, split proportionally, leftover redistributed. The deadline-aware reactive "
-        "controller has the same deadline knowledge as our method: it uses the deadline-feasible rate of the last "
-        "observed horizon as a persistence forecast, backlog slack, and priority weights. The point-forecast "
-        "controller is the ablation: identical to the proposed method but uses the GBM median instead of the "
-        "distribution. The oracle knows the actual next-horizon arrivals and removes forecast error from the water-fill family; it is a reference for the forecast, not a bound on other rules — in fact the KKT rule beats it at short intervals. It also bounds what interval-level "
-        "allocation could achieve. All margins and windows were chosen on validation seeds; the tuned values are "
-        "margin zero everywhere, meaning inflating a point estimate does not help under a proportional split."))
+    # 9 Baselines --------------------------------------------------------------
+    s = d.slide("Reference controllers (all implemented and tuned on validation)", section="Part B — baselines", notes=(
+        "Five references. Static equal share ignores everything. Reactive proportional is the classic: current "
+        "backlog plus a running average of demand, split proportionally, spare capacity redistributed. The "
+        "deadline-aware reactive controller knows the deadlines: it uses the r-star of the last observed interval "
+        "as its estimate, plus priority weights and the same water-filling split. The point-forecast controller "
+        "is our ablation: identical to the proposed method except it uses the forecast median instead of the "
+        "whole range. The oracle knows the real arrivals of the next interval. Every tunable knob was chosen on "
+        "validation seeds, never on test seeds. The chosen safety margins were all zero: inflating a single "
+        "predicted number made things worse."))
     rows = [
-        ("Static equal share", "C_u / N per cell (caps redistributed)", "none", "—"),
-        ("Reactive proportional", "backlog/T + (1+m)·EWMA; proportional split; leftover redistributed", "history", "m, EWMA window"),
-        ("Deadline-aware reactive (strong)", "backlog-slack rate + (1+m)·r*(last horizon); priority weights; water-fill", "history, D_i, p_i", "m, #horizons"),
-        ("Point forecast + water-fill (ablation)", "same as above with GBM MEDIAN forecast of r*", "history, D_i, p_i, model", "m"),
-        ("Oracle water-fill (reference)", "true r* of the next horizon; same water-fill as above (perfect point forecast, not a bound on other rules)", "future arrivals", "—"),
+        ("Static equal share", "link ÷ 8 per cell (spare capacity redistributed)", "nothing", "—"),
+        ("Reactive proportional", "backlog / T + running average of demand; proportional split; spare redistributed", "history", "margin, window"),
+        ("Deadline-aware reactive (strong)", "backlog-clearing rate + r* of the last interval; priority weights; water-fill", "history, deadlines, priorities", "margin, #intervals"),
+        ("Point forecast + water-fill (ablation)", "same as above, but r* comes from the forecast MEDIAN", "+ trained model", "margin"),
+        ("Oracle water-fill (reference)", "true r* of the next interval, same water-fill. Perfect point forecast; not a bound on other rules", "future arrivals", "—"),
     ]
-    df = pd.DataFrame(rows, columns=["Controller", "Budget rule", "Information", "Tuned"])
+    df = pd.DataFrame(rows, columns=["Controller", "How it sets budgets", "What it uses", "Tuned"])
     tbl = table(s, df, Inches(0.5), Inches(1.15), Inches(12.3), Inches(2.6), size=11)
     for j, w in enumerate((2.6, 5.9, 2.0, 1.8)):
         tbl.columns[j].width = Inches(w)
     if tuning:
         sel = tuning["selected"]
         bullets(s, [
-            ("Validation tuning (seeds 2000-2003, scenarios moderate/high; test seeds untouched):", 0, True),
+            ("Tuning on validation seeds 2000-2003 (scenarios moderate/high); test seeds were never used:", 0, True),
             (f"reactive_prop → {sel.get('reactive_prop')}  |  queue_aware → {sel.get('queue_aware')}  |  point_forecast → {sel.get('point_forecast')}  |  proposed_cal → {sel.get('proposed_cal')}", 1),
-            ("Finding: every safety margin > 0 was worse on validation — inflating a point estimate hurts when the shortage is split proportionally (over-claimers get more)", 1),
-            ("All controllers: identical traces, identical delayed observations, unused capacity always redistributed", 0),
+            ("Finding: every safety margin above 0 was worse. Inflating a single number hurts when the shortage is split proportionally — the cells that over-claim get more", 1),
+            ("Same traffic traces, same delayed observations, spare capacity always redistributed, for every controller", 0),
         ], Inches(0.5), Inches(4.75), Inches(12.3), Inches(2.2), size=13)
 
-    # 7 Proposed method ----------------------------------------------------
-    s = d.slide("Proposed method: quantile forecast of r* + KKT budget rule", section="6 Proposed", notes=(
-        "Two components. The forecaster predicts six quantiles of each cell's next-horizon deadline-feasible "
-        "rate with one gradient-boosted model per quantile, from 28 features built only from the observed past. "
-        "The allocator then solves a separable concave program: maximise the weighted expected served demand, "
-        "where the expectation is taken under the forecast distribution. The KKT conditions say each cell gets "
-        "its backlog rate plus the inverse CDF at 1 minus lambda over its weight, and lambda is the single "
-        "multiplier found by bisection so that the budgets sum to capacity. So all cells are cut at the same "
-        "weighted tail probability: a cell whose forecast is wide or whose weight is high automatically receives a "
-        "larger margin above its median; a confident cell gets almost exactly its median. Point forecasts are the "
-        "degenerate case, which is why the median water-fill is the fair comparator. The rule is closed-form "
-        "apart from a scalar bisection, feasibility is guaranteed by construction."))
+    # 10 Proposed method ------------------------------------------------------
+    s = d.slide("Proposed method: forecast a range, cut every cell at equal risk", section="Part B — proposed", notes=(
+        "Two parts. First, a forecaster: six gradient-boosted models, one per quantile, predict the 5th to 95th "
+        "percentile of each cell's r-star for the next interval, from 28 features built only from the past. "
+        "Second, the allocation rule. We want to maximise the weighted expected amount of demand that is served, "
+        "under the forecast distribution, subject to the link constraint. This is a concave problem, and the KKT "
+        "conditions give a closed form: each cell gets its backlog rate plus the inverse CDF of its forecast at "
+        "one minus lambda over its weight. Lambda is a single number found by bisection so that the budgets add "
+        "up to the link. In words: every cell is cut at the same weighted probability of needing one more bit. A "
+        "cell with a wide forecast or high priority automatically gets more margin; a cell with a confident "
+        "forecast gets about its median. A single-number forecast is the special case, which is why the "
+        "median water-fill is the fair comparison."))
     bullets(s, [
-        ("1. Forecaster: K = 6 quantiles (5, 25, 50, 75, 90, 95%) of r*_i for the next horizon", 0, True),
-        ("One HistGradientBoostingRegressor(loss='quantile') per level; 28 features from past slots only (lag means, EWMAs, last slots, past r*, SE, deadline, cell id)", 1),
-        ("Target normalised by the cell's fixed peak → no statistics fitted on data; trained on TRAIN seeds only", 1),
-        ("2. Allocator: separable concave program under the forecast distribution F_i", 0, True),
-        ("max Σ_i w_i · E[min(B_i + r*_i, r_i)]   s.t.  Σ r_i ≤ C_u,  0 ≤ r_i ≤ cap_i", 1),
-        ("KKT:  r_i(λ) = clip(B_i + F_i⁻¹(1 − λ / w_i), 0, cap_i),   λ from bisection on Σ r_i(λ) = C_u  (λ = 0 if slack → headroom spread)", 1),
-        ("Meaning: every cell is cut at the same weighted tail probability w_i·P(marginal bit needed) = λ", 1),
-        ("→ wide forecast or high weight ⇒ larger margin; confident forecast ⇒ ≈ median; backlog funded first (F_i(x<0) = 0)", 1),
-        ("Optional: per-cell ACI offset δ_i on the quantile level (Gibbs & Candès 2021) as an online fallback — tested as ablation", 0),
-        ("Cost: O(N·K + N·60) per epoch; feasibility by construction (Prop. 1-3 in docs/fhlm/method.md)", 0),
+        ("1. Forecaster: six quantiles (5, 25, 50, 75, 90, 95 %) of each cell's r* for the next interval", 0, True),
+        ("One gradient-boosted tree model per quantile; 28 features from past slots only; trained on training seeds only", 1),
+        ("Targets are divided by the cell's fixed peak, so nothing is fitted on test data", 1),
+        ("2. Allocation rule: maximise the weighted expected served demand under the forecast", 0, True),
+        ("max Σ_i w_i · E[min(backlog_i + r*_i, r_i)]   subject to   Σ r_i ≤ link,  0 ≤ r_i ≤ peak_i", 1),
+        ("Solution (KKT):  r_i = backlog_i + F_i⁻¹(1 − λ / w_i), clipped to [0, peak_i];  λ found by bisection so that Σ r_i = link", 1),
+        ("In words: every cell is cut at the same weighted risk of needing one more bit", 1),
+        ("→ wide forecast or high priority ⇒ more margin; confident forecast ⇒ ≈ median; backlog is always funded first", 1),
+        ("Optional: an online calibration step (ACI) that shifts a cell's quantile level after misses — tested as an ablation", 0),
+        ("Cost: a few microseconds for 8 cells; budgets always feasible (proofs in docs/fhlm/method.md)", 0),
     ], Inches(0.5), Inches(1.1), Inches(8.2), Inches(5.8), size=14)
-    # mini diagram of rule
     x0, y0 = Inches(9.0), Inches(1.2)
-    box(s, "history (past slots)\nqueue, HoL age, SE", x0, y0, Inches(3.8), Inches(0.8), size=11, fill=RGBColor(0xE3, 0xF2, 0xFD))
+    box(s, "past slots, queue, spectral efficiency", x0, y0, Inches(3.8), Inches(0.8), size=11, fill=BLUE_FILL)
     arrow(s, x0 + Inches(1.9), y0 + Inches(0.8), x0 + Inches(1.9), y0 + Inches(1.1))
-    box(s, "quantile GBM  →  q_i(α), α ∈ {.05 … .95}\n(predictive CDF F_i of r*_i)", x0, y0 + Inches(1.1), Inches(3.8),
-        Inches(0.9), size=11, fill=RGBColor(0xFF, 0xF3, 0xE0))
+    box(s, "quantile forecaster\n→ range of r*_i (5 % … 95 %)", x0, y0 + Inches(1.1), Inches(3.8), Inches(0.9), size=11,
+        fill=ORANGE_FILL)
     arrow(s, x0 + Inches(1.9), y0 + Inches(2.0), x0 + Inches(1.9), y0 + Inches(2.3))
-    box(s, "KKT rule\nr_i = B_i + F_i⁻¹(1 − λ/w_i)\nbisection on λ: Σ r_i = C_u", x0, y0 + Inches(2.3), Inches(3.8),
-        Inches(1.2), size=11, fill=RGBColor(0xFF, 0xEB, 0xEE), line=RED)
+    box(s, "KKT rule\nr_i = backlog_i + F_i⁻¹(1 − λ/w_i)\none scalar λ: Σ r_i = link", x0, y0 + Inches(2.3), Inches(3.8),
+        Inches(1.2), size=11, fill=RED_FILL, line=RED)
     arrow(s, x0 + Inches(1.9), y0 + Inches(3.5), x0 + Inches(1.9), y0 + Inches(3.8))
-    box(s, "budgets r_i, held T slots\nDU scheduler serves ≤ r_i", x0, y0 + Inches(3.8), Inches(3.8), Inches(0.8), size=11)
-    text(s, "Adapted: quantile GBM, ACI, water-filling.\nCandidate contribution: r* as forecast target + KKT rule "
-         "over the forecast CDF under the link constraint, evaluated vs strong baselines.", x0, y0 + Inches(4.7),
+    box(s, "budgets r_i, held 10 ms\nO-DU serves each queue ≤ r_i", x0, y0 + Inches(3.8), Inches(3.8), Inches(0.8), size=11)
+    text(s, "Borrowed: quantile boosting, ACI, water-filling.\nOur part: r* as the forecast target + the KKT rule "
+         "over the forecast range under the link constraint, tested against strong baselines.", x0, y0 + Inches(4.7),
          Inches(3.9), Inches(1.0), size=10, color=GREY, italic=True)
 
-    # 8 Architecture -------------------------------------------------------
-    s = d.slide("Architecture and what has been implemented", section="7 Implementation", notes=(
-        "The package fhlm has about 1,700 lines. config holds the units and the 7-2x constants; traffic generates "
-        "the synthetic arrivals; demand implements r*; simulator is the slot loop with queues and accounting; "
-        "controllers hold the five baselines; forecast the feature pipeline, quantile GBM and a compiled "
-        "vectorised inference path; proposed the KKT allocator; scenarios the seed splits; train, run_experiments, "
-        "make_figures and make_slides reproduce everything in this deck. Thirteen tests cover capacity compliance, "
-        "non-negative queues, bit accounting, zero load, overload, reproducibility, r* tightness, KKT properties, "
-        "the no-future-leakage contract and compiled-vs-sklearn equality."))
-    mods = [
-        ("config.py", "units, 7-2x FH constants, cells, link"), ("traffic.py", "synthetic arrivals: Gamma + Pareto ON/OFF + regimes + SE drift"),
-        ("demand.py", "deadline-feasible rate r*, backlog slack rate"), ("simulator.py", "slot loop, FIFO age queues, drops, metrics"),
-        ("controllers.py", "5 baselines incl. oracle, water-fill"), ("forecast.py", "features, quantile GBM, window quantiles, CompiledGBM"),
-        ("proposed.py", "KKT allocator + ACI offsets"), ("scenarios.py", "train/val/test seeds, 5 scenarios"),
-        ("train.py", "train on TRAIN seeds, validate on VAL"), ("run_experiments.py", "tune / main / sweep / demo; raw JSON per run"),
-        ("make_figures.py", "all figures from CSV"), ("tests/test_fhlm.py", "13 tests (capacity, queues, accounting, leakage, KKT …)"),
-    ]
-    for k, (m, desc) in enumerate(mods):
-        col, row = k % 2, k // 2
-        x = Inches(0.5) + Inches(6.2) * col
-        y = Inches(1.15) + Inches(0.72) * row
-        box(s, m, x, y, Inches(1.9), Inches(0.6), size=12, bold=True, fill=RGBColor(0xE3, 0xF2, 0xFD))
-        text(s, desc, x + Inches(2.0), y + Inches(0.08), Inches(4.1), Inches(0.6), size=12)
-    bullets(s, [
-        ("Pipeline: traffic → simulator ↔ controller (observation τ old → budgets) → metrics/raw JSON → figures → slides", 0),
-        ("Data flow for ML: TRAIN seeds → features/targets → 6 GBMs (~12 s CPU) → VAL coverage check → frozen model → TEST", 0),
-        ("Python 3, numpy/pandas/scikit-learn/matplotlib only; full reproduction ≈ 6 min on a 4-core laptop", 0),
-    ], Inches(0.5), Inches(5.6), Inches(12.3), Inches(1.4), size=13)
-
-    # 9 Experimental setup -------------------------------------------------
-    s = d.slide("Experimental setup (synthetic traffic, labelled as such)", section="8 Experiments", notes=(
-        "Traffic is synthetic: a smooth Gamma component plus a Pareto-distributed ON/OFF bursty component per "
-        "cell, slow log-normal regime changes about every second, and spectral-efficiency drift. Five scenarios "
-        "differ in mean load and burstiness; 'shift' uses heavier and longer bursts than anything in training and "
-        "is the held-out condition. Every method sees the same trace, seed by seed, so we can compare pairwise. "
-        "Train, validation and test seeds are disjoint ranges. Absolute violation ratios are high because the "
-        "traffic is deliberately heavy-tailed at 80% mean load; the comparison between methods is the result."))
-    rows = [("low", "0.50", "nominal", "no"), ("moderate", "0.65", "nominal", "yes (validation seeds)"),
-            ("high", "0.80", "nominal", "yes (validation seeds)"),
-            ("overload_bursts", "0.80", "flash crowds: ×1.8 regimes, 15% of the time (offered load > C_u)", "no"),
-            ("shift (held-out)", "0.80", "ON rate ×1.5, ON duration ×1.5, Pareto α_on = 1.2 — never in training/tuning", "no")]
-    tbl = table(s, pd.DataFrame(rows, columns=["Scenario", "Mean FH load / C_u", "Traffic family", "Used for tuning?"]),
+    # 11 Experimental setup ----------------------------------------------------
+    s = d.slide("Experimental setup (synthetic traffic, clearly labelled)", section="Part B — experiments", notes=(
+        "The traffic is synthetic: a smooth part plus heavy-tailed on-off bursts per cell, slow load changes "
+        "about every second, and drifting spectral efficiency. Five scenarios differ in average load and "
+        "burstiness. 'Shift' uses heavier and longer bursts than anything the model saw in training — the "
+        "held-out test. Training, validation and test seeds are separate ranges. Every controller sees exactly "
+        "the same traffic, seed by seed, so we can compare them pairwise. Absolute violation numbers are high "
+        "because the traffic is deliberately bursty at 80 percent load; the differences between controllers are "
+        "the result."))
+    rows = [("low", "0.50", "normal", "no"), ("moderate", "0.65", "normal", "yes (validation seeds)"),
+            ("high", "0.80", "normal", "yes (validation seeds)"),
+            ("overload_bursts", "0.80", "flash crowds: load ×1.8 for about 15 % of the time (more than the link can carry)", "no"),
+            ("shift (held-out)", "0.80", "bursts 1.5× stronger and 1.5× longer, heavier tail — never seen in training or tuning", "no")]
+    tbl = table(s, pd.DataFrame(rows, columns=["Scenario", "Mean load / link", "Traffic", "Used for tuning?"]),
                 Inches(0.5), Inches(1.15), Inches(12.3), Inches(2.3), size=12)
     for j, w in enumerate((2.0, 2.0, 6.3, 2.0)):
         tbl.columns[j].width = Inches(w)
     bullets(s, [
-        ("Traffic (synthetic): Gamma smooth part + Pareto ON/OFF bursts (α_on 1.5) + log-normal regimes (~1 s) + SE drift", 0),
-        ("Seeds: train 1000-1015 (loads 0.5-0.95) | validation 2000-2003 | test 3000-3004 — disjoint", 0),
-        ("Per run: 20,000 slots = 10 s after 1,000-slot warm-up; T = 20 slots, τ = 2 slots; 8 methods × 5 scenarios × 5 seeds = 200 runs", 0),
-        ("Identical traces and identical delayed observations for every controller; forecaster frozen before test", 0),
-        ("Note: absolute violation ratios are high by design (heavy-tailed bursts at 0.8 mean load); relative, paired differences are the evidence", 0),
+        ("Traffic (synthetic): smooth Gamma part + heavy-tailed ON/OFF bursts + slow load changes (~1 s) + spectral-efficiency drift", 0),
+        ("Seeds: training 1000-1015 (loads 0.5-0.95) | validation 2000-2003 | test 3000-3004 — no overlap", 0),
+        ("Each run: 20,000 slots = 10 s after a 1,000-slot warm-up; T = 20 slots; 8 controllers × 5 scenarios × 5 seeds = 200 runs", 0),
+        ("Same traffic and same delayed observations for every controller; the forecaster is frozen before testing", 0),
+        ("Absolute violation ratios are high on purpose (bursty traffic at 0.8 load); the paired differences between controllers are the result", 0),
     ], Inches(0.5), Inches(4.0), Inches(12.3), Inches(3.0), size=14)
 
-    # 10 Main results ------------------------------------------------------
+    # 12 Main results ---------------------------------------------------------
     hi_pf, hi_qa, hi_rp = pr("high", "point_forecast"), pr("high", "queue_aware"), pr("high", "reactive_prop")
     sh_pf, sh_qa, sh_rp = pr("shift", "point_forecast"), pr("shift", "queue_aware"), pr("shift", "reactive_prop")
     ob_rp, ob_rp_w = pr("overload_bursts", "reactive_prop"), pr("overload_bursts", "reactive_prop", "reference_wins")
-    s = d.slide("Results: primary metric per scenario (5 test seeds, mean ± std)", section="9 Results", notes=(
-        f"Bars are the priority-weighted violation ratio; lower is better; black is the oracle. The proposed rule "
-        f"(red) is the best implementable method in every scenario. Against the point-forecast controller, which "
-        f"has the same model and the same information, it reduces the metric by {hi_pf:.0f}% at high load and "
-        f"{sh_pf:.0f}% under the held-out shift. Against the deadline-aware reactive baseline by {hi_qa:.0f}% and "
-        f"{sh_qa:.0f}%. Against the plain proportional controller the margin is {hi_rp:.0f}% at high load but only "
-        f"{ob_rp:.0f}% under flash crowds, where it wins {ob_rp_w:.0f} of 5 seeds — a tie. The std bars are large "
-        "because seeds differ in burst timing; the paired analysis on the next slide is the correct reading."))
+    s = d.slide("Results: main score per scenario (5 test seeds, mean ± std)", section="Part B — results", notes=(
+        f"Lower is better. Black is the oracle. The proposed rule, in red, is the best real controller in every "
+        f"scenario. Against the point-forecast controller — same model, same information — it cuts the score by "
+        f"{hi_pf:.0f} percent at high load and {sh_pf:.0f} percent under the held-out shift. Against the "
+        f"deadline-aware reactive controller by {hi_qa:.0f} and {sh_qa:.0f} percent. Against the plain proportional "
+        f"controller the margin is {hi_rp:.0f} percent at high load but only {ob_rp:.0f} percent under flash crowds, "
+        f"where it wins {ob_rp_w:.0f} of 5 seeds — a tie. The error bars are wide because seeds differ in when the "
+        "bursts happen; the next slide compares seed by seed."))
     picture(s, os.path.join(FIG, "fig1_primary_by_scenario.png"), Inches(0.4), Inches(1.1), width=Inches(8.6))
     if main is not None:
-        items = [("Proposed = best implementable method in 5/5 scenarios", 0, True),
-                 (f"vs point forecast (same model, median only): −{hi_pf:.0f}% (high), −{sh_pf:.0f}% (shift)", 1),
-                 (f"vs deadline-aware reactive: −{hi_qa:.0f}% (high), −{sh_qa:.0f}% (shift)", 1),
-                 (f"vs reactive proportional: −{hi_rp:.0f}% (high) but only −{ob_rp:.0f}% under flash crowds ({ob_rp_w:.0f}/5 seeds) → tie", 1),
-                 (f"Gap to oracle at high load: {pct(mean_metric('high', 'proposed'))} vs {pct(mean_metric('high', 'oracle'))}", 0),
-                 ("Std across seeds is large (burst timing) → paired per-seed comparison next", 0)]
-        bullets(s, items, Inches(9.1), Inches(1.2), Inches(4.0), Inches(5.6), size=13)
+        bullets(s, [("Proposed = best real controller in 5 of 5 scenarios", 0, True),
+                    (f"vs point forecast (same model, median only): −{hi_pf:.0f} % (high), −{sh_pf:.0f} % (shift)", 1),
+                    (f"vs deadline-aware reactive: −{hi_qa:.0f} % (high), −{sh_qa:.0f} % (shift)", 1),
+                    (f"vs reactive proportional: −{hi_rp:.0f} % (high) but only −{ob_rp:.0f} % under flash crowds ({ob_rp_w:.0f}/5 seeds) → a tie", 1),
+                    (f"Gap to the oracle at high load: {pct(mean_metric('high', 'proposed'))} vs {pct(mean_metric('high', 'oracle'))}", 0),
+                    ("Error bars are wide because burst timing differs by seed → compare seed by seed (next slide)", 0)],
+                Inches(9.1), Inches(1.2), Inches(4.0), Inches(5.6), size=13)
 
-    # 11 Paired ------------------------------------------------------------
-    s = d.slide("Results: paired per-seed comparison on identical traces", section="9 Results", notes=(
-        "Each bar is the mean relative reduction of the primary metric by the proposed method against one "
-        "baseline, computed seed by seed on the very same trace; whiskers are min and max over seeds and the text "
-        "is how many of the five seeds the proposed method won. Against point forecast and the deadline-aware "
-        "reactive controller it wins every seed in every scenario. Against the plain proportional controller it "
-        "wins all seeds except under flash crowds. The green bars are the ML ablation: the same rule fed with "
-        "empirical window quantiles instead of the GBM; the ML forecaster adds 5-50% in nominal traffic but almost "
-        "nothing under the held-out shift, where the trained model is out of distribution. Purple: ACI "
-        "calibration gives no benefit and is harmful under shift."))
+    # 13 Paired ---------------------------------------------------------------
+    s = d.slide("Results: seed-by-seed comparison on the same traffic", section="Part B — results", notes=(
+        "Each bar is how much the proposed rule lowers the score compared with one baseline, computed seed by "
+        "seed on the very same traffic; the whiskers are the best and worst seed, and the text says how many of "
+        "the five seeds it won. Against the point-forecast and the deadline-aware reactive controllers it wins "
+        "every seed in every scenario. Against the plain proportional controller it wins every seed except under "
+        "flash crowds. Green is the machine-learning ablation: the same rule fed with simple empirical quantiles "
+        "instead of the trained model. The model helps a lot on normal traffic but almost not at all under the "
+        "held-out shift. Purple: online calibration gives nothing and hurts under shift."))
     picture(s, os.path.join(FIG, "fig8_paired_reduction.png"), Inches(0.4), Inches(1.1), width=Inches(8.6))
     if paired is not None:
         pw = [pr(sc, "proposed_window") for sc in SC]
-        items = [("Wins 5/5 seeds vs point forecast and vs deadline-aware reactive in every scenario", 0, True),
-                 (f"vs reactive proportional: 5/5 in four scenarios; {ob_rp_w:.0f}/5 under flash crowds (no claim there)", 0),
-                 ("ML ablation (same rule, window quantiles instead of GBM):", 0, True),
-                 (f"GBM adds {min(pw):.0f}–{max(pw):.0f}% ; smallest under held-out shift ({pr('shift', 'proposed_window'):.0f}%) → the rule, not the model, carries most of the gain", 1),
-                 ("ACI calibration: no gain in-distribution, harmful under shift (over-reserves LL, starves eMBB) → negative result", 0),
-                 ("No significance test claimed with 5 seeds; win counts and min/max are reported instead", 0)]
-        bullets(s, items, Inches(9.1), Inches(1.2), Inches(4.0), Inches(5.6), size=13)
+        bullets(s, [("Wins 5/5 seeds vs point forecast and vs deadline-aware reactive in every scenario", 0, True),
+                    (f"vs reactive proportional: 5/5 in four scenarios; {ob_rp_w:.0f}/5 under flash crowds (no claim there)", 0),
+                    ("ML ablation (same rule, simple window quantiles instead of the trained model):", 0, True),
+                    (f"the model adds {min(pw):.0f}-{max(pw):.0f} %; least under the held-out shift ({pr('shift', 'proposed_window'):.0f} %) → the rule, not the model, carries most of the gain", 1),
+                    ("Online calibration: no gain on normal traffic, harmful under shift (it over-reserves for low-latency cells and starves eMBB) → negative result", 0),
+                    ("With 5 seeds we do not claim statistical significance; we report win counts and best/worst seed", 0)],
+                Inches(9.1), Inches(1.2), Inches(4.0), Inches(5.6), size=13)
 
-    # 12 Per class trade-off ----------------------------------------------
-    s = d.slide("Where the gain comes from: per-class trade-off (high load)", section="9 Results", notes=(
+    # 14 Per class trade-off --------------------------------------------------
+    s = d.slide("Where the gain comes from: low-latency vs eMBB (high load)", section="Part B — results", notes=(
         "Left: low-latency violations; middle: eMBB; right: link utilisation. The proportional controller keeps "
-        "eMBB almost clean but lets low-latency cells lose 15% of their bits — the deadline-unaware failure mode. "
-        "The deadline-aware family (blue, orange, red, black) protects the LL cells at the price of eMBB. Within "
-        "that family the proposed rule has the lowest eMBB loss and the highest utilisation, because it reserves "
-        "margin only where the forecast is uncertain instead of everywhere. The oracle shows that even perfect "
-        "knowledge of the next interval leaves 13% eMBB loss at this load: budgets fixed for 10 ms cannot follow "
-        "heavy-tailed bursts, so a shorter interval — next slide — is the other lever."))
+        "eMBB almost clean but lets low-latency cells lose 15 percent of their bits — it does not know about "
+        "deadlines. All deadline-aware controllers protect the low-latency cells and pay with eMBB. Within that "
+        "group the proposed rule has the lowest eMBB loss and the highest utilisation, because it adds margin "
+        "only where the forecast is uncertain instead of everywhere. Even the oracle loses 13 percent of eMBB "
+        "bits here: budgets fixed for 10 ms simply cannot follow heavy bursts, which is why the control interval "
+        "matters — see the ablation slide."))
     picture(s, os.path.join(FIG, "fig2_class_breakdown_high.png"), Inches(0.4), Inches(1.1), width=Inches(12.5))
     if main is not None:
-        items = [
-            (f"Reactive proportional: LL {pct(mean_metric('high', 'reactive_prop', 'violation_ratio_ll'))} vs proposed {pct(mean_metric('high', 'proposed', 'violation_ratio_ll'))} — deadline-unaware controllers sacrifice LL", 0),
-            (f"Within the deadline-aware family, proposed has the lowest eMBB loss ({pct(mean_metric('high', 'proposed', 'violation_ratio_embb'))} vs {pct(mean_metric('high', 'point_forecast', 'violation_ratio_embb'))} point forecast) and highest utilisation ({pct(mean_metric('high', 'proposed', 'fh_utilisation'))})", 0),
-            (f"Oracle still loses {pct(mean_metric('high', 'oracle', 'violation_ratio_embb'))} eMBB at 0.80 load: 10-ms fixed budgets cannot track heavy-tailed bursts → control interval matters", 0),
-        ]
-        bullets(s, items, Inches(0.5), Inches(5.2), Inches(12.3), Inches(1.8), size=13)
+        bullets(s, [
+            (f"Reactive proportional: low-latency loss {pct(mean_metric('high', 'reactive_prop', 'violation_ratio_ll'))} vs {pct(mean_metric('high', 'proposed', 'violation_ratio_ll'))} for proposed — controllers that ignore deadlines sacrifice the low-latency cells", 0),
+            (f"Among deadline-aware controllers, proposed has the lowest eMBB loss ({pct(mean_metric('high', 'proposed', 'violation_ratio_embb'))} vs {pct(mean_metric('high', 'point_forecast', 'violation_ratio_embb'))} for point forecast) and the highest utilisation ({pct(mean_metric('high', 'proposed', 'fh_utilisation'))})", 0),
+            (f"Even the oracle loses {pct(mean_metric('high', 'oracle', 'violation_ratio_embb'))} of eMBB bits at 0.80 load: budgets fixed for 10 ms cannot follow heavy bursts → the control interval matters", 0),
+        ], Inches(0.5), Inches(5.2), Inches(12.3), Inches(1.8), size=13)
 
-    # 13 Ablations: forecast quality + interval sweep -----------------------
-    s = d.slide("Ablations: forecast quality and control interval", section="10 Ablation", notes=(
-        "Left: the GBM quantiles are well calibrated on validation data — empirical coverage matches nominal "
-        "levels within one point — and its median error is lower than persistence and window medians. Right: the "
-        "control-interval sweep on the high scenario, forecasters retrained per interval. Two honest findings. "
-        "At 2 ms the proposed rule is far ahead of every reactive controller and even of the oracle-informed "
-        "water-fill, which has a perfect point forecast: so the allocation rule itself, not only the forecast, "
-        "is doing work. At 20 ms — five times the low-latency deadline — reserving the LL peak rate for the whole "
-        "interval over-reserves, and the deadline-unaware proportional controller becomes better on the weighted "
-        "metric. So the method is appropriate when the control interval is at most a few multiples of the "
-        "shortest deadline; our default of 10 ms is inside that regime."))
+    # 15 Bridge: compression x allocation --------------------------------------
+    s = d.slide("Both levers on the same traffic: compression × allocation", section="A + B", notes=(
+        "This experiment connects the two parts. Same user traffic, same seeds; only the compression setting "
+        "changes: 6, 9, 12 or 14 mantissa bits, which changes how many fronthaul bits each resource block costs "
+        "and therefore the load on the link. At 6 bits the load is 43 percent and almost nothing is lost, "
+        "whatever the allocation rule — compression alone solves it, at the price of quantisation noise, which "
+        "this experiment does not model. At 9 bits, the O-RAN default, the allocation rule matters most: the "
+        "proposed rule loses about half as much as the reactive controllers. At 12 bits the link is at 83 "
+        "percent and the proposed rule ties with the proportional one. At 14 bits the link is essentially full "
+        "and no allocation rule helps; the proposed rule is even the worst, because protecting the low-latency "
+        "cells costs too many eMBB bits. Message: compression decides which regime you are in; allocation "
+        "helps most in the 50 to 80 percent regime."))
+    picture(s, os.path.join(FIG, "fig9_compression_vs_allocation.png"), Inches(0.4), Inches(1.1), width=Inches(8.4))
+    if comp is not None and not comp.empty:
+        g = comp.groupby(["mantissa_bits", "method"])[PRIMARY_METRIC].mean()
+        load = comp.groupby("mantissa_bits")["realised_load"].mean()
+        items = [("Same user traffic, 3 seeds, scenario 'moderate'; only the BFP width changes", 0, True)]
+        for b in sorted(comp.mantissa_bits.unique()):
+            best = g.loc[b].idxmin()
+            items.append((f"BFP-{b}: load {load[b]:.2f} → proposed {pct(g.loc[(b, 'proposed')], 2)}, reactive prop. {pct(g.loc[(b, 'reactive_prop')], 2)}; best = {SHORT_LAB[best]}", 1))
+        items += [("Compression sets the regime; allocation helps most between ~0.5 and ~0.8 load", 0, True),
+                  ("At ~1.0 load no allocation rule helps — compress more (Part A) or add capacity", 0),
+                  ("Not modelled: the signal-quality cost of fewer bits (Part A's NMSE curves cover that side)", 0)]
+        bullets(s, items, Inches(8.9), Inches(1.15), Inches(4.3), Inches(5.7), size=12, para_space=4)
+
+    # 16 Ablations -------------------------------------------------------------
+    s = d.slide("Ablations: forecast quality and control interval", section="Part B — ablation", notes=(
+        "Left: the forecast quantiles are well calibrated on validation data — the 5 percent quantile is exceeded "
+        "5.6 percent of the time, the 95 percent quantile 5.1 percent — and the median error is lower than "
+        "simple persistence. Right: the control-interval sweep, forecasters retrained per interval. Two honest "
+        "findings. At 2 ms the proposed rule is far ahead of every reactive controller and even of the oracle "
+        "water-fill, which has a perfect single-number forecast — so the allocation rule itself does real work. "
+        "At 20 ms, five times the low-latency deadline, reserving the low-latency peak rate for the whole interval "
+        "wastes capacity and the plain proportional controller becomes better. So the method is for control "
+        "intervals up to a few times the shortest deadline; our default of 10 ms is inside that range."))
     picture(s, os.path.join(FIG, "fig5_forecast_quality.png"), Inches(0.3), Inches(1.1), width=Inches(6.4))
     picture(s, os.path.join(FIG, "fig4_interval_sweep.png"), Inches(6.8), Inches(1.1), width=Inches(6.3))
     items = []
     if fc:
         v = fc["gbm_validation"]
-        items += [(f"Validation coverage at nominal 5/50/95%: {pct(v['coverage_q05'])} / {pct(v['coverage_q50'])} / {pct(v['coverage_q95'])} ; "
-                   f"median rel. MAE {pct(v['median_mae_rel'], 0)} vs persistence {pct(fc['persistence_median_mae_rel'], 0)} , window {pct(fc['window_quantile_validation']['median_mae_rel'], 0)}", 0)]
+        items += [(f"Validation: the 5 / 50 / 95 % quantiles are exceeded {pct(v['coverage_q05'])} / {pct(v['coverage_q50'])} / {pct(v['coverage_q95'])} of the time (well calibrated); "
+                   f"median error {pct(v['median_mae_rel'], 0)} vs {pct(fc['persistence_median_mae_rel'], 0)} for persistence", 0)]
     if sweep is not None and not sweep.empty:
         g = sweep.groupby(["interval_slots", "method"])[PRIMARY_METRIC].mean()
         Ts = sorted(sweep.interval_slots.unique())
@@ -581,111 +693,136 @@ def build(out: str = OUT):
                 return 100 * (g.loc[(T, base)] - g.loc[(T, "proposed")]) / g.loc[(T, base)]
             except KeyError:
                 return float("nan")
-        items += [("Interval sweep (scenario high, 3 seeds), reduction by proposed vs deadline-aware reactive / vs reactive proportional / vs oracle water-fill:", 0, True)]
+        items += [("Interval sweep (scenario high, 3 seeds). Reduction by proposed vs deadline-aware reactive / vs reactive proportional / vs oracle water-fill:", 0, True)]
         items += [("   " + "   |   ".join(f"T={T * 0.5:g} ms: {red(T, 'queue_aware'):+.0f}% / {red(T, 'reactive_prop'):+.0f}% / {red(T, 'oracle'):+.0f}%" for T in Ts), 1)]
         short_T, long_T = Ts[0], Ts[-1]
         if red(short_T, "oracle") > 0:
-            items += [(f"At T = {short_T * 0.5:g} ms the KKT rule even beats the oracle water-fill (perfect point forecast, proportional shortage split) → the allocation RULE, not only the forecast, drives the gain", 0)]
+            items += [(f"At T = {short_T * 0.5:g} ms the rule even beats the oracle water-fill (perfect single-number forecast) → the allocation rule, not only the forecast, does the work", 0)]
         if red(long_T, "reactive_prop") < 0:
-            items += [(f"At T = {long_T * 0.5:g} ms (budgets held 5× the LL deadline) the deadline-aware family over-reserves the LL peak rate and reactive proportional wins on the weighted metric → known failure regime; a bound on how long a reservation should be held", 0)]
+            items += [(f"At T = {long_T * 0.5:g} ms (5× the low-latency deadline) reserving the low-latency peak rate wastes capacity and reactive proportional wins → the method is for intervals up to a few times the shortest deadline", 0)]
     else:
         items += [("Interval sweep: not yet run (results/fhlm/sweep_runs.csv missing)", 0)]
     bullets(s, items, Inches(0.5), Inches(4.5), Inches(12.3), Inches(2.4), size=12, para_space=4)
 
-    # 14 Demo --------------------------------------------------------------
-    s = d.slide("One trace: budgets vs. demand of a low-latency cell (300 ms)", section="9 Results", notes=(
-        "Top: fronthaul demand of a low-latency cell in grey and the budget each controller gave it. The reactive "
-        "controller reacts one interval late to each burst; the point forecast tracks the median; the proposed "
-        "rule raises the budget when the predictive distribution is wide and lets it sit near the median when it "
-        "is confident. Bottom: cumulative violated bits — the proposed rule has the fewest on this window. This "
-        "is the demo I can run live: python -m fhlm.run_experiments demo, then make_figures."))
-    picture(s, os.path.join(FIG, "fig6_demo_timeseries.png"), Inches(1.2), Inches(1.05), height=Inches(5.9))
-
-    # 15 Limitations -------------------------------------------------------
-    s = d.slide("Limitations and honest status", section="11 Limitations", notes=(
-        "Be explicit about what this is not. Traffic is synthetic; no real fronthaul traces were available, so "
-        "there is no real-world validation. The oracle is only interval-level; a slot-level optimum would be "
-        "lower. The gain over the simplest proportional controller vanishes under flash crowds, and the ML "
-        "forecaster adds little under the held-out shift. ACI calibration did not help. Five seeds do not allow a "
-        "significance claim. The fronthaul link is modelled as a budget-enforced pipe: no packet-level queueing "
-        "in the switch, one class per cell, no HARQ feedback loop. Decision time is Python-level: about 3 ms per "
-        "10 ms epoch, fine for simulation, not a claim about real-time deployment."))
+    # 17 Limitations -----------------------------------------------------------
+    s = d.slide("Limitations and honest status", section="Status", notes=(
+        "What this is not. Part A: the compression results are quoted from the earlier report and figures; the "
+        "source package is missing from the repository, so they were not re-run this term; the inversion "
+        "benchmark is re-runnable. Part B: traffic is synthetic; the oracle is only interval-level; the gain over "
+        "the simplest proportional controller vanishes under flash crowds and at long intervals; the learned "
+        "model adds little under shift; online calibration hurt; five seeds do not allow a significance claim; "
+        "the link is a budget-enforced pipe with no switch queue; decision time is Python-level, about 3 ms per "
+        "10 ms epoch."))
     bullets(s, [
-        ("Synthetic traffic only (Gamma + Pareto ON/OFF + regimes); no real O-RU traces → no real-world validation claimed", 0),
-        ("Gains are relative to interval-level controllers; the oracle itself is interval-level — a slot-level optimum is lower", 0),
-        ("Not a universal win: tie with reactive proportional under flash crowds; GBM adds ≈0-2% over window quantiles under held-out shift", 0),
-        ("ACI online calibration did not help (negative result); the robust fallback is currently the window-quantile variant", 0),
-        ("5 test seeds → win counts and min/max reported, no significance test", 0),
-        ("Simplified link: budget-enforced pipe, no switch packet queueing, one traffic class per cell, no HARQ/RLC feedback", 0),
-        ("Decision time ≈ 3.4 ms per 10-ms epoch in Python (vectorised tree evaluation); reactive baselines ≈ 0.1 ms", 0),
-        ("Propositions in docs are feasibility / equal-tail-probability / backlog-first — no stability or optimality-in-the-loop claims", 0),
-    ], Inches(0.5), Inches(1.1), Inches(12.3), Inches(5.8), size=15)
+        ("Part A: compression numbers are quoted from the earlier report and saved figures; the src/ package is not in the repo, so they are not re-run. The matrix-inversion benchmark is re-runnable (needs PyTorch)", 0, True),
+        ("Part A: benchmark matrices are random and well-conditioned; real channel matrices can be worse", 0),
+        ("Part B: synthetic traffic only — no real radio-unit traces, so no real-world validation is claimed", 0, True),
+        ("Not a universal win: tie with reactive proportional under flash crowds; loses to it at 20 ms intervals and at ~1.0 load; the ML model adds ≈ 2 % under the held-out shift", 0),
+        ("Online calibration (ACI) did not help — reported as a negative result; the simple-quantile variant is the current fallback", 0),
+        ("5 test seeds → we report win counts and best/worst seed, not p-values", 0),
+        ("Simplified link: a budget-enforced pipe, no switch queue, one traffic class per cell, no HARQ feedback; 'violation' is a DU queueing deadline, not end-to-end latency", 0),
+        ("Decision time ≈ 3.2 ms per 10-ms epoch in Python (reactive baselines ≈ 0.1 ms); a real DU would need a compiled version", 0),
+        ("Proofs cover feasibility, equal weighted risk and backlog-first only — no stability or closed-loop optimality claims", 0),
+    ], Inches(0.5), Inches(1.1), Inches(12.3), Inches(5.8), size=14)
 
-    # 16 Remaining work ----------------------------------------------------
-    s = d.slide("Status and remaining work toward the final evaluation", section="12 Plan", notes=(
-        "Left column is done and verified by tests and experiments; right column is what I propose to do next, "
-        "in priority order: replace or complement the synthetic traffic with public traces; make the rule cheaper "
-        "and robust by mixing window quantiles and GBM by recent forecast skill; add a switch queue and a second "
-        "lever such as compression ratio; more seeds; and an ablation on the deadline-feasible target itself."))
-    box(s, "Implemented and validated", Inches(0.5), Inches(1.15), Inches(6.0), Inches(0.5), fill=GREEN, color=WHITE, bold=True, size=14)
+    # 18 Remaining work --------------------------------------------------------
+    s = d.slide("Status and remaining work toward the final evaluation", section="Plan", notes=(
+        "Left column is done and checked by tests and experiments; right column is the plan in priority order. "
+        "For Part A, restore the compression source package into the repository and re-run the four figure "
+        "suites, then make the compression setting a second lever inside the allocation rule. For Part B, real "
+        "or public traffic traces; a skill-weighted mix of the trained and the simple quantiles as the fallback; a "
+        "switch queue; more seeds; and a compiled version of the decision."))
+    box(s, "Done and checked", Inches(0.5), Inches(1.15), Inches(6.0), Inches(0.5), fill=GREEN, color=WHITE, bold=True, size=14)
     bullets(s, [
-        "Slot-level 7-2x shared-link simulator with deadlines, priorities, telemetry delay, accounting (13 tests)",
-        "Synthetic heavy-tailed traffic generator with regimes, flash crowds, SE drift",
-        "5 baselines (static, proportional, deadline-aware reactive, point forecast, oracle), tuned on validation seeds",
-        "Quantile-GBM forecaster of r* (calibrated on validation), vectorised inference",
-        "KKT allocation rule with feasibility proof; ACI variant; window-quantile variant",
-        "200-run main comparison, paired analysis, interval sweep, demo, all figures, this deck — reproducible",
+        "Part A: compression study (BFP, SVD, RAS-BFP, CSEE, ACAFS) — 4 figure suites + report",
+        "Part A: matrix-inversion benchmark (LU, QR, SVD, Newton-Schulz, learned inverters; n = 10/100/500) — CSV + figure",
+        "Part B: slot-level shared-link simulator with deadlines, priorities, telemetry delay (14 tests)",
+        "Part B: 5 reference controllers, tuned on validation seeds; quantile forecaster, calibrated on validation",
+        "Part B: KKT allocation rule with feasibility proof; 200-run comparison, seed-by-seed analysis, interval sweep",
+        "A + B: compression × allocation experiment; all figures and this deck regenerated by scripts",
     ], Inches(0.5), Inches(1.75), Inches(6.0), Inches(5.0), size=13)
-    box(s, "Planned (not yet done)", Inches(6.9), Inches(1.15), Inches(6.0), Inches(0.5), fill=ORANGE, color=WHITE, bold=True, size=14)
+    box(s, "Planned (not done yet)", Inches(6.9), Inches(1.15), Inches(6.0), Inches(0.5), fill=ORANGE, color=WHITE, bold=True, size=14)
     bullets(s, [
-        "Real or public traffic traces (e.g. per-cell PRB utilisation datasets) → re-validate the forecaster",
-        "Skill-weighted blend of GBM and window quantiles as a principled fallback (replace ACI)",
-        "Second control lever: per-cell BFP compression / modulation compression under the same rule",
-        "Switch-level packet queue and T2a window model instead of a budget-enforced pipe",
-        "Ablation on the target: r* vs interval volume; more seeds; sensitivity to τ and priorities",
-        "Cost model: does the 3 ms Python decision fit a real DU? (C++/numba port, or longer epochs)",
+        "Part A: restore the compression src/ package into the repo and re-run Exp 1-4; benchmark on realistic channel matrices",
+        "A + B: make the compression width a second knob of the allocation rule (trade signal quality for load per cell)",
+        "Part B: real or public traffic traces → re-check the forecaster",
+        "Part B: skill-weighted mix of trained and simple quantiles as the fallback (instead of ACI)",
+        "Part B: switch-level packet queue and timing window instead of a budget-enforced pipe; more seeds",
+        "Compiled (C++/numba) decision so the 3 ms Python time fits a real DU",
     ], Inches(6.9), Inches(1.75), Inches(6.0), Inches(5.0), size=13)
 
     # ---------------- backup ------------------------------------------------
-    s = d.slide("Backup: primary metric [%], mean ± std over 5 test seeds", section="Backup", notes=(
-        "Table of the primary metric per scenario and method, produced from results/fhlm/main_runs.csv."))
+    s = d.slide("Backup: one trace — budgets vs demand of a low-latency cell", section="Backup", notes=(
+        "Top: demand of one low-latency cell in grey and the budget each controller gave it. The reactive "
+        "controller reacts one interval late to each burst; the point forecast tracks the median; the proposed "
+        "rule raises the budget when the forecast range is wide. Bottom: cumulative dropped bits. "
+        "Live demo: python -m fhlm.run_experiments demo, then python -m fhlm.make_figures."))
+    picture(s, os.path.join(FIG, "fig6_demo_timeseries.png"), Inches(1.2), Inches(1.05), height=Inches(5.9))
+
+    s = d.slide("Backup: code layout (Part B)", section="Backup", notes=(
+        "The fhlm package: config holds units and 7-2x constants; traffic generates arrivals; demand implements "
+        "r-star; simulator is the slot loop; controllers the baselines; forecast the features and quantile model; "
+        "proposed the KKT rule; scenarios the seed splits; train, run_experiments, make_figures and make_slides "
+        "reproduce everything. matinv_bench holds the Part A inversion benchmark."))
+    mods = [
+        ("config.py", "units, 7-2x fronthaul constants, cells, link"), ("traffic.py", "synthetic arrivals: smooth + bursts + slow changes"),
+        ("demand.py", "deadline-feasible rate r*, backlog rate"), ("simulator.py", "slot loop, queues with ages, drops, metrics"),
+        ("controllers.py", "5 reference controllers, water-fill"), ("forecast.py", "features, quantile boosting, fast tree evaluation"),
+        ("proposed.py", "KKT rule + optional calibration"), ("scenarios.py", "train / validation / test seeds, 5 scenarios"),
+        ("train.py", "train on training seeds, check on validation"), ("run_experiments.py", "tune / main / sweep / compression / demo"),
+        ("make_figures.py, make_slides.py", "all figures and this deck from CSV"), ("matinv_bench/ (Part A)", "matrix-inversion benchmark: classical + learned"),
+    ]
+    for k, (m, desc) in enumerate(mods):
+        col, row = k % 2, k // 2
+        x = Inches(0.5) + Inches(6.2) * col
+        y = Inches(1.15) + Inches(0.72) * row
+        box(s, m, x, y, Inches(2.3), Inches(0.6), size=11, bold=True, fill=BLUE_FILL)
+        text(s, desc, x + Inches(2.4), y + Inches(0.08), Inches(3.7), Inches(0.6), size=12)
+    bullets(s, [
+        ("Flow: traffic → simulator ↔ controller (observation 2 slots old → budgets) → metrics / raw JSON → figures → slides", 0),
+        ("ML flow: training seeds → features / targets → 6 boosted models (~12 s CPU) → validation check → frozen model → test seeds", 0),
+        ("Python 3 with numpy / pandas / scikit-learn / matplotlib; full reproduction ≈ 10 min on a 4-core laptop", 0),
+    ], Inches(0.5), Inches(5.6), Inches(12.3), Inches(1.4), size=13)
+
+    s = d.slide("Backup: main score [%], mean ± std over 5 test seeds", section="Backup", notes=(
+        "Table of the main score per scenario and method, from results/fhlm/main_runs.csv."))
     if main is not None:
         methods = ["static_equal", "reactive_prop", "queue_aware", "point_forecast", "proposed_window", "proposed", "proposed_cal", "oracle"]
         df = summary_table(main, SC, methods, LAB).rename(columns=SCL)
         table(s, df, Inches(0.4), Inches(1.15), Inches(12.5), Inches(4.6), size=11)
-        text(s, "Source: results/fhlm/main_runs.csv (200 runs). Paired per-seed statistics: results/fhlm/main_paired.csv.",
+        text(s, "Source: results/fhlm/main_runs.csv (200 runs). Seed-by-seed statistics: results/fhlm/main_paired.csv.",
              Inches(0.4), Inches(6.0), Inches(12), Inches(0.4), size=11, color=GREY, italic=True)
 
-    s = d.slide("Backup: derivation of the KKT budget rule", section="Backup", notes=(
-        "Derivation for questions. The objective is concave and separable; the Lagrangian derivative in r_i is "
-        "w_i times one minus F_i at r_i minus B_i minus lambda; setting it to zero gives the inverse-CDF form. "
-        "Because F_i is zero below zero, the derivative equals w_i there — backlog is always funded before any "
-        "uncertain demand of a lower-weight cell. The sum of r_i(lambda) is non-increasing in lambda, so bisection "
-        "finds the unique lambda at which the link is exactly full."))
+    s = d.slide("Backup: where the KKT rule comes from", section="Backup", notes=(
+        "For questions. The objective is concave and separable. Its derivative in r_i is w_i times the "
+        "probability that the cell needs more than r_i, minus lambda. Setting it to zero gives the inverse-CDF "
+        "form. Because the forecast CDF is zero below zero, the derivative equals w_i for budgets below the "
+        "backlog — backlog is always funded before uncertain demand of a lower-weight cell. The sum of budgets "
+        "decreases as lambda grows, so bisection finds the single lambda at which the link is exactly full."))
     bullets(s, [
-        ("Objective: J(r) = Σ_i w_i E_{F_i}[ min(B_i + X_i, r_i) ],  X_i ~ F_i (forecast CDF of r*_i)", 0),
-        ("d/dr_i E[min(B_i + X_i, r_i)] = P(B_i + X_i > r_i) = 1 − F_i(r_i − B_i)  → J concave, separable", 0),
-        ("Lagrangian: L = J − λ(Σ r_i − C_u) + Σ μ_i r_i − Σ ν_i (r_i − cap_i)", 0),
+        ("Objective: J(r) = Σ_i w_i · E[ min(B_i + X_i, r_i) ],   X_i ~ forecast distribution F_i of r*_i, B_i = backlog rate", 0),
+        ("Derivative: d/dr_i E[min(B_i + X_i, r_i)] = P(B_i + X_i > r_i) = 1 − F_i(r_i − B_i)   → J is concave and separable", 0),
+        ("Lagrangian with the link constraint (λ) and the box constraints (μ_i, ν_i)", 0),
         ("Stationarity for an interior r_i:  w_i (1 − F_i(r_i − B_i)) = λ   ⇒   r_i = B_i + F_i⁻¹(1 − λ / w_i)", 0),
-        ("Clip at 0 and cap_i (μ_i, ν_i ≥ 0); Σ_i r_i(λ) is non-increasing in λ ⇒ unique λ* by bisection (60 steps)", 0),
-        ("Prop. 1 (feasibility): output always satisfies caps and Σ r_i ≤ C_u — verified by test_kkt_allocation_properties", 0),
-        ("Prop. 2 (equal weighted tail): at the optimum all interior cells share w_i·P(marginal bit needed) = λ*", 0),
-        ("Prop. 3 (backlog first): F_i(x) = 0 for x < 0 ⇒ marginal value below B_i is w_i ⇒ backlog of any cell with λ* < w_i is fully funded", 0),
-        ("Degenerate F_i (point forecast) ⇒ priority-ordered fill = the point-forecast water-fill baseline", 0),
-        ("F_i⁻¹: piecewise-linear through the 6 forecast quantiles, linear extrapolation above 0.95; monotone by sorting", 0),
-    ], Inches(0.5), Inches(1.1), Inches(12.3), Inches(5.8), size=15)
+        ("Clip to [0, peak_i]; Σ_i r_i(λ) decreases in λ ⇒ one λ* by bisection (60 steps)", 0),
+        ("Property 1 (feasibility): budgets always respect the caps and Σ r_i ≤ link — checked by test_kkt_allocation_properties", 0),
+        ("Property 2 (equal weighted risk): at the optimum every interior cell has w_i · P(needs one more bit) = λ*", 0),
+        ("Property 3 (backlog first): F_i(x) = 0 for x < 0 ⇒ the marginal value below B_i is w_i ⇒ backlog is funded before any uncertain demand of a cell with w ≤ λ*", 0),
+        ("A single-number forecast (F_i a step) gives a priority-ordered fill = the point-forecast water-fill baseline", 0),
+        ("F_i⁻¹: straight lines through the 6 forecast quantiles, extended linearly above 95 %; quantiles sorted to keep them monotone", 0),
+    ], Inches(0.5), Inches(1.1), Inches(12.3), Inches(5.8), size=14)
 
-    s = d.slide("Backup: decision overhead and utilisation trade-off", section="Backup", notes=(
+    s = d.slide("Backup: decision time and violation-vs-utilisation trade-off", section="Backup", notes=(
         "Left: mean decision time per control epoch per method. Right: violation versus utilisation per scenario."))
     picture(s, os.path.join(FIG, "fig7_decision_time.png"), Inches(0.3), Inches(1.2), width=Inches(5.6))
     picture(s, os.path.join(FIG, "fig3_tradeoff.png"), Inches(6.0), Inches(1.2), width=Inches(7.1))
-    text(s, "Decision times are Python on a 4-core CPU inside the simulator (feature construction + 1,800 trees via "
+    text(s, "Decision times are Python on a 4-core CPU inside the simulator (feature construction + 1,800 trees with a "
          "vectorised traversal + bisection). The rule itself is < 0.1 ms.", Inches(0.4), Inches(5.6), Inches(12.5),
          Inches(0.8), size=12, color=GREY)
 
-    s = d.slide("Backup: references", section="Backup", notes="Full list with DOIs/links in docs/fhlm/literature_review.md.")
+    s = d.slide("Backup: references", section="Backup", notes="Full list with DOIs/links in docs/fhlm/literature_review.md; Part A report in REPORT.md and docs/mid_evaluation_report.md.")
     bullets(s, [
-        "O-RAN WG4, Control, User and Synchronization Plane Specification (O-RAN.WG4.CUS.0) [standard] — 7-2x, BFP compression (Annex A.1), T2a windows. 3GPP TR 38.801 [standard]; IEEE 802.1CM-2018 [standard].",
+        "O-RAN WG4, Control, User and Synchronization Plane Specification (O-RAN.WG4.CUS.0) [standard] — 7-2x, BFP compression (Annex A.1), T2a windows. 3GPP TR 38.801 [standard]; 3GPP TR 38.901 (TDL-A channel) [standard]; IEEE 802.1CM-2018 [standard].",
         "L. M. P. Larsen, A. Checko, H. L. Christiansen, 'A Survey of the Functional Splits Proposed for 5G Mobile Crosshaul Networks', IEEE COMST 21(1), 2019. DOI 10.1109/COMST.2018.2868805 [peer-reviewed]",
         "G. O. Pérez, J. A. Hernández, D. Larrabeiti, 'Fronthaul Network Modeling and Dimensioning Meeting Ultra-Low Latency Requirements for 5G', JOCN 10(6), 2018. DOI 10.1364/JOCN.10.000573; IEEE Access 2019, DOI 10.1109/ACCESS.2019.2923020 [peer-reviewed]",
         "L. Wang, S. Zhou, 'On the Fronthaul Statistical Multiplexing Gain', IEEE Commun. Lett. 21(5), 2017. DOI 10.1109/LCOMM.2017.2653120 [peer-reviewed]",
@@ -694,8 +831,8 @@ def build(out: str = OUT):
         "F. Kavehmadavani, V.-D. Nguyen, T. X. Vu, S. Chatzinotas, 'Intelligent Traffic Steering in Beyond 5G Open RAN Based on LSTM Traffic Prediction', IEEE TWC 2023. DOI 10.1109/TWC.2023.3254903 [peer-reviewed]",
         "K. M. Cohen, S. Park, O. Simeone, P. Popovski, S. Shamai, 'Guaranteed Dynamic Scheduling of URLLC Traffic via Conformal Prediction', IEEE WCL 2023 [peer-reviewed]; I. Gibbs, E. Candès, 'Adaptive Conformal Inference Under Distribution Shift', NeurIPS 2021 [peer-reviewed]",
         "V. Kasuluru, L. Blanco, C. J. Vaca-Rubio, E. Zeydan, 'On the Impact of PRB Load Uncertainty Forecasting for Sustainable Open RAN', arXiv:2407.14400, 2024 [preprint]",
-        "W. Willinger et al., IEEE/ACM ToN 1997 (heavy-tailed ON/OFF sources); Hadley & Whitin 1963 (constrained multi-item newsvendor); Le Boudec & Thiran, Network Calculus, 2001. Full list: docs/fhlm/literature_review.md",
-    ], Inches(0.5), Inches(1.1), Inches(12.3), Inches(5.8), size=12)
+        "Eckart & Young 1936 (best low-rank approximation = truncated SVD); Halko, Martinsson, Tropp, SIAM Review 2011 (randomised sketching for low-rank factorisation); Willinger et al., IEEE/ACM ToN 1997 (heavy-tailed ON/OFF sources); Hadley & Whitin 1963 (constrained newsvendor); Le Boudec & Thiran, Network Calculus, 2001.",
+    ], Inches(0.5), Inches(1.1), Inches(12.3), Inches(5.8), size=11)
 
     d.save(out)
     print(f"wrote {out} ({d.n} slides)")

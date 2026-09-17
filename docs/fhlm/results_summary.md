@@ -1,8 +1,10 @@
 # Results summary (all numbers produced by the code in this repository)
 
 Sources: `results/fhlm/main_runs.csv` (200 runs), `main_summary.csv`,
-`main_paired.csv`, `sweep_runs.csv` (60 runs), `tuning.json`,
-`forecast_training_T20_d2.json`, figures in `results/fhlm/figures/`.
+`main_paired.csv`, `sweep_runs.csv` (60 runs), `compression_runs.csv` (48 runs),
+`tuning.json`, `forecast_training_T20_d2.json`, figures in
+`results/fhlm/figures/`. Part A numbers come from `results/benchmark_results.csv`
+and the earlier report `docs/mid_evaluation_report.md`.
 Configuration: 8 cells (3 low-latency, 5 eMBB) on a 25GE link, T = 20 slots
 (10 ms), tau = 2 slots, 20,000 slots per run after 1,000 warm-up, 5 test seeds
 (3000-3004) that were never used for training (1000-1015) or tuning
@@ -142,13 +144,64 @@ static 0.02 ms, reactive proportional 0.03 ms, deadline-aware reactive
 quantiles 2.1 ms). The KKT rule itself is < 0.1 ms; the cost is feature
 construction and evaluating 6 x 300 trees (vectorised numpy traversal).
 
+## Part A x Part B: compression width vs allocation rule (`compression_runs.csv`, 48 runs)
+
+Scenario `moderate`, 3 test seeds, the same user traffic in every run; only the
+BFP mantissa width changes, which rescales the fronthaul bits per PRB-layer
+(the Part A lever) and therefore the load offered to the link. Weighted
+violation ratio in %, mean over seeds (best real controller in bold):
+
+| BFP width | offered load | reactive prop. | deadline-aware | point forecast | proposed |
+|---|---|---|---|---|---|
+| 6 bits | 0.43 | 0.13 | 0.09 | 0.07 | **0.04** |
+| 9 bits (default) | 0.63 | 3.43 | 3.45 | 2.53 | **1.60** |
+| 12 bits | 0.83 | **10.72** | 12.62 | 11.41 | 10.82 |
+| 14 bits | 0.97 | **16.42** | 19.08 | 17.93 | 19.34 |
+
+Reading: compression decides which load regime the link is in; the
+allocation rule decides how much is lost in that regime. Allocation matters
+most between ~0.5 and ~0.8 load (at 0.63 the proposed rule loses half as much
+as the reactive controllers). At 0.83 the proposed rule ties with the
+proportional controller, and at 0.97 (sustained overload) no allocation rule
+helps: protecting the low-latency cells (4.3 % loss vs 26.5 % for the
+proportional controller) costs more eMBB bits than the 3:1 weight repays. In
+that regime the answer is more compression or more capacity, not a better
+split. Not modelled: the signal-quality (NMSE) cost of fewer mantissa bits;
+that side is covered by the Part A compression curves
+(`results/figures/exp1_nmse_vs_cr.png`).
+
+## Part A results carried in this repository (earlier work, not re-run this term)
+
+* Compression study (`docs/mid_evaluation_report.md`, `results/figures/exp1..4`):
+  at M = 64 antennas, N = 1200 subcarriers, SNR 20 dB on a 3GPP TDL-A
+  channel, O-RAN BFP-8 gives ~3.9x at −46 dB NMSE in ~3 ms; truncated SVD
+  (r = 12) ~16x at −21 dB in 18-30 ms; RAS-BFP (random sketch + QR, r = 12)
+  ~16x at −18 dB in ~7 ms; CSEE (top-K delay taps, K = 300) ~13x at −21 dB in
+  ~5 ms, ~63x at −19 dB with K = 60. ACAFS (split choice from channel rank)
+  saves 0 % below ~15 dB SNR and 55-75 % above, versus a fixed split 6. The
+  `src/` package these scripts import is not in the repository, so these
+  numbers are quoted, not regenerated.
+* Matrix-inversion benchmark (`results/benchmark_results.csv`, re-runnable
+  with PyTorch): medians over 200 held-out well-conditioned matrices. n = 100:
+  LU via LAPACK 0.17 ms (rel. error 5e-8), learned iteration
+  (InverseNet-Ultra) 0.46 ms (1e-6), learned Newton-Schulz 0.95 ms (4e-4),
+  Newton-Schulz 1.0 ms, SVD 2.8 ms, LU (scipy) 2.9 ms, QR 3.9 ms, direct
+  neural net (InverseNet-MLP) 4.6 ms with 0.5 relative error (unusable).
+  n = 500: LAPACK 18 ms, learned iteration 34 ms, LU (scipy) 56 ms, SVD
+  107 ms, QR 102 ms. Lessons: n ≈ 100 fits a 0.5-ms slot on a CPU, n ≈ 500
+  does not; a direct learned inverse does not work but a learned iteration
+  with fixed cost does; predictable cost matters for slot deadlines.
+
 ## What we do NOT claim
 
 * No real-world validation (synthetic traffic).
+* Part A compression figures are not regenerated in this repository (missing
+  `src/` package); the inversion benchmark uses random well-conditioned
+  matrices, not channel matrices.
 * No statistical-significance claim (5 seeds; win counts reported instead).
 * No optimality or stability claim for the closed loop; the propositions in
   `method.md` are feasibility, equal weighted tail probability, and
   backlog-first.
 * No universal superiority: ties with reactive proportional under flash
-  crowds, loses to it at T = 40 slots, and the ML component adds little under
-  the held-out shift.
+  crowds, loses to it at T = 40 slots and at ~1.0 offered load, and the ML
+  component adds little under the held-out shift.

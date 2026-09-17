@@ -135,6 +135,41 @@ resolved during the review.
 19. **Le Boudec & Thiran**, *Network Calculus*, Springer 2001. Arrival/service
     curve argument behind the deadline-feasible rate r*.
 
+## E. Part A background: IQ compression by matrix decomposition, and fast inversion
+
+These references support the earlier part of the project (compression study
+and matrix-inversion benchmark; see `REPORT.md`, `docs/mid_evaluation_report.md`).
+
+20. **O-RAN WG4 CUS-plane specification, Annex A** (as in 1): block floating
+    point (BFP) IQ compression with a shared exponent per PRB and a
+    configurable mantissa width; the baseline every structured encoder is
+    compared against, and the "bits per PRB-layer" constant of the Part B
+    simulator.
+21. **C. Eckart, G. Young**, "The approximation of one matrix by another of
+    lower rank", *Psychometrika* 1(3):211-218, 1936. **[peer-reviewed]**
+    The truncated SVD is the best rank-r approximation in Frobenius norm;
+    basis of the truncated-SVD baseline and of the low-rank encoders.
+22. **N. Halko, P.-G. Martinsson, J. A. Tropp**, "Finding Structure with
+    Randomness: Probabilistic Algorithms for Constructing Approximate Matrix
+    Decompositions", *SIAM Review* 53(2):217-288, 2011.
+    DOI 10.1137/090771806. **[peer-reviewed]** Randomised sketch + QR gives a
+    (1 + ε)-optimal rank-r factorisation at O(rMN) cost; the idea behind
+    RAS-BFP.
+23. **3GPP TR 38.901**, "Study on channel model for frequencies from 0.5 to
+    100 GHz" (TDL-A delay profile). **[standard]** Few strong delay taps ->
+    the delay-domain sparsity used by CSEE.
+24. **G. Schulz**, "Iterative Berechnung der reziproken Matrix", *ZAMM*
+    13:57-59, 1933; and standard treatments of Newton-Schulz iteration (e.g.
+    Higham, *Functions of Matrices*, SIAM 2008). Multiply-only fixed-step
+    inversion; the learned iteration in `matinv_bench` keeps this structure
+    and learns only the step coefficients.
+Note on learned inverters: the "InverseNet" models in `matinv_bench` are our
+own constructions (a direct matrix-to-inverse regression network and a
+Newton-Schulz iteration with learned step coefficients), not reproductions
+of a specific paper. The benchmark finding — direct regression does not
+generalise (0.36-0.53 relative error) while the structure-preserving learned
+iteration does — should be cited as our measurement, not as prior work.
+
 ## What the review implies for the contribution
 
 * The fronthaul-specific literature (2, 4, 5, 7) establishes the model: load

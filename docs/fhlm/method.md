@@ -3,8 +3,30 @@
 Project title: **Fronthaul Load Management for Shared Packet Fronthaul: Deadline-Feasible,
 Uncertainty-Aware Budget Coordination across O-RAN 7-2x Cells**
 
-This document is the technical companion of the code in `fhlm/`. Everything
-described here is implemented; numbers quoted come from `results/fhlm/`.
+This document is the technical companion of the code in `fhlm/` (Part B of the
+project: sharing one fronthaul link between cells). Everything described here
+is implemented; numbers quoted come from `results/fhlm/`. Part A of the project
+(IQ compression by matrix decomposition and the matrix-inversion benchmark) is
+described in `REPORT.md` and `docs/mid_evaluation_report.md`; the two parts
+meet in Section 1.2 (the bits-per-PRB constant is the compression setting) and
+in the compression x allocation experiment of `results_summary.md`.
+
+## 0. The idea in plain words
+
+Several cells send their radio samples over one link that is smaller than
+their total peak. Every 10 ms a controller must decide how many bits per slot
+each cell may send, before it knows the traffic of the next 10 ms. A cell that
+gets too little drops bits that wait longer than their deadline; a cell that
+gets too much wastes link capacity that another cell needed.
+
+We forecast, for each cell, not a single number but a *range* (six quantiles)
+of the rate it will need to meet its deadline. Then we split the link so that
+every cell is cut off at the same priority-weighted risk of needing one more
+bit. A cell with an uncertain forecast or a high priority automatically gets
+more margin; a cell with a confident forecast gets about its median. The
+mathematics below makes this precise (it is a constrained newsvendor problem
+solved through its KKT conditions) and proves that the budgets always fit the
+link.
 
 ## 1. Problem and system model
 
@@ -21,6 +43,13 @@ described here is implemented; numbers quoted come from `results/fhlm/`.
   overhead) = **beta = 3387 bit**. Cell peak = 273 x 4 x beta = 3.70 Mbit/slot =
   7.4 Gbit/s. Aggregate peak of 8 cells = 59 Gbit/s, i.e. **2.44x** the usable
   link: a statistical-multiplexing design (Sec. A of the literature review).
+* beta is where Part A enters: the mantissa width is the compression setting.
+  BFP-6 gives beta = 2298 bit (0.68x), BFP-12 gives 4476 bit (1.32x), BFP-14
+  gives 5201 bit (1.54x). The `compression` experiment rescales beta with the
+  same user traffic (`run_experiments.with_compression`), so the offered load
+  moves from 0.43 to 0.97 while everything else stays fixed. The quantisation
+  noise of narrower mantissas is not modelled here; the Part A NMSE curves
+  cover that side.
 
 ### 1.2 Traffic abstraction and how demand maps to fronthaul load
 
