@@ -100,7 +100,8 @@ prediction, not a bound.
 
 * Utilisation vs distortion: captured (Exp5 panel c vs a).
 * Fairness: min-max objective vs sum objective (Exp5 greedy-max vs greedy-sum,
-  ~0.3 dB mean cost for 1-2 dB better worst cell).
+  worst cell up to 2.2 dB better at 27.5 Gbps, at a 0.7-2.6 dB cost in the
+  per-cell mean; identical once capacity is loose).
 * Decision overhead: measured in Python; only relative statements are valid.
 * Latency, jitter, MAC scheduling, HARQ, real hardware timing: **not modelled**.
 * CSEE is only valid on reference symbols; the allocator experiment therefore

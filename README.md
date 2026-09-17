@@ -116,7 +116,7 @@ for the current numbers (dim-500 rows use 20 held-out matrices).
 * `docs/research_review.md` — verified literature review with source links
 * `docs/change_summary.md` — every modification, why, files, validation
 * `docs/mid_evaluation_report.md` — the mid-evaluation report (rewritten)
-* `docs/mid_evaluation.pptx` — the presentation with speaker notes; `docs/presentation_prep.md` — talk guide, Q&A, demo script
+* `docs/mid_evaluation.pptx` / `.pdf` — the presentation (15 main + 5 backup slides, speaker notes on every slide), regenerated from `results/` by `python docs/build_slides.py`; `docs/presentation_prep.md` — 60–90 s intro, slide guide, 15 Q&A, demo script with expected outputs
 * `docs/mid_evaluation_slides.md|.html` — the **superseded** decks found in the repo (kept for the record; their claims are not endorsed)
 
 ## Troubleshooting (issues actually hit)
