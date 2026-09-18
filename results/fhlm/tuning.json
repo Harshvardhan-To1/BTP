@@ -1,0 +1,121 @@
+{
+  "primary_metric": "weighted_violation_ratio",
+  "validation_scenarios": [
+    "moderate",
+    "high"
+  ],
+  "validation_seeds": [
+    2000,
+    2001,
+    2002,
+    2003
+  ],
+  "selected": {
+    "point_forecast": {
+      "margin": 0.0
+    },
+    "proposed_cal": {
+      "gamma": 0.005
+    },
+    "queue_aware": {
+      "margin": 0.0,
+      "num_horizons": 1
+    },
+    "reactive_prop": {
+      "margin": 0.0,
+      "ewma_window": 20
+    }
+  },
+  "table": [
+    {
+      "method": "point_forecast",
+      "params": "{\"margin\": 0.0}",
+      "weighted_violation_ratio": 0.06438415771239342
+    },
+    {
+      "method": "point_forecast",
+      "params": "{\"margin\": 0.25}",
+      "weighted_violation_ratio": 0.07489763014473824
+    },
+    {
+      "method": "point_forecast",
+      "params": "{\"margin\": 0.5}",
+      "weighted_violation_ratio": 0.09061714938694512
+    },
+    {
+      "method": "proposed_cal",
+      "params": "{\"gamma\": 0.005}",
+      "weighted_violation_ratio": 0.05140724052730162
+    },
+    {
+      "method": "proposed_cal",
+      "params": "{\"gamma\": 0.01}",
+      "weighted_violation_ratio": 0.052802111367026915
+    },
+    {
+      "method": "proposed_cal",
+      "params": "{\"gamma\": 0.02}",
+      "weighted_violation_ratio": 0.05550036002781912
+    },
+    {
+      "method": "queue_aware",
+      "params": "{\"margin\": 0.0, \"num_horizons\": 1}",
+      "weighted_violation_ratio": 0.07614220682576159
+    },
+    {
+      "method": "queue_aware",
+      "params": "{\"margin\": 0.25, \"num_horizons\": 1}",
+      "weighted_violation_ratio": 0.08887315973879242
+    },
+    {
+      "method": "queue_aware",
+      "params": "{\"margin\": 0.0, \"num_horizons\": 3}",
+      "weighted_violation_ratio": 0.09584851201388335
+    },
+    {
+      "method": "queue_aware",
+      "params": "{\"margin\": 0.0, \"num_horizons\": 6}",
+      "weighted_violation_ratio": 0.10501057884425238
+    },
+    {
+      "method": "queue_aware",
+      "params": "{\"margin\": 0.25, \"num_horizons\": 3}",
+      "weighted_violation_ratio": 0.1169728828048386
+    },
+    {
+      "method": "queue_aware",
+      "params": "{\"margin\": 0.25, \"num_horizons\": 6}",
+      "weighted_violation_ratio": 0.12592535809962935
+    },
+    {
+      "method": "reactive_prop",
+      "params": "{\"margin\": 0.0, \"ewma_window\": 20}",
+      "weighted_violation_ratio": 0.0647650522095863
+    },
+    {
+      "method": "reactive_prop",
+      "params": "{\"margin\": 0.25, \"ewma_window\": 20}",
+      "weighted_violation_ratio": 0.06779833398097157
+    },
+    {
+      "method": "reactive_prop",
+      "params": "{\"margin\": 0.0, \"ewma_window\": 60}",
+      "weighted_violation_ratio": 0.06909214083373257
+    },
+    {
+      "method": "reactive_prop",
+      "params": "{\"margin\": 0.5, \"ewma_window\": 20}",
+      "weighted_violation_ratio": 0.07069465316977733
+    },
+    {
+      "method": "reactive_prop",
+      "params": "{\"margin\": 0.25, \"ewma_window\": 60}",
+      "weighted_violation_ratio": 0.0731006389844145
+    },
+    {
+      "method": "reactive_prop",
+      "params": "{\"margin\": 0.5, \"ewma_window\": 60}",
+      "weighted_violation_ratio": 0.07660595086730905
+    }
+  ]
+}

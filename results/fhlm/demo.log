@@ -1,0 +1,4 @@
+queue_aware      weighted_violation_ratio=0.0988  LL=0.0470  eMBB=0.1456  util=0.695  decision=0.1 ms
+point_forecast   weighted_violation_ratio=0.0872  LL=0.0277  eMBB=0.1410  util=0.701  decision=2.5 ms
+proposed         weighted_violation_ratio=0.0681  LL=0.0284  eMBB=0.1039  util=0.724  decision=3.4 ms
+saved results/fhlm/demo_timeseries.npz
