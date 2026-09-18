@@ -21,7 +21,12 @@ from __future__ import annotations
 import numpy as np
 import torch
 import torch.nn as nn
+from scipy.special import erf
 
+
+def _gelu(x: np.ndarray) -> np.ndarray:
+    """Exact GELU, identical to torch.nn.GELU() default."""
+    return 0.5 * x * (1.0 + erf(x / np.sqrt(2.0)))
 
 
 class InverseNetMLP(nn.Module):
@@ -64,13 +69,20 @@ class InverseNetNS(nn.Module):
 
 
 class InverseNetUltra(nn.Module):
-    """Next-Gen High-Order Learned Neural Matrix Inverter (InverseNet-Ultra).
+    """Learned Newton-Schulz with a data-dependent initial guess (InverseNet-Ultra).
 
     Combines:
-    1. Spectral-norm & Frobenius initial-guess predictor X_0 = f_theta(A).
-    2. Learned step coefficients (beta_k, gamma_k) unrolling high-performance
-       iterations that achieve float32 precision (~1e-7 relative error) while
-       outperforming classical LU decomposition in inference latency.
+    1. A tiny hyper-network that maps four scalar matrix statistics (mean
+       trace, scaled Frobenius norm, scaled 1- and inf-norms) to a correction
+       of the initial-guess scale and a diagonal shift: X_0 = a_s A^T/||A||_F^2 + i_s I.
+    2. Learned per-step coefficients (beta_k, gamma_k) of an unrolled
+       Newton-Schulz iteration X <- X (beta_k I - gamma_k A X).
+
+    Measured behaviour (see results/benchmark_summary.md): relative error
+    ~1e-6 at n=100/500 on the well-conditioned test family, i.e. about one
+    order of magnitude above float32 LAPACK; faster than numpy.linalg.inv in
+    *mean* time at n=100 but not in median time.  It is not a drop-in
+    replacement for LU.
     """
     def __init__(self, dim: int, num_steps: int = 6):
         super().__init__()
@@ -137,7 +149,7 @@ class FastBLASInferenceEngine:
         ninf = np.abs(a).sum(axis=1).max() / d
         
         feat = np.array([tr, fro, n1, ninf], dtype=np.float32)
-        h = np.maximum(0.0, feat @ self.w1 + self.b1)
+        h = _gelu(feat @ self.w1 + self.b1)          # must match nn.GELU() used in training
         p = h @ self.w2 + self.b2
 
         a_s = self.alpha + p[0]

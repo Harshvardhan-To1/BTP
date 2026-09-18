@@ -1,0 +1,7 @@
+M:   0%|          | 0/8 [00:00<?, ?it/s]M:  50%|█████     | 4/8 [00:00<00:00, 28.19it/s]M:  88%|████████▊ | 7/8 [00:00<00:00,  9.78it/s]M: 100%|██████████| 8/8 [00:01<00:00,  7.77it/s]
+[fig] results/figures/exp2_complexity.pdf|png
+M=64 median ms: BFP=0.66, SVD=12.63, CSEE=0.58, RAS-BFP=2.62
+
+real	0m2.167s
+user	0m5.733s
+sys	0m0.113s

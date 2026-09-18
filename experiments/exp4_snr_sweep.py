@@ -1,104 +1,101 @@
 """
-Experiment 4: SNR Robustness Sweep
-====================================
-Paper Figure 4 — NMSE vs SNR at fixed CR for all methods.
+Experiment 4: NMSE vs SNR at Fixed Operating Points
+====================================================
+Operating points chosen for a compression ratio of ~8x (BFP cannot reach that
+with 16-bit reference, so b=4 at CR 3.8x is the closest):
+  BFP b=4 | SVD r=12, b=10 | CSEE K=120, b=10 | RAS-BFP r=12, b=10
 
-Shows that CSEE and RAS-BFP are robust across the operating SNR range
-(unlike BFP which degrades at low SNR when the block exponent is poorly set).
+Two panels on *reference* symbols (Y = H + W', where all four encoders apply):
+  (a) NMSE against the transported (noisy) Y      -- what the link sees
+  (b) NMSE against the noiseless channel H       -- what was actually lost
+CSEE on *data* symbols is added to (a) as a dashed line to show that its
+delay-domain assumption breaks under per-subcarrier modulation.
+
+The earlier repository text described the encoders as "stable across SNR";
+panel (a) shows the opposite -- truncating encoders track the noise floor
+(-SNR dB) because discarded noise counts as error -- while panel (b) shows the
+signal distortion is roughly flat or improves.
 
 Usage:
-  python experiments/exp4_snr_sweep.py
+  python experiments/exp4_snr_sweep.py [--realizations 12]
 """
 
-import sys, os
+import argparse
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib
 from tqdm import tqdm
 
-from src.channel.tdl_a import TDLAChannel, ChannelConfig
-from src.encoder.bfp import bfp_encode, bfp_decode, bfp_bits_used
-from src.encoder.svd_encoder import SVDEncoder
+from experiments._common import COLORS, MARKERS, plt, save_fig, save_json
+from src.channel.tdl_a import ChannelConfig, TDLAChannel
+from src.encoder.bfp import bfp_decode, bfp_encode
 from src.encoder.csee import CSEEEncoder
 from src.encoder.ras_bfp import RASBFPEncoder
-from src.metrics.nmse import nmse
+from src.encoder.svd_encoder import SVDEncoder
+from src.metrics.nmse import nmse_linear
 
-matplotlib.rcParams.update({
-    "font.family": "serif", "font.size": 11,
-    "axes.labelsize": 12, "axes.titlesize": 13,
-    "legend.fontsize": 10, "figure.dpi": 150,
-    "axes.grid": True, "grid.alpha": 0.3, "lines.linewidth": 2.0,
-})
-COLORS  = {"BFP": "#7f8c8d", "SVD": "#2980b9", "CSEE": "#e74c3c", "RAS-BFP": "#27ae60"}
-MARKERS = {"BFP": "s",       "SVD": "^",       "CSEE": "o",       "RAS-BFP": "D"}
-
-SNR_VALUES       = [-5, 0, 5, 10, 15, 20, 25, 30]
-NUM_REALIZATIONS = 12
-
-# Fixed parameters giving roughly similar CR ~12–16x for fair comparison
-BFP_BITS  = 8
-SVD_RANK  = 12
-CSEE_K    = 300
-RASBFP_R  = 12
+SNR_VALUES = [-5, 0, 5, 10, 15, 20, 25, 30]
+BFP_BITS, SVD_R, CSEE_K, RAS_R, BITS = 4, 12, 120, 12, 10
 
 
-def run_experiment():
-    results = {name: [] for name in ["BFP", "SVD", "CSEE", "RAS-BFP"]}
-
-    svd_enc  = SVDEncoder(r=SVD_RANK, bits=10)
-    csee_enc = CSEEEncoder(K=CSEE_K, bits=10)
-    ras_enc  = RASBFPEncoder(r=RASBFP_R, bits=10)
-
-    print("Experiment 4: SNR Robustness Sweep")
-    for snr in tqdm(SNR_VALUES):
-        cfg     = ChannelConfig(M=64, N=1200, SNR_dB=snr, seed=42)
-        channel = TDLAChannel(cfg)
-        _, Y_batch = channel.generate_batch(NUM_REALIZATIONS)
-
-        nmse_bfp, nmse_svd, nmse_csee, nmse_ras = [], [], [], []
-        for Y in Y_batch:
-            # BFP
-            enc = bfp_encode(Y, bits=BFP_BITS); nmse_bfp.append(nmse(Y, bfp_decode(enc)))
-            # SVD
-            enc = svd_enc.encode(Y); nmse_svd.append(nmse(Y, svd_enc.decode(enc)))
-            # CSEE
-            enc = csee_enc.encode(Y); nmse_csee.append(nmse(Y, csee_enc.decode(enc)))
-            # RAS-BFP
-            enc = ras_enc.encode(Y); nmse_ras.append(nmse(Y, ras_enc.decode(enc)))
-
-        results["BFP"].append(np.mean(nmse_bfp))
-        results["SVD"].append(np.mean(nmse_svd))
-        results["CSEE"].append(np.mean(nmse_csee))
-        results["RAS-BFP"].append(np.mean(nmse_ras))
-
-    return results
+def run(n_real):
+    enc = {"SVD": SVDEncoder(SVD_R, BITS), "CSEE": CSEEEncoder(CSEE_K, BITS), "RAS-BFP": RASBFPEncoder(RAS_R, BITS)}
+    out = {"snr": SNR_VALUES, "vs_Y": {k: [] for k in ["BFP", "SVD", "CSEE", "RAS-BFP"]},
+           "vs_clean": {k: [] for k in ["BFP", "SVD", "CSEE", "RAS-BFP"]}, "csee_data_vs_Y": [], "cr": {}}
+    for snr in tqdm(SNR_VALUES, desc="SNR"):
+        ch = TDLAChannel(ChannelConfig(M=64, N=1200, SNR_dB=snr, seed=42))
+        _, Y_ref, S_ref = ch.generate_batch(n_real, return_clean=True, symbol_type="reference")
+        _, Y_dat = ch.generate_batch(n_real, symbol_type="data")
+        acc = {k: [] for k in out["vs_Y"]}; accc = {k: [] for k in out["vs_Y"]}; acc_d = []
+        for Y, S, Yd in zip(Y_ref, S_ref, Y_dat):
+            Yh = bfp_decode(bfp_encode(Y, bits=BFP_BITS)); acc["BFP"].append(nmse_linear(Y, Yh)); accc["BFP"].append(nmse_linear(S, Yh))
+            for k, e in enc.items():
+                c = e.encode(Y); Yh = e.decode(c); acc[k].append(nmse_linear(Y, Yh)); accc[k].append(nmse_linear(S, Yh))
+                if snr == SNR_VALUES[0]:
+                    out["cr"][k] = e.compression_ratio(c)
+            c = enc["CSEE"].encode(Yd); acc_d.append(nmse_linear(Yd, enc["CSEE"].decode(c)))
+        for k in acc:
+            out["vs_Y"][k].append(10 * np.log10(np.mean(acc[k]))); out["vs_clean"][k].append(10 * np.log10(np.mean(accc[k])))
+        out["csee_data_vs_Y"].append(10 * np.log10(np.mean(acc_d)))
+    from src.encoder.bfp import bfp_bits_used
+    from src.metrics.nmse import compression_ratio, original_bits
+    out["cr"]["BFP"] = compression_ratio(original_bits(64, 1200), bfp_bits_used(bfp_encode(Y_ref[0], bits=BFP_BITS)))
+    return out
 
 
-def plot_results(results, save_path="results/figures/exp4_snr_sweep.pdf"):
-    fig, ax = plt.subplots(figsize=(7, 5))
+def plot(out, n_real):
+    fig, (a, b) = plt.subplots(1, 2, figsize=(12, 4.6), sharey=True)
+    s = out["snr"]
+    for k in out["vs_Y"]:
+        lab = f"{k} (CR {out['cr'][k]:.1f}x)"
+        a.plot(s, out["vs_Y"][k], color=COLORS[k], marker=MARKERS[k], label=lab)
+        b.plot(s, out["vs_clean"][k], color=COLORS[k], marker=MARKERS[k], label=lab)
+    a.plot(s, out["csee_data_vs_Y"], "--", color=COLORS["CSEE"], marker="x", alpha=0.8, label="CSEE on data symbols")
+    a.plot(s, [-x for x in s], "k:", lw=1, alpha=0.6, label="noise floor (-SNR)")
+    b.plot(s, [-x for x in s], "k:", lw=1, alpha=0.6, label="raw noisy Y (no compression)")
+    a.set_title("(a) NMSE vs transported Y (reference symbols)"); b.set_title("(b) NMSE vs noiseless channel H")
+    for ax in (a, b):
+        ax.set_xlabel("SNR (dB)"); ax.set_xticks(s); ax.legend(fontsize=8, loc="lower left")
+    a.set_ylabel("NMSE (dB)")
+    fig.suptitle(f"NMSE vs SNR at fixed operating points  (M=64, N=1200, {n_real} realisations; "
+                 f"BFP b={BFP_BITS}, SVD/RAS r={SVD_R}, CSEE K={CSEE_K}, b={BITS})", fontsize=11)
+    save_fig(fig, "exp4_snr_sweep")
 
-    for name, nmse_list in results.items():
-        ax.plot(SNR_VALUES, nmse_list,
-                color=COLORS[name], marker=MARKERS[name], label=name)
 
-    ax.set_xlabel("SNR (dB)")
-    ax.set_ylabel("NMSE (dB)")
-    ax.set_title("NMSE vs SNR at Fixed Compression\n"
-                 f"(BFP b={BFP_BITS}, r={SVD_RANK}/{RASBFP_R}, K={CSEE_K})")
-    ax.legend()
-    ax.set_xticks(SNR_VALUES)
-
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    fig.tight_layout()
-    fig.savefig(save_path, bbox_inches="tight")
-    png_path = save_path.replace(".pdf", ".png")
-    fig.savefig(png_path, bbox_inches="tight", dpi=300)
-    print(f"\n✓ Figure saved to {save_path} and {png_path}")
-    plt.close(fig)
+def main():
+    ap = argparse.ArgumentParser(); ap.add_argument("--realizations", type=int, default=12)
+    args = ap.parse_args()
+    out = run(args.realizations)
+    plot(out, args.realizations)
+    save_json("exp4_snr_sweep.json", {"realizations": args.realizations, "operating_points":
+              {"BFP_bits": BFP_BITS, "SVD_r": SVD_R, "CSEE_K": CSEE_K, "RAS_r": RAS_R, "bits": BITS}, **out})
+    for i, snr in enumerate(s := out["snr"]):
+        print(f"SNR {snr:>3}: " + "  ".join(f"{k} {out['vs_Y'][k][i]:6.1f}/{out['vs_clean'][k][i]:6.1f}" for k in out["vs_Y"])
+              + f"  CSEE-data {out['csee_data_vs_Y'][i]:6.1f}   [vs Y / vs H, dB]")
 
 
 if __name__ == "__main__":
-    results = run_experiment()
-    plot_results(results)
+    main()
