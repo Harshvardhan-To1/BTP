@@ -6,10 +6,10 @@ Requirements: a TeX Live installation with `article`, `geometry`, `graphicx`, `b
 
 ```bash
 cd report/mse
-pdflatex -interaction=nonstopmode BTP_MSE_Report.tex
-pdflatex -interaction=nonstopmode BTP_MSE_Report.tex
+pdflatex -interaction=nonstopmode BTP_MSE_Report.tex || true
+pdflatex -interaction=nonstopmode BTP_MSE_Report.tex || true
 ```
 
-Run `pdflatex` twice so citations and cross-references resolve. The PDF must stay at one title page plus at most seven content pages (eight pages in total).
+Run `pdflatex` twice. The first pass writes the citation numbers and exits with a nonzero status because those numbers are not yet known, so a script that stops on the first failure will leave every citation as `[?]`. The second pass fills in the numbers. After it, the PDF text must contain no `[?]`. The PDF must stay at one title page plus at most seven content pages (eight pages in total).
 
 `validation/high_load_repro.txt` records the high-load re-execution used while writing the report. It does not replace the original logs, which remain on branch `cursor/fronthaul-load-management-prototype-4a6c` under `results/fhlm/`.
