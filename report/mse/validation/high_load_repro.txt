@@ -1,0 +1,31 @@
+# Independent re-execution during MSE report preparation
+# Date: 24 September 2026
+# Host: this cloud-agent VM (not the host that produced the original CSV)
+# Command, from a detached worktree of origin/cursor/fronthaul-load-management-prototype-4a6c
+# at commit 616c1d3, using the saved model models/fhlm_quantile_gbm_T20_d2.pkl:
+#
+#   python3 -m fhlm.run_experiments main \
+#       --scenarios high \
+#       --methods proposed point_forecast queue_aware reactive_prop \
+#       --slots 20000 --warmup 1000
+#
+# 20 runs (4 controllers x 5 test seeds 3000-3004) finished in 15 s.
+# Weighted violation ratios matched results/fhlm/main_summary.csv on that branch
+# to the recorded precision. Decision times differ slightly, as expected.
+
+scenario method          weighted_violation_ratio_mean  ll_mean  embb_mean  util    decision_ms
+high     reactive_prop    0.089405                       0.145611 0.035376   0.7471  0.035
+high     queue_aware      0.108567                       0.049705 0.164481   0.6924  0.087
+high     point_forecast   0.096272                       0.029974 0.159231   0.7000  2.341
+high     proposed         0.078884                       0.031900 0.123495   0.7201  3.474
+
+Paired relative reduction of proposed vs baseline (identical traces), high load:
+reactive_prop    11.77%   5/5 seeds
+queue_aware      27.34%   5/5 seeds
+point_forecast   18.06%   5/5 seeds
+
+Unit tests on the same worktree: pytest tests/test_fhlm.py  ->  14 passed in 5.53 s.
+
+The other scenarios, the interval sweep, the mantissa-width sweep, and the
+matrix-inversion medians were not re-simulated. They were read from the saved
+CSV logs and the relative reductions were recomputed from those logs.
