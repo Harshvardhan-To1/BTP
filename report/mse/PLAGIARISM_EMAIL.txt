@@ -1,0 +1,31 @@
+To: library.turnitin@iiti.ac.in
+Subject: EE - BTP midsem report (230002027, 230002041)
+
+Dear Library Team,
+
+Please run a plagiarism check on the attached B.Tech. Project mid-semester evaluation report and send us the similarity report.
+
+Students:
+Harshvardhan Choudhary, Roll No. 230002027
+Mayank Yadav, Roll No. 230002041
+
+Supervisor: Dr. Sumit Gautam
+Department: Department of Electrical Engineering
+Programme: B.Tech., Academic Year 2026–27
+Report: B.Tech. Project — Mid-Semester Evaluation Report
+Working title: Fronthaul Load Management for a Shared O-RAN 7-2x Link: Deadline-Feasible Budget Allocation under Forecast Uncertainty
+Official project number: [pending confirmation]
+Specialization: [pending confirmation]
+
+The attached file is the manuscript we intend to submit, subject to supervisor review. Please use the department’s standard settings for B.Tech. project mid-semester reports.
+
+Thank you.
+
+Harshvardhan Choudhary (230002027)
+Mayank Yadav (230002041)
+
+Attachment: BTP_MSE_Report.pdf
+
+---
+Do not send this email unless Harshvardhan or Mayank explicitly authorises it.
+If the PDF is edited after the check, this request no longer matches the file that was checked.
