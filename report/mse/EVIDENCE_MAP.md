@@ -7,7 +7,7 @@ This map links claims in `BTP_MSE_Report.pdf` to repository evidence. The checke
 | Claim | Evidence | Status |
 |---|---|---|
 | Students Harshvardhan Choudhary (230002027) and Mayank Yadav (230002041); supervisor Dr. Sumit Gautam | Supplied in the report task, 24 Sep 2026 | Confirmed by the user for this report |
-| Official project number, specialization, approved title | Not found in the repository, the template, or the task metadata | Missing. Title page says pending. Working title describes the simulator in `docs/fhlm/method.md` |
+| Project No. P22; title “Fronthaul Load Management for B5G Wireless Communications”; specialization CSP | Supplied by the students on 24 Sep 2026 | Printed on the title page. Not inferred from the repository |
 
 ## System model
 

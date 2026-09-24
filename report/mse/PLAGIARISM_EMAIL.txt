@@ -13,9 +13,9 @@ Supervisor: Dr. Sumit Gautam
 Department: Department of Electrical Engineering
 Programme: B.Tech., Academic Year 2026–27
 Report: B.Tech. Project — Mid-Semester Evaluation Report
-Working title: Fronthaul Load Management for a Shared O-RAN 7-2x Link: Deadline-Feasible Budget Allocation under Forecast Uncertainty
-Official project number: [pending confirmation]
-Specialization: [pending confirmation]
+Project title: Fronthaul Load Management for B5G Wireless Communications
+Project number: P22
+Specialization: CSP
 
 The attached file is the manuscript we intend to submit, subject to supervisor review. Please use the department’s standard settings for B.Tech. project mid-semester reports.
 
