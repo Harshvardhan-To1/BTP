@@ -192,6 +192,71 @@ class PointForecastWaterfill(Controller):
         return waterfill(demand, deadline_weights(obs, self.w_min), obs.capacity, obs.budget_caps)
 
 
+class MaxWeightReactive(Controller):
+    """Lyapunov / MaxWeight-style drift-minimising comparator.
+
+    Per epoch it solves  max sum_i w_i Q_i r_i  s.t. sum r_i <= C, 0 <= r_i <= d_i,
+    where Q_i is the observed backlog (fronthaul bits), w_i the priority and
+    d_i = backlog_i / T + (1 + margin) * EWMA_i an estimate of what the cell
+    can use. The LP solution is a greedy fill in decreasing w_i Q_i; unused
+    capacity is redistributed as headroom. This is the standard queue-length
+    based (back-pressure) allocation from the stochastic network optimisation
+    literature, adapted to interval budgets. It is deadline-unaware by design.
+    """
+
+    name = "maxweight"
+
+    def __init__(self, margin: float = 0.0, ewma_window: Optional[int] = None, hol_weight: float = 0.0):
+        self.margin = margin
+        self.ewma_window = ewma_window
+        self.hol_weight = hol_weight  # >0 adds an M-LWDF-style head-of-line age term
+
+    def decide(self, obs: Observation) -> np.ndarray:
+        T = obs.ctrl.interval_slots
+        win = self.ewma_window or T
+        rate = ewma_rate(obs.history_fh_demand, win)
+        Q = backlog_fh_bits(obs)
+        demand = np.minimum(Q / T + (1 + self.margin) * rate, obs.budget_caps)
+        urgency = 1.0 + self.hol_weight * obs.hol_age / obs.deadlines
+        prio = obs.priorities * (Q + 1e-6 * rate) * urgency
+        order = np.argsort(-prio)
+        alloc = np.zeros(obs.num_cells)
+        remaining = obs.capacity
+        for i in order:
+            give = min(demand[i], remaining)
+            alloc[i] = give
+            remaining -= give
+            if remaining <= 0:
+                break
+        return waterfill(alloc, np.ones(obs.num_cells), obs.capacity, obs.budget_caps)
+
+
+class FixedQuantileWaterfill(Controller):
+    """Global-quantile comparator: every cell reserves the same forecast quantile.
+
+    demand_i = backlog_rate_i + F_i^{-1}(q) with ONE tuned level q for all
+    cells, deadline weights, water-fill. This is the 'choose a percentile'
+    approach of probabilistic-forecast provisioning papers; it uses the same
+    quantile forecaster as the proposed method, so the comparison isolates
+    the value of the per-cell KKT level selection. q = 0.5 recovers the
+    point-forecast controller.
+    """
+
+    name = "fixed_quantile"
+
+    def __init__(self, forecaster, level: float = 0.9, w_min: float = 0.25):
+        self.forecaster = forecaster
+        self.level = level
+        self.w_min = w_min
+
+    def decide(self, obs: Observation) -> np.ndarray:
+        q = np.asarray(self.forecaster.predict_quantiles(obs), dtype=float)
+        levels = np.asarray(self.forecaster.quantiles, dtype=float)
+        rq = np.array([np.interp(self.level, levels, q[i]) for i in range(q.shape[0])])
+        demand = backlog_rate_obs(obs) + rq
+        return waterfill(demand, deadline_weights(obs, self.w_min), obs.capacity, obs.budget_caps)
+
+
 class OracleWaterfill(Controller):
     """Oracle-informed reference: knows the actual arrivals over the horizon.
 

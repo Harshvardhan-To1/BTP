@@ -9,7 +9,7 @@ from .config import SimConfig, TrafficConfig, ControlConfig, NetworkConfig
 # Seeds: disjoint ranges so that no test trace is ever seen in training or tuning.
 TRAIN_SEEDS: List[int] = list(range(1000, 1016))
 VAL_SEEDS: List[int] = list(range(2000, 2004))
-TEST_SEEDS: List[int] = list(range(3000, 3005))
+TEST_SEEDS: List[int] = list(range(3000, 3020))
 
 # Traffic families ------------------------------------------------------------
 NOMINAL = dict(regime_mean_slots=2000.0, regime_log_sigma=0.25, burst_rate_scale=1.0,

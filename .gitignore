@@ -10,3 +10,14 @@ terminals/
 models/fhlm_quantile_gbm_T4_d2.pkl
 models/fhlm_quantile_gbm_T10_d2.pkl
 models/fhlm_quantile_gbm_T40_d2.pkl
+models/fhlm_quantile_gbm_T20_d0.pkl
+models/fhlm_quantile_gbm_T20_d5.pkl
+models/fhlm_quantile_gbm_T20_d10.pkl
+
+# LaTeX build files
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.bbl
+paper/*.blg
+results/fhlm/chain.status
