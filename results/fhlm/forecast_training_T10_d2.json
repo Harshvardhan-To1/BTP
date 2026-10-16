@@ -46,7 +46,7 @@
   },
   "persistence_median_mae": 0.07822967563328587,
   "persistence_median_mae_rel": 0.5423581393604118,
-  "train_time_s": 22.181208676000097,
+  "train_time_s": 33.789812744999836,
   "feature_names": [
     "lag_mean_1",
     "lag_mean_2",

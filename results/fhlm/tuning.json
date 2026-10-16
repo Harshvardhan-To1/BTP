@@ -11,6 +11,13 @@
     2003
   ],
   "selected": {
+    "fixed_quantile": {
+      "level": 0.75
+    },
+    "maxweight": {
+      "margin": 0.0,
+      "hol_weight": 1.0
+    },
     "point_forecast": {
       "margin": 0.0
     },
@@ -28,34 +35,79 @@
   },
   "table": [
     {
+      "method": "fixed_quantile",
+      "params": "{\"level\": 0.75}",
+      "weighted_violation_ratio": 0.08071649437283385
+    },
+    {
+      "method": "fixed_quantile",
+      "params": "{\"level\": 0.9}",
+      "weighted_violation_ratio": 0.10036771847754522
+    },
+    {
+      "method": "fixed_quantile",
+      "params": "{\"level\": 0.95}",
+      "weighted_violation_ratio": 0.11215162133234476
+    },
+    {
+      "method": "maxweight",
+      "params": "{\"margin\": 0.0, \"hol_weight\": 1.0}",
+      "weighted_violation_ratio": 0.08081948640575806
+    },
+    {
+      "method": "maxweight",
+      "params": "{\"margin\": 0.0, \"hol_weight\": 0.0}",
+      "weighted_violation_ratio": 0.08154187200428259
+    },
+    {
+      "method": "maxweight",
+      "params": "{\"margin\": 0.25, \"hol_weight\": 1.0}",
+      "weighted_violation_ratio": 0.09427399706346393
+    },
+    {
+      "method": "maxweight",
+      "params": "{\"margin\": 0.25, \"hol_weight\": 0.0}",
+      "weighted_violation_ratio": 0.09540699304515335
+    },
+    {
+      "method": "maxweight",
+      "params": "{\"margin\": 0.5, \"hol_weight\": 1.0}",
+      "weighted_violation_ratio": 0.10985380820506915
+    },
+    {
+      "method": "maxweight",
+      "params": "{\"margin\": 0.5, \"hol_weight\": 0.0}",
+      "weighted_violation_ratio": 0.11074309352007138
+    },
+    {
       "method": "point_forecast",
       "params": "{\"margin\": 0.0}",
-      "weighted_violation_ratio": 0.06438415771239342
+      "weighted_violation_ratio": 0.06438931710119916
     },
     {
       "method": "point_forecast",
       "params": "{\"margin\": 0.25}",
-      "weighted_violation_ratio": 0.07489763014473824
+      "weighted_violation_ratio": 0.07489762134207532
     },
     {
       "method": "point_forecast",
       "params": "{\"margin\": 0.5}",
-      "weighted_violation_ratio": 0.09061714938694512
+      "weighted_violation_ratio": 0.0906169301789678
     },
     {
       "method": "proposed_cal",
       "params": "{\"gamma\": 0.005}",
-      "weighted_violation_ratio": 0.05140724052730162
+      "weighted_violation_ratio": 0.05140747434275328
     },
     {
       "method": "proposed_cal",
       "params": "{\"gamma\": 0.01}",
-      "weighted_violation_ratio": 0.052802111367026915
+      "weighted_violation_ratio": 0.05280148574906925
     },
     {
       "method": "proposed_cal",
       "params": "{\"gamma\": 0.02}",
-      "weighted_violation_ratio": 0.05550036002781912
+      "weighted_violation_ratio": 0.05550019164992362
     },
     {
       "method": "queue_aware",
