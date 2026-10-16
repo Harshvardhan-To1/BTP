@@ -245,13 +245,18 @@ def build(out: str = OUT):
     SCL = {"low": "Low 0.50", "moderate": "Moderate 0.65", "high": "High 0.80", "overload_bursts": "Flash crowds",
            "shift": "Shift (held-out)"}
     LAB = {"static_equal": "Static equal share", "reactive_prop": "Reactive proportional",
+           "maxweight": "MaxWeight (queue-weighted)", "fixed_quantile": "Fixed global quantile + water-fill",
            "queue_aware": "Deadline-aware reactive", "point_forecast": "Point forecast + water-fill",
            "proposed_window": "Proposed rule, simple quantiles (no ML)", "proposed": "Proposed (GBM quantiles + KKT rule)",
            "proposed_cal": "Proposed + online calibration", "oracle": "Oracle water-fill (knows the future)"}
 
     SHORT_LAB = {"reactive_prop": "reactive prop.", "queue_aware": "deadline-aware", "point_forecast": "point forecast",
+                 "maxweight": "MaxWeight", "fixed_quantile": "fixed quantile",
                  "proposed": "proposed", "proposed_window": "proposed (no ML)", "proposed_cal": "proposed + cal.",
                  "static_equal": "static", "oracle": "oracle"}
+
+    NS = int(main.seed.nunique()) if main is not None else 20
+    NM = int(main.method.nunique()) if main is not None else 10
 
     def pr(scenario, baseline, col="rel_reduction_pct"):
         if paired is None:
@@ -492,23 +497,27 @@ def build(out: str = OUT):
 
     # 9 Baselines --------------------------------------------------------------
     s = d.slide("Reference controllers (all implemented and tuned on validation)", section="Part B — baselines", notes=(
-        "Five references. Static equal share ignores everything. Reactive proportional is the classic: current "
-        "backlog plus a running average of demand, split proportionally, spare capacity redistributed. The "
+        "Seven references. Static equal share ignores everything. Reactive proportional is the classic: current "
+        "backlog plus a running average of demand, split proportionally, spare capacity redistributed. MaxWeight "
+        "is the textbook queue-based controller: fill cells greedily by priority times queue length. The "
         "deadline-aware reactive controller knows the deadlines: it uses the r-star of the last observed interval "
         "as its estimate, plus priority weights and the same water-filling split. The point-forecast controller "
         "is our ablation: identical to the proposed method except it uses the forecast median instead of the "
-        "whole range. The oracle knows the real arrivals of the next interval. Every tunable knob was chosen on "
+        "whole range. The fixed-quantile controller reserves the same tuned forecast percentile for every cell, "
+        "the simplest way of using the whole range. The oracle knows the real arrivals of the next interval. Every tunable knob was chosen on "
         "validation seeds, never on test seeds. The chosen safety margins were all zero: inflating a single "
         "predicted number made things worse."))
     rows = [
         ("Static equal share", "link ÷ 8 per cell (spare capacity redistributed)", "nothing", "—"),
         ("Reactive proportional", "backlog / T + running average of demand; proportional split; spare redistributed", "history", "margin, window"),
+        ("MaxWeight (queue-weighted)", "greedy fill in order of priority × queue length (optional head-of-line-age urgency)", "queues, priorities", "margin, HOL weight"),
         ("Deadline-aware reactive (strong)", "backlog-clearing rate + r* of the last interval; priority weights; water-fill", "history, deadlines, priorities", "margin, #intervals"),
         ("Point forecast + water-fill (ablation)", "same as above, but r* comes from the forecast MEDIAN", "+ trained model", "margin"),
+        ("Fixed global quantile + water-fill", "same as above, but r* = one tuned forecast percentile, identical for every cell", "+ trained model", "level"),
         ("Oracle water-fill (reference)", "true r* of the next interval, same water-fill. Perfect point forecast; not a bound on other rules", "future arrivals", "—"),
     ]
     df = pd.DataFrame(rows, columns=["Controller", "How it sets budgets", "What it uses", "Tuned"])
-    tbl = table(s, df, Inches(0.5), Inches(1.15), Inches(12.3), Inches(2.6), size=11)
+    tbl = table(s, df, Inches(0.5), Inches(1.15), Inches(12.3), Inches(3.2), size=11)
     for j, w in enumerate((2.6, 5.9, 2.0, 1.8)):
         tbl.columns[j].width = Inches(w)
     if tuning:
@@ -518,7 +527,7 @@ def build(out: str = OUT):
             (f"reactive_prop → {sel.get('reactive_prop')}  |  queue_aware → {sel.get('queue_aware')}  |  point_forecast → {sel.get('point_forecast')}  |  proposed_cal → {sel.get('proposed_cal')}", 1),
             ("Finding: every safety margin above 0 was worse. Inflating a single number hurts when the shortage is split proportionally — the cells that over-claim get more", 1),
             ("Same traffic traces, same delayed observations, spare capacity always redistributed, for every controller", 0),
-        ], Inches(0.5), Inches(4.75), Inches(12.3), Inches(2.2), size=13)
+        ], Inches(0.5), Inches(5.05), Inches(12.3), Inches(2.0), size=13)
 
     # 10 Proposed method ------------------------------------------------------
     s = d.slide("Proposed method: forecast a range, cut every cell at equal risk", section="Part B — proposed", notes=(
@@ -577,8 +586,8 @@ def build(out: str = OUT):
         tbl.columns[j].width = Inches(w)
     bullets(s, [
         ("Traffic (synthetic): smooth Gamma part + heavy-tailed ON/OFF bursts + slow load changes (~1 s) + spectral-efficiency drift", 0),
-        ("Seeds: training 1000-1015 (loads 0.5-0.95) | validation 2000-2003 | test 3000-3004 — no overlap", 0),
-        ("Each run: 20,000 slots = 10 s after a 1,000-slot warm-up; T = 20 slots; 8 controllers × 5 scenarios × 5 seeds = 200 runs", 0),
+        (f"Seeds: training 1000-1015 (loads 0.5-0.95) | validation 2000-2003 | test 3000-{3000 + NS - 1} — no overlap", 0),
+        (f"Each run: 20,000 slots = 10 s after a 1,000-slot warm-up; T = 20 slots; {NM} controllers × 5 scenarios × {NS} seeds = {NM * 5 * NS} runs", 0),
         ("Same traffic and same delayed observations for every controller; the forecaster is frozen before testing", 0),
         ("Absolute violation ratios are high on purpose (bursty traffic at 0.8 load); the paired differences between controllers are the result", 0),
     ], Inches(0.5), Inches(4.0), Inches(12.3), Inches(3.0), size=14)
@@ -587,20 +596,22 @@ def build(out: str = OUT):
     hi_pf, hi_qa, hi_rp = pr("high", "point_forecast"), pr("high", "queue_aware"), pr("high", "reactive_prop")
     sh_pf, sh_qa, sh_rp = pr("shift", "point_forecast"), pr("shift", "queue_aware"), pr("shift", "reactive_prop")
     ob_rp, ob_rp_w = pr("overload_bursts", "reactive_prop"), pr("overload_bursts", "reactive_prop", "reference_wins")
-    s = d.slide("Results: main score per scenario (5 test seeds, mean ± std)", section="Part B — results", notes=(
+    s = d.slide(f"Results: main score per scenario ({NS} test seeds, mean ± std)", section="Part B — results", notes=(
         f"Lower is better. Black is the oracle. The proposed rule, in red, is the best real controller in every "
         f"scenario. Against the point-forecast controller — same model, same information — it cuts the score by "
         f"{hi_pf:.0f} percent at high load and {sh_pf:.0f} percent under the held-out shift. Against the "
         f"deadline-aware reactive controller by {hi_qa:.0f} and {sh_qa:.0f} percent. Against the plain proportional "
         f"controller the margin is {hi_rp:.0f} percent at high load but only {ob_rp:.0f} percent under flash crowds, "
-        f"where it wins {ob_rp_w:.0f} of 5 seeds — a tie. The error bars are wide because seeds differ in when the "
+        f"where it wins {ob_rp_w:.0f} of {NS} seeds — still significant after correction, but a small gain. The "
+        "tuned MaxWeight and fixed-quantile controllers are beaten in every scenario. The error bars are wide because seeds differ in when the "
         "bursts happen; the next slide compares seed by seed."))
     picture(s, os.path.join(FIG, "fig1_primary_by_scenario.png"), Inches(0.4), Inches(1.1), width=Inches(8.6))
     if main is not None:
         bullets(s, [("Proposed = best real controller in 5 of 5 scenarios", 0, True),
                     (f"vs point forecast (same model, median only): −{hi_pf:.0f} % (high), −{sh_pf:.0f} % (shift)", 1),
                     (f"vs deadline-aware reactive: −{hi_qa:.0f} % (high), −{sh_qa:.0f} % (shift)", 1),
-                    (f"vs reactive proportional: −{hi_rp:.0f} % (high) but only −{ob_rp:.0f} % under flash crowds ({ob_rp_w:.0f}/5 seeds) → a tie", 1),
+                    (f"vs reactive proportional: −{hi_rp:.0f} % (high) but only −{ob_rp:.0f} % under flash crowds ({ob_rp_w:.0f}/{NS} seeds, p = {pr('overload_bursts', 'reactive_prop', 'wilcoxon_p_holm'):.2f}) → small gain", 1),
+                    (f"vs MaxWeight: −{pr('high', 'maxweight'):.0f} % (high); vs fixed global quantile: −{pr('high', 'fixed_quantile'):.0f} % (high) — per-cell levels beat one global level", 1),
                     (f"Gap to the oracle at high load: {pct(mean_metric('high', 'proposed'))} vs {pct(mean_metric('high', 'oracle'))}", 0),
                     ("Error bars are wide because burst timing differs by seed → compare seed by seed (next slide)", 0)],
                 Inches(9.1), Inches(1.2), Inches(4.0), Inches(5.6), size=13)
@@ -609,7 +620,7 @@ def build(out: str = OUT):
     s = d.slide("Results: seed-by-seed comparison on the same traffic", section="Part B — results", notes=(
         "Each bar is how much the proposed rule lowers the score compared with one baseline, computed seed by "
         "seed on the very same traffic; the whiskers are the best and worst seed, and the text says how many of "
-        "the five seeds it won. Against the point-forecast and the deadline-aware reactive controllers it wins "
+        f"the {NS} seeds it won. Stars mark Holm-corrected Wilcoxon significance. Against the point-forecast and the deadline-aware reactive controllers it wins "
         "every seed in every scenario. Against the plain proportional controller it wins every seed except under "
         "flash crowds. Green is the machine-learning ablation: the same rule fed with simple empirical quantiles "
         "instead of the trained model. The model helps a lot on normal traffic but almost not at all under the "
@@ -617,12 +628,12 @@ def build(out: str = OUT):
     picture(s, os.path.join(FIG, "fig8_paired_reduction.png"), Inches(0.4), Inches(1.1), width=Inches(8.6))
     if paired is not None:
         pw = [pr(sc, "proposed_window") for sc in SC]
-        bullets(s, [("Wins 5/5 seeds vs point forecast and vs deadline-aware reactive in every scenario", 0, True),
-                    (f"vs reactive proportional: 5/5 in four scenarios; {ob_rp_w:.0f}/5 under flash crowds (no claim there)", 0),
+        bullets(s, [(f"Wins {NS}/{NS} seeds vs point forecast, deadline-aware reactive, MaxWeight and fixed quantile in every scenario (Holm-corrected Wilcoxon p < 0.01)", 0, True),
+                    (f"vs reactive proportional: {NS}/{NS} in four scenarios; {ob_rp_w:.0f}/{NS} under flash crowds (−{ob_rp:.0f} %, p = {pr('overload_bursts', 'reactive_prop', 'wilcoxon_p_holm'):.2f})", 0),
                     ("ML ablation (same rule, simple window quantiles instead of the trained model):", 0, True),
                     (f"the model adds {min(pw):.0f}-{max(pw):.0f} %; least under the held-out shift ({pr('shift', 'proposed_window'):.0f} %) → the rule, not the model, carries most of the gain", 1),
                     ("Online calibration: no gain on normal traffic, harmful under shift (it over-reserves for low-latency cells and starves eMBB) → negative result", 0),
-                    ("With 5 seeds we do not claim statistical significance; we report win counts and best/worst seed", 0)],
+                    (f"{NS} seeds: paired per-seed differences, 95 % bootstrap CI, two-sided Wilcoxon signed-rank test with Holm correction (full table in the paper)", 0)],
                 Inches(9.1), Inches(1.2), Inches(4.0), Inches(5.6), size=13)
 
     # 14 Per class trade-off --------------------------------------------------
@@ -658,7 +669,7 @@ def build(out: str = OUT):
     if comp is not None and not comp.empty:
         g = comp.groupby(["mantissa_bits", "method"])[PRIMARY_METRIC].mean()
         load = comp.groupby("mantissa_bits")["realised_load"].mean()
-        items = [("Same user traffic, 3 seeds, scenario 'moderate'; only the BFP width changes", 0, True)]
+        items = [(f"Same user traffic, {comp.seed.nunique()} seeds, scenario 'moderate'; only the BFP width changes", 0, True)]
         for b in sorted(comp.mantissa_bits.unique()):
             best = g.loc[b].idxmin()
             items.append((f"BFP-{b}: load {load[b]:.2f} → proposed {pct(g.loc[(b, 'proposed')], 2)}, reactive prop. {pct(g.loc[(b, 'reactive_prop')], 2)}; best = {SHORT_LAB[best]}", 1))
@@ -693,7 +704,7 @@ def build(out: str = OUT):
                 return 100 * (g.loc[(T, base)] - g.loc[(T, "proposed")]) / g.loc[(T, base)]
             except KeyError:
                 return float("nan")
-        items += [("Interval sweep (scenario high, 3 seeds). Reduction by proposed vs deadline-aware reactive / vs reactive proportional / vs oracle water-fill:", 0, True)]
+        items += [(f"Interval sweep (scenario high, {sweep.seed.nunique()} seeds). Reduction by proposed vs deadline-aware reactive / vs reactive proportional / vs oracle water-fill:", 0, True)]
         items += [("   " + "   |   ".join(f"T={T * 0.5:g} ms: {red(T, 'queue_aware'):+.0f}% / {red(T, 'reactive_prop'):+.0f}% / {red(T, 'oracle'):+.0f}%" for T in Ts), 1)]
         short_T, long_T = Ts[0], Ts[-1]
         if red(short_T, "oracle") > 0:
@@ -710,19 +721,19 @@ def build(out: str = OUT):
         "source package is missing from the repository, so they were not re-run this term; the inversion "
         "benchmark is re-runnable. Part B: traffic is synthetic; the oracle is only interval-level; the gain over "
         "the simplest proportional controller vanishes under flash crowds and at long intervals; the learned "
-        "model adds little under shift; online calibration hurt; five seeds do not allow a significance claim; "
+        "model adds little under shift; online calibration hurt; the margin over proportional sharing also shrinks when telemetry is older than the low-latency deadline; "
         "the link is a budget-enforced pipe with no switch queue; decision time is Python-level, about 3 ms per "
         "10 ms epoch."))
     bullets(s, [
         ("Part A: compression numbers are quoted from the earlier report and saved figures; the src/ package is not in the repo, so they are not re-run. The matrix-inversion benchmark is re-runnable (needs PyTorch)", 0, True),
         ("Part A: benchmark matrices are random and well-conditioned; real channel matrices can be worse", 0),
         ("Part B: synthetic traffic only — no real radio-unit traces, so no real-world validation is claimed", 0, True),
-        ("Not a universal win: tie with reactive proportional under flash crowds; loses to it at 20 ms intervals and at ~1.0 load; the ML model adds ≈ 2 % under the held-out shift", 0),
+        ("Not a universal win: only ≈ 4 % better than reactive proportional under flash crowds; loses to it at 20 ms intervals, at ~0.85+ load and when telemetry is ≥ 5 ms old; the ML model adds ≈ 2 % under the held-out shift", 0),
         ("Online calibration (ACI) did not help — reported as a negative result; the simple-quantile variant is the current fallback", 0),
-        ("5 test seeds → we report win counts and best/worst seed, not p-values", 0),
+        (f"{NS} test seeds, paired bootstrap CIs and Holm-corrected Wilcoxon tests; still one synthetic traffic generator, so no real-world claim", 0),
         ("Simplified link: a budget-enforced pipe, no switch queue, one traffic class per cell, no HARQ feedback; 'violation' is a DU queueing deadline, not end-to-end latency", 0),
         ("Decision time ≈ 3.2 ms per 10-ms epoch in Python (reactive baselines ≈ 0.1 ms); a real DU would need a compiled version", 0),
-        ("Proofs cover feasibility, equal weighted risk and backlog-first only — no stability or closed-loop optimality claims", 0),
+        ("Proofs cover feasibility, equal weighted risk, backlog-first and bounded loss under forecast miscalibration — no stability or closed-loop optimality claims", 0),
     ], Inches(0.5), Inches(1.1), Inches(12.3), Inches(5.8), size=14)
 
     # 18 Remaining work --------------------------------------------------------
@@ -784,13 +795,13 @@ def build(out: str = OUT):
         ("Python 3 with numpy / pandas / scikit-learn / matplotlib; full reproduction ≈ 10 min on a 4-core laptop", 0),
     ], Inches(0.5), Inches(5.6), Inches(12.3), Inches(1.4), size=13)
 
-    s = d.slide("Backup: main score [%], mean ± std over 5 test seeds", section="Backup", notes=(
+    s = d.slide(f"Backup: main score [%], mean ± std over {NS} test seeds", section="Backup", notes=(
         "Table of the main score per scenario and method, from results/fhlm/main_runs.csv."))
     if main is not None:
-        methods = ["static_equal", "reactive_prop", "queue_aware", "point_forecast", "proposed_window", "proposed", "proposed_cal", "oracle"]
+        methods = ["static_equal", "reactive_prop", "maxweight", "queue_aware", "point_forecast", "fixed_quantile", "proposed_window", "proposed", "proposed_cal", "oracle"]
         df = summary_table(main, SC, methods, LAB).rename(columns=SCL)
-        table(s, df, Inches(0.4), Inches(1.15), Inches(12.5), Inches(4.6), size=11)
-        text(s, "Source: results/fhlm/main_runs.csv (200 runs). Seed-by-seed statistics: results/fhlm/main_paired.csv.",
+        table(s, df, Inches(0.4), Inches(1.15), Inches(12.5), Inches(4.8), size=10)
+        text(s, f"Source: results/fhlm/main_runs.csv ({NM * 5 * NS} runs). Seed-by-seed statistics: results/fhlm/main_paired.csv.",
              Inches(0.4), Inches(6.0), Inches(12), Inches(0.4), size=11, color=GREY, italic=True)
 
     s = d.slide("Backup: where the KKT rule comes from", section="Backup", notes=(

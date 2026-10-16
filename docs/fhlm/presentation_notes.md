@@ -27,16 +27,19 @@ is 2.4 times the link — because cells rarely burst together. When they do, the
 processing unit must decide how much each cell may send, and it must decide in
 advance: budgets are held for about 10 milliseconds, telemetry is late, and
 low-latency cells can only wait about 2 milliseconds. I built a simulator of
-this, five reference controllers including one that knows the future, and a
+this, seven reference controllers including one that knows the future, and a
 new rule: forecast each cell's need as a range, then split the link so that
 every cell is cut at the same priority-weighted risk.
 
-On five test scenarios the rule cuts priority-weighted deadline violations by
-10 to 50 percent compared with the same controller using a single predicted
-number, and beats the deadline-aware reactive controller on every seed. It ties
-with the simplest controller under flash crowds, loses to it when budgets are
-held for 20 ms, and the machine-learning model adds little under a traffic
-shift — I will show those too. Finally, one experiment runs both levers on the
+On five test scenarios and twenty seeds the rule cuts priority-weighted
+deadline violations by 11 to 43 percent compared with the same controller
+using a single predicted number, and beats the deadline-aware reactive
+controller, a queue-based MaxWeight scheduler and a tuned fixed-quantile
+reservation on every seed, with corrected p-values below 0.01. It is only
+four percent better than the simplest controller under flash crowds, loses to
+it when budgets are held for 20 ms or telemetry is 5 ms old, and the
+machine-learning model adds little under a traffic shift — I will show those
+too. Finally, one experiment runs both levers on the
 same traffic: compression decides how much load reaches the link, allocation
 decides who loses data when it is full. Everything in the deck is generated
 from the repository."
@@ -129,10 +132,10 @@ Honest answer: ML is *useful*, not *necessary*.
   contribution and the model is "the best forecaster we tried".
 * The strong non-ML comparator, the deadline-aware reactive controller, has
   the same deadline knowledge, the same weights and the same water-fill; it
-  loses 18-79 % because its estimate of r\* is one interval late and is a
+  loses 19-70 % because its estimate of r\* is one interval late and is a
   single number.
-* Cost: the model makes the decision about 40x more expensive (3.2 ms vs
-  0.08 ms in Python per 10-ms epoch). A real DU would need a compiled version
+* Cost: the model makes the decision about 40x more expensive (3.5 ms vs
+  0.09 ms in Python per 10-ms epoch). A real DU would need a compiled version
   or a longer epoch; the simple-quantile variant is the fallback.
 * Part A gives the same lesson from the other side: a neural network that
   directly outputs a matrix inverse fails (~50 % error), while a learned
@@ -200,12 +203,15 @@ Honest answer: ML is *useful*, not *necessary*.
     frequent local overload; even the oracle loses 13 % of eMBB bits. The
     traffic is synthetic and deliberately stressful; the paired differences
     between controllers are the result.
-11. **Where does the method fail?** (a) Flash crowds: tie with the
-    proportional controller. (b) T = 20 ms (5x the low-latency deadline):
-    reserving the low-latency peak for the whole interval over-reserves and
-    the proportional controller wins. (c) The model adds almost nothing under
-    the held-out shift. (d) Online calibration hurts. (e) At ~1.0 load
-    (BFP-14 in the A + B experiment) no allocation rule helps.
+11. **Where does the method fail?** (a) Flash crowds: only 4 % better than
+    the proportional controller (16/20 seeds, p = 0.03). (b) T = 20 ms (5x
+    the low-latency deadline): reserving the low-latency peak for the whole
+    interval over-reserves and the proportional controller wins. (c) Telemetry
+    5 ms old: the margin over the proportional controller shrinks to 2 %.
+    (d) The model adds almost nothing under the held-out shift. (e) Online
+    calibration hurts. (f) At ≥ 0.86 load (BFP-12/14 in the A + B experiment)
+    the proportional controller is better and at ~1.0 load no allocation rule
+    helps.
 12. **Why did online calibration hurt?** It raises a cell's quantile level
     after misses. In a coupled allocation, low-latency misses are partly
     *caused* by the shortage split, not by forecast bias, so the correction
@@ -264,5 +270,5 @@ Honest answer: ML is *useful*, not *necessary*.
     Exp 1-4, benchmark on realistic channel matrices. A + B: make the
     compression width a per-cell knob of the allocation rule (trade signal
     quality for load). Part B: real / public traces; a skill-weighted mix of
-    trained and simple quantiles as the fallback; a switch-level queue; more
-    seeds; a compiled implementation.
+    trained and simple quantiles as the fallback; a switch-level queue; a
+    compiled implementation.

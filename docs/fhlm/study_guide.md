@@ -215,11 +215,13 @@ about its median. Backlog is always funded first.
 
 **Properties we proved (and test):** budgets are always feasible; at the
 optimum every cell has the same weighted risk; backlog is funded before any
-uncertain demand. If the forecast were a single number, the rule collapses to
+uncertain demand; and if the forecast CDF is off by at most ε everywhere, the
+loss in expected weighted served demand is at most 2·ε·w_max·link (linear in
+ε, so a somewhat wrong forecast degrades gently). If the forecast were a single number, the rule collapses to
 the point-forecast water-fill — which is why that is the fair comparison.
 
 **Cost:** the rule itself takes microseconds. The whole decision, including
-evaluating 1,800 trees for 8 cells, takes about 3.2 ms in Python per 10-ms
+evaluating 1,800 trees for 8 cells, takes about 3.5 ms in Python per 10-ms
 interval (reactive baselines: 0.1 ms). A real O-DU would need a compiled
 version.
 
@@ -234,33 +236,48 @@ version.
 * Five scenarios: low (0.50 load), moderate (0.65), high (0.80), flash crowds
   (0.80 with short overloads), and **shift** (held-out: bursts 1.5x stronger
   and longer, never seen in training or tuning).
-* Seeds: training 1000-1015, validation 2000-2003, test 3000-3004. No overlap.
-* Every controller sees exactly the same traffic, seed by seed. 8 controllers
-  x 5 scenarios x 5 seeds = 200 runs, 10 s of simulated time each.
+* Seeds: training 1000-1015, validation 2000-2003, test 3000-3019. No overlap.
+* Every controller sees exactly the same traffic, seed by seed. 10 controllers
+  x 5 scenarios x 20 seeds = 1000 runs, 10 s of simulated time each.
+* Two more references than before: **MaxWeight** (the textbook queue-based
+  scheduler: fill cells in order of priority x queue length) and **fixed
+  global quantile** (reserve the same tuned forecast percentile, 0.75, for
+  every cell). The second one checks that "use a quantile" alone is not the
+  trick; the per-cell level chosen by the rule is.
+* Statistics: for each baseline we compute the per-seed difference on the same
+  trace, a 95 % bootstrap confidence interval of the relative reduction, and
+  a two-sided Wilcoxon signed-rank test with Holm correction.
 
 ### 6.2 Main results (weighted violation ratio, %, lower is better)
 
 | Method | low | moderate | high | flash crowds | shift |
 |---|---|---|---|---|---|
-| Static equal share | 4.16 | 9.38 | 15.27 | 19.30 | 23.65 |
-| Reactive proportional | 0.75 | 3.81 | 8.94 | 12.25 | 12.92 |
-| Deadline-aware reactive | 0.39 | 4.07 | 10.86 | 14.70 | 14.21 |
-| Point forecast + water-fill | 0.18 | 3.11 | 9.63 | 13.44 | 12.93 |
-| Proposed, simple quantiles (no ML) | 0.17 | 2.41 | 8.60 | 12.67 | 11.80 |
-| **Proposed** | **0.08** | **2.00** | **7.89** | **11.82** | **11.59** |
-| Proposed + calibration | 0.09 | 2.02 | 8.12 | 12.24 | 12.95 |
-| Oracle water-fill | 0.01 | 1.56 | 6.90 | 10.21 | 8.23 |
+| Static equal share | 4.45 | 9.65 | 15.46 | 19.15 | 22.31 |
+| Reactive proportional | 0.83 | 4.11 | 9.20 | 12.27 | 11.70 |
+| MaxWeight | 0.90 | 4.85 | 11.54 | 15.24 | 12.31 |
+| Deadline-aware reactive | 0.52 | 4.24 | 11.03 | 14.51 | 12.56 |
+| Point forecast + water-fill | 0.27 | 3.23 | 9.70 | 13.33 | 11.30 |
+| Fixed global quantile + water-fill | 0.34 | 4.35 | 11.76 | 15.09 | 12.85 |
+| Proposed, simple quantiles (no ML) | 0.25 | 2.57 | 8.72 | 12.67 | 10.22 |
+| **Proposed** | **0.15** | **2.15** | **8.00** | **11.76** | **10.04** |
+| Proposed + calibration | 0.17 | 2.17 | 8.14 | 12.27 | 11.12 |
+| Oracle water-fill | 0.07 | 1.62 | 6.89 | 10.16 | 6.69 |
 
 The proposed rule is the best real controller in all 5 scenarios.
 
-### 6.3 Seed-by-seed comparison (how much lower the proposed rule is, and on how many of 5 seeds it won)
+### 6.3 Seed-by-seed comparison (how much lower the proposed rule is, and on how many of 20 seeds it won)
+
+All entries are significant after Holm correction (p < 0.01) except the one
+marked, which has p = 0.03.
 
 | Compared with | low | moderate | high | flash crowds | shift |
 |---|---|---|---|---|---|
-| point forecast (same model, median only) | −53 % (5/5) | −36 % (5/5) | −18 % (5/5) | −12 % (5/5) | −10 % (5/5) |
-| deadline-aware reactive | −79 % (5/5) | −51 % (5/5) | −27 % (5/5) | −20 % (5/5) | −18 % (5/5) |
-| reactive proportional | −89 % (5/5) | −48 % (5/5) | −12 % (5/5) | **−3 % (3/5) = tie** | −10 % (5/5) |
-| simple quantiles (ML ablation) | −51 % | −17 % | −8 % | −7 % | **−2 %** |
+| point forecast (same model, median only) | −43 % (20/20) | −33 % (20/20) | −18 % (20/20) | −12 % (20/20) | −11 % (20/20) |
+| fixed global quantile (same forecast) | −54 % (20/20) | −50 % (20/20) | −32 % (20/20) | −22 % (20/20) | −22 % (20/20) |
+| deadline-aware reactive | −70 % (20/20) | −49 % (20/20) | −27 % (20/20) | −19 % (20/20) | −20 % (20/20) |
+| MaxWeight | −83 % (20/20) | −56 % (20/20) | −31 % (20/20) | −23 % (20/20) | −18 % (20/20) |
+| reactive proportional | −81 % (20/20) | −48 % (20/20) | −13 % (20/20) | **−4 % (16/20, p = 0.03) = small** | −14 % (20/20) |
+| simple quantiles (ML ablation) | −37 % | −16 % | −8 % | −7 % | **−2 % (16/20)** |
 
 ### 6.4 Where the gain comes from
 
@@ -274,9 +291,13 @@ eMBB bits: budgets fixed for 10 ms cannot follow heavy bursts.
 
 ### 6.5 Ablations (what each piece is worth)
 
-* **Range vs single number:** −10 % to −53 %, every seed. This is the direct
+* **Range vs single number:** −11 % to −43 %, every seed. This is the direct
   test of "represent uncertainty".
-* **ML vs simple quantiles:** the trained model adds 7-51 % on normal traffic
+* **Per-cell level vs one global quantile:** −22 % to −54 %, every seed. Using
+  the range is not enough; the level must be set per cell by the link
+  constraint (one global level over-protects the low-latency cells and wastes
+  a third of the allocation).
+* **ML vs simple quantiles:** the trained model adds 7-37 % on normal traffic
   but only ~2 % under the held-out shift. So **most of the gain is the rule
   (r\* target + KKT split), not the learning.** The simple-quantile version is
   the robust fallback.
@@ -289,16 +310,28 @@ eMBB bits: budgets fixed for 10 ms cannot follow heavy bursts.
 
   | interval | vs deadline-aware reactive | vs reactive proportional | vs oracle |
   |---|---|---|---|
-  | 2 ms | −62 % | −27 % | **−57 % (beats the oracle)** |
-  | 5 ms | −52 % | −37 % | −13 % |
-  | 10 ms (default) | −30 % | −18 % | +17 % |
-  | 20 ms | −17 % | **+12 % (loses)** | +25 % |
+  | 2 ms | −61 % | −21 % | **−55 % (beats the oracle)** |
+  | 5 ms | −50 % | −32 % | −16 % |
+  | 10 ms (default) | −28 % | −13 % | +16 % |
+  | 20 ms | −17 % | **+11 % (loses)** | +21 % |
 
   At short intervals the rule beats even a perfect single-number forecast, so
   the *rule* does real work. At 20 ms (5x the low-latency deadline) reserving
   the low-latency peak for the whole interval wastes capacity and the simple
   proportional controller wins. **The method is for intervals up to a few times
   the shortest deadline.**
+* **Telemetry delay sweep** (high load, state 0 / 1 / 2.5 / 5 ms old,
+  forecasters retrained per delay): the order of the controllers never
+  changes, and the margin over the deadline-aware controllers stays at
+  11-24 %, but the margin over the plain proportional controller shrinks from
+  16 % (fresh state) to 2 % (5 ms old, 2.5x the low-latency deadline). Timely
+  telemetry is part of the operating regime.
+* **Miscalibrated forecast** (all quantile levels shifted by ε from −0.3 to
+  +0.3): under-reserving (ε < 0) costs almost nothing, because a common shift
+  is absorbed by the multiplier λ; over-reserving degrades gradually (+23 % at
+  ε = +0.3 at high load) and even then the rule only falls back to the level
+  of the point-forecast controller. This is the empirical side of the fourth
+  proved property.
 
 ### 6.6 Forecast quality
 
@@ -315,10 +348,10 @@ changes the fronthaul bits per resource block and therefore the load:
 
 | BFP width | load on link | best real controller | proposed vs reactive proportional |
 |---|---|---|---|
-| 6 bits | 0.43 | proposed | 0.04 % vs 0.13 % — almost nothing lost either way |
-| 9 bits (default) | 0.63 | proposed | 1.6 % vs 3.4 % — allocation matters most here |
-| 12 bits | 0.83 | tie | 10.8 % vs 10.7 % |
-| 14 bits | 0.97 | reactive proportional | 19.3 % vs 16.4 % — **proposed loses** |
+| 6 bits | 0.44 | proposed | 0.11 % vs 0.22 % — almost nothing lost either way |
+| 9 bits (default) | 0.65 | proposed | 2.0 % vs 3.9 % — allocation matters most here |
+| 12 bits | 0.86 | reactive proportional (slightly) | 12.0 % vs 11.4 % |
+| 14 bits | 0.99 | reactive proportional | 20.8 % vs 17.3 % — **proposed loses** |
 
 **Message:** compression decides which load regime you are in; allocation
 decides how much is lost in that regime. Allocation helps most between ~0.5
@@ -332,17 +365,19 @@ bits (that is what Part A's NMSE curves are for).
 
 * Part A: compression numbers quoted, not re-run (missing `src/`); benchmark
   matrices are random and well-conditioned, not real channel matrices.
-* Part B: synthetic traffic only; 5 seeds, so win counts instead of p-values.
-* Not a universal win: tie with the proportional controller under flash
-  crowds; loses to it at 20 ms intervals and at ~1.0 load; ML adds little
-  under shift; calibration hurt.
+* Part B: synthetic traffic only (one generator family plus one held-out
+  burstier family); 20 seeds with paired tests, but still no real traces.
+* Not a universal win: only 4 % better than the proportional controller under
+  flash crowds; loses to it at 20 ms intervals, at ≥ 0.86 load and when the
+  state is 5 ms old; ML adds little under shift; calibration hurt.
 * Simplified link: a budget-enforced pipe, no switch queue, one traffic class
   per cell, no HARQ; "violation" is a DU queueing deadline, not end-to-end
   latency.
 * The oracle is a reference, not an upper bound (the rule beats it at 2 ms).
-* Proofs cover feasibility, equal weighted risk and backlog-first only; no
-  stability or closed-loop optimality claims.
-* Decision time 3.2 ms in Python; needs a compiled version for a real O-DU.
+* Proofs cover feasibility, equal weighted risk, backlog-first and a linear
+  loss bound under forecast miscalibration; no stability or closed-loop
+  optimality claims.
+* Decision time 3.5 ms in Python; needs a compiled version for a real O-DU.
 
 ---
 
@@ -361,11 +396,12 @@ bits (that is what Part A's NMSE curves are for).
   bursts, and a fixed margin wastes capacity (every positive margin was worse
   on validation).
 * **Why ML?** Useful, not necessary. The simple-quantile version already beats
-  every baseline; the model adds 7-51 % on normal traffic, ~2 % under shift.
+  every baseline; the model adds 7-37 % on normal traffic, ~2 % under shift.
 * **Is the oracle an upper bound?** No — it is a perfect *single-number*
   forecast fed to the water-fill rule. Our rule beats it at short intervals.
-* **Where does it fail?** Flash crowds (tie), long intervals (loses), ~1.0
-  load (loses), calibration (hurt).
+* **Where does it fail?** Flash crowds (only 4 % gain), long intervals
+  (loses), stale telemetry (nearly ties), ≥ 0.86 load (loses), calibration
+  (hurt).
 * **How do Parts A and B connect?** Compression sets the load regime;
   allocation decides the loss in that regime. Both levers on one figure.
 * **Why did the neural inverter fail but the learned iteration work?**
