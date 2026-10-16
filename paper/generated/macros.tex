@@ -1,0 +1,445 @@
+\newcommand{\nSeeds}{20}
+\newcommand{\nRuns}{1000}
+\newcommand{\nMethods}{10}
+\newcommand{\meanlowstaticequal}{4.45}
+\newcommand{\meanlowstaticequalLL}{1.3}
+\newcommand{\meanlowstaticequalEMBB}{7.4}
+\newcommand{\meanlowstaticequalUtil}{47.2}
+\newcommand{\meanlowreactiveprop}{0.83}
+\newcommand{\meanlowreactivepropLL}{1.6}
+\newcommand{\meanlowreactivepropEMBB}{0.1}
+\newcommand{\meanlowreactivepropUtil}{50.0}
+\newcommand{\meanlowmaxweight}{0.90}
+\newcommand{\meanlowmaxweightLL}{1.8}
+\newcommand{\meanlowmaxweightEMBB}{0.1}
+\newcommand{\meanlowmaxweightUtil}{50.0}
+\newcommand{\meanlowqueueaware}{0.52}
+\newcommand{\meanlowqueueawareLL}{0.7}
+\newcommand{\meanlowqueueawareEMBB}{0.3}
+\newcommand{\meanlowqueueawareUtil}{50.0}
+\newcommand{\meanlowpointforecast}{0.27}
+\newcommand{\meanlowpointforecastLL}{0.3}
+\newcommand{\meanlowpointforecastEMBB}{0.2}
+\newcommand{\meanlowpointforecastUtil}{50.1}
+\newcommand{\meanlowfixedquantile}{0.34}
+\newcommand{\meanlowfixedquantileLL}{0.1}
+\newcommand{\meanlowfixedquantileEMBB}{0.5}
+\newcommand{\meanlowfixedquantileUtil}{50.0}
+\newcommand{\meanlowproposedwindow}{0.25}
+\newcommand{\meanlowproposedwindowLL}{0.4}
+\newcommand{\meanlowproposedwindowEMBB}{0.1}
+\newcommand{\meanlowproposedwindowUtil}{50.1}
+\newcommand{\meanlowproposed}{0.15}
+\newcommand{\meanlowproposedLL}{0.2}
+\newcommand{\meanlowproposedEMBB}{0.1}
+\newcommand{\meanlowproposedUtil}{50.1}
+\newcommand{\meanlowproposedcal}{0.17}
+\newcommand{\meanlowproposedcalLL}{0.2}
+\newcommand{\meanlowproposedcalEMBB}{0.1}
+\newcommand{\meanlowproposedcalUtil}{50.1}
+\newcommand{\meanloworacle}{0.07}
+\newcommand{\meanloworacleLL}{0.0}
+\newcommand{\meanloworacleEMBB}{0.1}
+\newcommand{\meanloworacleUtil}{50.2}
+\newcommand{\meanmoderatestaticequal}{9.65}
+\newcommand{\meanmoderatestaticequalLL}{4.8}
+\newcommand{\meanmoderatestaticequalEMBB}{14.2}
+\newcommand{\meanmoderatestaticequalUtil}{57.5}
+\newcommand{\meanmoderatereactiveprop}{4.11}
+\newcommand{\meanmoderatereactivepropLL}{7.6}
+\newcommand{\meanmoderatereactivepropEMBB}{0.8}
+\newcommand{\meanmoderatereactivepropUtil}{63.5}
+\newcommand{\meanmoderatemaxweight}{4.85}
+\newcommand{\meanmoderatemaxweightLL}{9.3}
+\newcommand{\meanmoderatemaxweightEMBB}{0.7}
+\newcommand{\meanmoderatemaxweightUtil}{63.3}
+\newcommand{\meanmoderatequeueaware}{4.24}
+\newcommand{\meanmoderatequeueawareLL}{3.3}
+\newcommand{\meanmoderatequeueawareEMBB}{5.1}
+\newcommand{\meanmoderatequeueawareUtil}{62.2}
+\newcommand{\meanmoderatepointforecast}{3.23}
+\newcommand{\meanmoderatepointforecastLL}{1.8}
+\newcommand{\meanmoderatepointforecastEMBB}{4.6}
+\newcommand{\meanmoderatepointforecastUtil}{62.7}
+\newcommand{\meanmoderatefixedquantile}{4.35}
+\newcommand{\meanmoderatefixedquantileLL}{0.6}
+\newcommand{\meanmoderatefixedquantileEMBB}{7.9}
+\newcommand{\meanmoderatefixedquantileUtil}{61.3}
+\newcommand{\meanmoderateproposedwindow}{2.57}
+\newcommand{\meanmoderateproposedwindowLL}{2.0}
+\newcommand{\meanmoderateproposedwindowEMBB}{3.1}
+\newcommand{\meanmoderateproposedwindowUtil}{63.4}
+\newcommand{\meanmoderateproposed}{2.15}
+\newcommand{\meanmoderateproposedLL}{1.4}
+\newcommand{\meanmoderateproposedEMBB}{2.8}
+\newcommand{\meanmoderateproposedUtil}{63.6}
+\newcommand{\meanmoderateproposedcal}{2.17}
+\newcommand{\meanmoderateproposedcalLL}{1.4}
+\newcommand{\meanmoderateproposedcalEMBB}{2.9}
+\newcommand{\meanmoderateproposedcalUtil}{63.6}
+\newcommand{\meanmoderateoracle}{1.62}
+\newcommand{\meanmoderateoracleLL}{0.0}
+\newcommand{\meanmoderateoracleEMBB}{3.1}
+\newcommand{\meanmoderateoracleUtil}{63.7}
+\newcommand{\meanhighstaticequal}{15.46}
+\newcommand{\meanhighstaticequalLL}{9.8}
+\newcommand{\meanhighstaticequalEMBB}{20.8}
+\newcommand{\meanhighstaticequalUtil}{65.8}
+\newcommand{\meanhighreactiveprop}{9.20}
+\newcommand{\meanhighreactivepropLL}{14.7}
+\newcommand{\meanhighreactivepropEMBB}{4.0}
+\newcommand{\meanhighreactivepropUtil}{74.7}
+\newcommand{\meanhighmaxweight}{11.54}
+\newcommand{\meanhighmaxweightLL}{20.6}
+\newcommand{\meanhighmaxweightEMBB}{2.9}
+\newcommand{\meanhighmaxweightUtil}{74.1}
+\newcommand{\meanhighqueueaware}{11.03}
+\newcommand{\meanhighqueueawareLL}{5.2}
+\newcommand{\meanhighqueueawareEMBB}{16.5}
+\newcommand{\meanhighqueueawareUtil}{69.3}
+\newcommand{\meanhighpointforecast}{9.70}
+\newcommand{\meanhighpointforecastLL}{3.1}
+\newcommand{\meanhighpointforecastEMBB}{16.0}
+\newcommand{\meanhighpointforecastUtil}{70.1}
+\newcommand{\meanhighfixedquantile}{11.76}
+\newcommand{\meanhighfixedquantileLL}{0.9}
+\newcommand{\meanhighfixedquantileEMBB}{22.0}
+\newcommand{\meanhighfixedquantileUtil}{67.0}
+\newcommand{\meanhighproposedwindow}{8.72}
+\newcommand{\meanhighproposedwindowLL}{3.7}
+\newcommand{\meanhighproposedwindowEMBB}{13.5}
+\newcommand{\meanhighproposedwindowUtil}{71.5}
+\newcommand{\meanhighproposed}{8.00}
+\newcommand{\meanhighproposedLL}{3.4}
+\newcommand{\meanhighproposedEMBB}{12.3}
+\newcommand{\meanhighproposedUtil}{72.2}
+\newcommand{\meanhighproposedcal}{8.14}
+\newcommand{\meanhighproposedcalLL}{2.9}
+\newcommand{\meanhighproposedcalEMBB}{13.1}
+\newcommand{\meanhighproposedcalUtil}{71.9}
+\newcommand{\meanhighoracle}{6.89}
+\newcommand{\meanhighoracleLL}{0.0}
+\newcommand{\meanhighoracleEMBB}{13.4}
+\newcommand{\meanhighoracleUtil}{72.3}
+\newcommand{\meanoverloadburstsstaticequal}{19.15}
+\newcommand{\meanoverloadburstsstaticequalLL}{13.4}
+\newcommand{\meanoverloadburstsstaticequalEMBB}{24.2}
+\newcommand{\meanoverloadburstsstaticequalUtil}{67.9}
+\newcommand{\meanoverloadburstsreactiveprop}{12.27}
+\newcommand{\meanoverloadburstsreactivepropLL}{17.8}
+\newcommand{\meanoverloadburstsreactivepropEMBB}{7.1}
+\newcommand{\meanoverloadburstsreactivepropUtil}{78.0}
+\newcommand{\meanoverloadburstsmaxweight}{15.24}
+\newcommand{\meanoverloadburstsmaxweightLL}{25.4}
+\newcommand{\meanoverloadburstsmaxweightEMBB}{5.8}
+\newcommand{\meanoverloadburstsmaxweightUtil}{77.0}
+\newcommand{\meanoverloadburstsqueueaware}{14.51}
+\newcommand{\meanoverloadburstsqueueawareLL}{6.2}
+\newcommand{\meanoverloadburstsqueueawareEMBB}{22.1}
+\newcommand{\meanoverloadburstsqueueawareUtil}{71.0}
+\newcommand{\meanoverloadburstspointforecast}{13.33}
+\newcommand{\meanoverloadburstspointforecastLL}{4.1}
+\newcommand{\meanoverloadburstspointforecastEMBB}{21.8}
+\newcommand{\meanoverloadburstspointforecastUtil}{71.7}
+\newcommand{\meanoverloadburstsfixedquantile}{15.09}
+\newcommand{\meanoverloadburstsfixedquantileLL}{1.9}
+\newcommand{\meanoverloadburstsfixedquantileEMBB}{27.3}
+\newcommand{\meanoverloadburstsfixedquantileUtil}{68.7}
+\newcommand{\meanoverloadburstsproposedwindow}{12.67}
+\newcommand{\meanoverloadburstsproposedwindowLL}{4.4}
+\newcommand{\meanoverloadburstsproposedwindowEMBB}{20.3}
+\newcommand{\meanoverloadburstsproposedwindowUtil}{72.6}
+\newcommand{\meanoverloadburstsproposed}{11.76}
+\newcommand{\meanoverloadburstsproposedLL}{4.6}
+\newcommand{\meanoverloadburstsproposedEMBB}{18.3}
+\newcommand{\meanoverloadburstsproposedUtil}{73.8}
+\newcommand{\meanoverloadburstsproposedcal}{12.27}
+\newcommand{\meanoverloadburstsproposedcalLL}{3.6}
+\newcommand{\meanoverloadburstsproposedcalEMBB}{20.3}
+\newcommand{\meanoverloadburstsproposedcalUtil}{72.8}
+\newcommand{\meanoverloadburstsoracle}{10.16}
+\newcommand{\meanoverloadburstsoracleLL}{0.4}
+\newcommand{\meanoverloadburstsoracleEMBB}{19.1}
+\newcommand{\meanoverloadburstsoracleUtil}{74.3}
+\newcommand{\meanshiftstaticequal}{22.31}
+\newcommand{\meanshiftstaticequalLL}{19.0}
+\newcommand{\meanshiftstaticequalEMBB}{25.2}
+\newcommand{\meanshiftstaticequalUtil}{54.5}
+\newcommand{\meanshiftreactiveprop}{11.70}
+\newcommand{\meanshiftreactivepropLL}{14.4}
+\newcommand{\meanshiftreactivepropEMBB}{9.0}
+\newcommand{\meanshiftreactivepropUtil}{64.0}
+\newcommand{\meanshiftmaxweight}{12.31}
+\newcommand{\meanshiftmaxweightLL}{16.5}
+\newcommand{\meanshiftmaxweightEMBB}{8.2}
+\newcommand{\meanshiftmaxweightUtil}{64.0}
+\newcommand{\meanshiftqueueaware}{12.56}
+\newcommand{\meanshiftqueueawareLL}{10.5}
+\newcommand{\meanshiftqueueawareEMBB}{14.4}
+\newcommand{\meanshiftqueueawareUtil}{61.9}
+\newcommand{\meanshiftpointforecast}{11.30}
+\newcommand{\meanshiftpointforecastLL}{7.8}
+\newcommand{\meanshiftpointforecastEMBB}{14.6}
+\newcommand{\meanshiftpointforecastUtil}{62.3}
+\newcommand{\meanshiftfixedquantile}{12.85}
+\newcommand{\meanshiftfixedquantileLL}{5.0}
+\newcommand{\meanshiftfixedquantileEMBB}{20.2}
+\newcommand{\meanshiftfixedquantileUtil}{59.9}
+\newcommand{\meanshiftproposedwindow}{10.22}
+\newcommand{\meanshiftproposedwindowLL}{6.1}
+\newcommand{\meanshiftproposedwindowEMBB}{14.1}
+\newcommand{\meanshiftproposedwindowUtil}{62.9}
+\newcommand{\meanshiftproposed}{10.04}
+\newcommand{\meanshiftproposedLL}{6.6}
+\newcommand{\meanshiftproposedEMBB}{13.2}
+\newcommand{\meanshiftproposedUtil}{63.3}
+\newcommand{\meanshiftproposedcal}{11.12}
+\newcommand{\meanshiftproposedcalLL}{4.7}
+\newcommand{\meanshiftproposedcalEMBB}{17.2}
+\newcommand{\meanshiftproposedcalUtil}{61.5}
+\newcommand{\meanshiftoracle}{6.69}
+\newcommand{\meanshiftoracleLL}{0.9}
+\newcommand{\meanshiftoracleEMBB}{12.1}
+\newcommand{\meanshiftoracleUtil}{65.0}
+\newcommand{\redhighstaticequal}{48}
+\newcommand{\redhighstaticequalWins}{20/20}
+\newcommand{\redhighstaticequalP}{0.000}
+\newcommand{\redhighstaticequalCI}{[46, 50]}
+\newcommand{\redhighreactiveprop}{13}
+\newcommand{\redhighreactivepropWins}{20/20}
+\newcommand{\redhighreactivepropP}{0.000}
+\newcommand{\redhighreactivepropCI}{[11, 16]}
+\newcommand{\redhighmaxweight}{31}
+\newcommand{\redhighmaxweightWins}{20/20}
+\newcommand{\redhighmaxweightP}{0.000}
+\newcommand{\redhighmaxweightCI}{[29, 33]}
+\newcommand{\redhighqueueaware}{27}
+\newcommand{\redhighqueueawareWins}{20/20}
+\newcommand{\redhighqueueawareP}{0.000}
+\newcommand{\redhighqueueawareCI}{[26, 29]}
+\newcommand{\redhighpointforecast}{18}
+\newcommand{\redhighpointforecastWins}{20/20}
+\newcommand{\redhighpointforecastP}{0.000}
+\newcommand{\redhighpointforecastCI}{[17, 19]}
+\newcommand{\redhighfixedquantile}{32}
+\newcommand{\redhighfixedquantileWins}{20/20}
+\newcommand{\redhighfixedquantileP}{0.000}
+\newcommand{\redhighfixedquantileCI}{[31, 33]}
+\newcommand{\redhighproposedwindow}{8}
+\newcommand{\redhighproposedwindowWins}{20/20}
+\newcommand{\redhighproposedwindowP}{0.000}
+\newcommand{\redhighproposedwindowCI}{[8, 9]}
+\newcommand{\redhighproposedcal}{2}
+\newcommand{\redhighproposedcalWins}{19/20}
+\newcommand{\redhighproposedcalP}{0.000}
+\newcommand{\redhighproposedcalCI}{[1, 2]}
+\newcommand{\redhighoracle}{-16}
+\newcommand{\redhighoracleWins}{0/20}
+\newcommand{\redhighoracleP}{0.000}
+\newcommand{\redhighoracleCI}{[-18, -14]}
+\newcommand{\redlowstaticequal}{97}
+\newcommand{\redlowstaticequalWins}{20/20}
+\newcommand{\redlowstaticequalP}{0.000}
+\newcommand{\redlowstaticequalCI}{[95, 98]}
+\newcommand{\redlowreactiveprop}{81}
+\newcommand{\redlowreactivepropWins}{20/20}
+\newcommand{\redlowreactivepropP}{0.000}
+\newcommand{\redlowreactivepropCI}{[75, 87]}
+\newcommand{\redlowmaxweight}{83}
+\newcommand{\redlowmaxweightWins}{20/20}
+\newcommand{\redlowmaxweightP}{0.000}
+\newcommand{\redlowmaxweightCI}{[77, 88]}
+\newcommand{\redlowqueueaware}{70}
+\newcommand{\redlowqueueawareWins}{20/20}
+\newcommand{\redlowqueueawareP}{0.000}
+\newcommand{\redlowqueueawareCI}{[62, 77]}
+\newcommand{\redlowpointforecast}{43}
+\newcommand{\redlowpointforecastWins}{20/20}
+\newcommand{\redlowpointforecastP}{0.000}
+\newcommand{\redlowpointforecastCI}{[33, 52]}
+\newcommand{\redlowfixedquantile}{54}
+\newcommand{\redlowfixedquantileWins}{20/20}
+\newcommand{\redlowfixedquantileP}{0.000}
+\newcommand{\redlowfixedquantileCI}{[44, 63]}
+\newcommand{\redlowproposedwindow}{37}
+\newcommand{\redlowproposedwindowWins}{20/20}
+\newcommand{\redlowproposedwindowP}{0.000}
+\newcommand{\redlowproposedwindowCI}{[29, 47]}
+\newcommand{\redlowproposedcal}{9}
+\newcommand{\redlowproposedcalWins}{18/20}
+\newcommand{\redlowproposedcalP}{0.000}
+\newcommand{\redlowproposedcalCI}{[5, 15]}
+\newcommand{\redloworacle}{-130}
+\newcommand{\redloworacleWins}{0/20}
+\newcommand{\redloworacleP}{0.000}
+\newcommand{\redloworacleCI}{[-288, -78]}
+\newcommand{\redmoderatestaticequal}{78}
+\newcommand{\redmoderatestaticequalWins}{20/20}
+\newcommand{\redmoderatestaticequalP}{0.000}
+\newcommand{\redmoderatestaticequalCI}{[76, 79]}
+\newcommand{\redmoderatereactiveprop}{48}
+\newcommand{\redmoderatereactivepropWins}{20/20}
+\newcommand{\redmoderatereactivepropP}{0.000}
+\newcommand{\redmoderatereactivepropCI}{[44, 52]}
+\newcommand{\redmoderatemaxweight}{56}
+\newcommand{\redmoderatemaxweightWins}{20/20}
+\newcommand{\redmoderatemaxweightP}{0.000}
+\newcommand{\redmoderatemaxweightCI}{[52, 59]}
+\newcommand{\redmoderatequeueaware}{49}
+\newcommand{\redmoderatequeueawareWins}{20/20}
+\newcommand{\redmoderatequeueawareP}{0.000}
+\newcommand{\redmoderatequeueawareCI}{[47, 52]}
+\newcommand{\redmoderatepointforecast}{33}
+\newcommand{\redmoderatepointforecastWins}{20/20}
+\newcommand{\redmoderatepointforecastP}{0.000}
+\newcommand{\redmoderatepointforecastCI}{[31, 36]}
+\newcommand{\redmoderatefixedquantile}{50}
+\newcommand{\redmoderatefixedquantileWins}{20/20}
+\newcommand{\redmoderatefixedquantileP}{0.000}
+\newcommand{\redmoderatefixedquantileCI}{[48, 52]}
+\newcommand{\redmoderateproposedwindow}{16}
+\newcommand{\redmoderateproposedwindowWins}{20/20}
+\newcommand{\redmoderateproposedwindowP}{0.000}
+\newcommand{\redmoderateproposedwindowCI}{[15, 18]}
+\newcommand{\redmoderateproposedcal}{1}
+\newcommand{\redmoderateproposedcalWins}{16/20}
+\newcommand{\redmoderateproposedcalP}{0.002}
+\newcommand{\redmoderateproposedcalCI}{[0, 1]}
+\newcommand{\redmoderateoracle}{-33}
+\newcommand{\redmoderateoracleWins}{0/20}
+\newcommand{\redmoderateoracleP}{0.000}
+\newcommand{\redmoderateoracleCI}{[-39, -28]}
+\newcommand{\redoverloadburstsstaticequal}{39}
+\newcommand{\redoverloadburstsstaticequalWins}{20/20}
+\newcommand{\redoverloadburstsstaticequalP}{0.000}
+\newcommand{\redoverloadburstsstaticequalCI}{[35, 43]}
+\newcommand{\redoverloadburstsreactiveprop}{4}
+\newcommand{\redoverloadburstsreactivepropWins}{16/20}
+\newcommand{\redoverloadburstsreactivepropP}{0.033}
+\newcommand{\redoverloadburstsreactivepropCI}{[1, 8]}
+\newcommand{\redoverloadburstsmaxweight}{23}
+\newcommand{\redoverloadburstsmaxweightWins}{20/20}
+\newcommand{\redoverloadburstsmaxweightP}{0.000}
+\newcommand{\redoverloadburstsmaxweightCI}{[20, 25]}
+\newcommand{\redoverloadburstsqueueaware}{19}
+\newcommand{\redoverloadburstsqueueawareWins}{20/20}
+\newcommand{\redoverloadburstsqueueawareP}{0.000}
+\newcommand{\redoverloadburstsqueueawareCI}{[17, 21]}
+\newcommand{\redoverloadburstspointforecast}{12}
+\newcommand{\redoverloadburstspointforecastWins}{20/20}
+\newcommand{\redoverloadburstspointforecastP}{0.000}
+\newcommand{\redoverloadburstspointforecastCI}{[10, 13]}
+\newcommand{\redoverloadburstsfixedquantile}{22}
+\newcommand{\redoverloadburstsfixedquantileWins}{20/20}
+\newcommand{\redoverloadburstsfixedquantileP}{0.000}
+\newcommand{\redoverloadburstsfixedquantileCI}{[20, 24]}
+\newcommand{\redoverloadburstsproposedwindow}{7}
+\newcommand{\redoverloadburstsproposedwindowWins}{20/20}
+\newcommand{\redoverloadburstsproposedwindowP}{0.000}
+\newcommand{\redoverloadburstsproposedwindowCI}{[7, 8]}
+\newcommand{\redoverloadburstsproposedcal}{4}
+\newcommand{\redoverloadburstsproposedcalWins}{20/20}
+\newcommand{\redoverloadburstsproposedcalP}{0.000}
+\newcommand{\redoverloadburstsproposedcalCI}{[3, 5]}
+\newcommand{\redoverloadburstsoracle}{-16}
+\newcommand{\redoverloadburstsoracleWins}{0/20}
+\newcommand{\redoverloadburstsoracleP}{0.000}
+\newcommand{\redoverloadburstsoracleCI}{[-18, -14]}
+\newcommand{\redshiftstaticequal}{55}
+\newcommand{\redshiftstaticequalWins}{20/20}
+\newcommand{\redshiftstaticequalP}{0.000}
+\newcommand{\redshiftstaticequalCI}{[52, 58]}
+\newcommand{\redshiftreactiveprop}{14}
+\newcommand{\redshiftreactivepropWins}{20/20}
+\newcommand{\redshiftreactivepropP}{0.000}
+\newcommand{\redshiftreactivepropCI}{[11, 17]}
+\newcommand{\redshiftmaxweight}{18}
+\newcommand{\redshiftmaxweightWins}{20/20}
+\newcommand{\redshiftmaxweightP}{0.000}
+\newcommand{\redshiftmaxweightCI}{[16, 21]}
+\newcommand{\redshiftqueueaware}{20}
+\newcommand{\redshiftqueueawareWins}{20/20}
+\newcommand{\redshiftqueueawareP}{0.000}
+\newcommand{\redshiftqueueawareCI}{[18, 22]}
+\newcommand{\redshiftpointforecast}{11}
+\newcommand{\redshiftpointforecastWins}{20/20}
+\newcommand{\redshiftpointforecastP}{0.000}
+\newcommand{\redshiftpointforecastCI}{[10, 12]}
+\newcommand{\redshiftfixedquantile}{22}
+\newcommand{\redshiftfixedquantileWins}{20/20}
+\newcommand{\redshiftfixedquantileP}{0.000}
+\newcommand{\redshiftfixedquantileCI}{[21, 23]}
+\newcommand{\redshiftproposedwindow}{2}
+\newcommand{\redshiftproposedwindowWins}{16/20}
+\newcommand{\redshiftproposedwindowP}{0.002}
+\newcommand{\redshiftproposedwindowCI}{[1, 3]}
+\newcommand{\redshiftproposedcal}{10}
+\newcommand{\redshiftproposedcalWins}{20/20}
+\newcommand{\redshiftproposedcalP}{0.000}
+\newcommand{\redshiftproposedcalCI}{[9, 11]}
+\newcommand{\redshiftoracle}{-50}
+\newcommand{\redshiftoracleWins}{0/20}
+\newcommand{\redshiftoracleP}{0.000}
+\newcommand{\redshiftoracleCI}{[-58, -43]}
+\newcommand{\redPFmin}{11}
+\newcommand{\redPFmax}{43}
+\newcommand{\redQAmin}{19}
+\newcommand{\redQAmax}{70}
+\newcommand{\dtstaticequal}{0.02}
+\newcommand{\dtreactiveprop}{0.04}
+\newcommand{\dtmaxweight}{0.05}
+\newcommand{\dtqueueaware}{0.09}
+\newcommand{\dtpointforecast}{2.50}
+\newcommand{\dtfixedquantile}{2.50}
+\newcommand{\dtproposedwindow}{2.24}
+\newcommand{\dtproposed}{3.46}
+\newcommand{\dtproposedcal}{3.48}
+\newcommand{\dtoracle}{0.09}
+\newcommand{\nSeedsSweep}{10}
+\newcommand{\sweepTfourqueueaware}{+61}
+\newcommand{\sweepTfourreactiveprop}{+22}
+\newcommand{\sweepTfouroracle}{+55}
+\newcommand{\sweepTonezeroqueueaware}{+50}
+\newcommand{\sweepTonezeroreactiveprop}{+32}
+\newcommand{\sweepTonezerooracle}{+16}
+\newcommand{\sweepTtwozeroqueueaware}{+28}
+\newcommand{\sweepTtwozeroreactiveprop}{+13}
+\newcommand{\sweepTtwozerooracle}{-16}
+\newcommand{\sweepTfourzeroqueueaware}{+17}
+\newcommand{\sweepTfourzeroreactiveprop}{-11}
+\newcommand{\sweepTfourzerooracle}{-21}
+\newcommand{\nSeedsDelay}{10}
+\newcommand{\delayTauzeroqueueaware}{31}
+\newcommand{\delayTauzeroreactiveprop}{16}
+\newcommand{\delayTauzeropointforecast}{19}
+\newcommand{\delayTautwoqueueaware}{28}
+\newcommand{\delayTautworeactiveprop}{13}
+\newcommand{\delayTautwopointforecast}{18}
+\newcommand{\delayTaufivequeueaware}{26}
+\newcommand{\delayTaufivereactiveprop}{11}
+\newcommand{\delayTaufivepointforecast}{17}
+\newcommand{\delayTauonezeroqueueaware}{21}
+\newcommand{\delayTauonezeroreactiveprop}{2}
+\newcommand{\delayTauonezeropointforecast}{11}
+\newcommand{\nSeedsMisc}{10}
+\newcommand{\mischighBase}{7.71}
+\newcommand{\mischighWorst}{9.45}
+\newcommand{\mischighWorstRel}{23}
+\newcommand{\mischighUnder}{7.80}
+\newcommand{\mischighpointforecast}{9.46}
+\newcommand{\mischighqueueaware}{10.78}
+\newcommand{\miscshiftBase}{11.13}
+\newcommand{\miscshiftWorst}{12.50}
+\newcommand{\miscshiftWorstRel}{12}
+\newcommand{\miscshiftUnder}{10.96}
+\newcommand{\miscshiftpointforecast}{12.42}
+\newcommand{\miscshiftqueueaware}{13.68}
+\newcommand{\nSeedsComp}{10}
+\newcommand{\fixedQuantileLevel}{0.75}
+\newcommand{\maxweightParams}{margin 0, head-of-line-age weight 1}
+\newcommand{\covFive}{5.6}
+\newcommand{\covFifty}{50.7}
+\newcommand{\covNinetyFive}{94.9}
+\newcommand{\maeGBM}{37}
+\newcommand{\maePersist}{52}
+\newcommand{\nTrainRows}{101,248}

@@ -24,13 +24,15 @@ SCENARIO_ORDER = ["low", "moderate", "high", "overload_bursts", "shift"]
 SCENARIO_LABELS = {"low": "Low\n(0.50)", "moderate": "Moderate\n(0.65)", "high": "High\n(0.80)",
                    "overload_bursts": "Flash crowds\n(0.80 + bursts)", "shift": "Shift\n(held-out, burstier)"}
 COLORS = {
-    "static_equal": "#9e9e9e", "reactive_prop": "#607d8b", "queue_aware": "#1f77b4", "point_forecast": "#ff7f0e",
-    "proposed_window": "#8bc34a", "proposed": "#d62728", "proposed_cal": "#9c27b0", "oracle": "#212121",
+    "static_equal": "#9e9e9e", "reactive_prop": "#607d8b", "maxweight": "#795548", "queue_aware": "#1f77b4",
+    "point_forecast": "#ff7f0e", "fixed_quantile": "#e6b800", "proposed_window": "#8bc34a", "proposed": "#d62728",
+    "proposed_cal": "#9c27b0", "oracle": "#212121", "proposed_miscal": "#d62728",
 }
 SHORT = {
-    "static_equal": "Static equal", "reactive_prop": "Reactive prop.", "queue_aware": "Deadline-aware reactive",
-    "point_forecast": "Point forecast", "proposed_window": "Proposed (window q.)", "proposed": "Proposed (GBM q.)",
-    "proposed_cal": "Proposed + ACI cal.", "oracle": "Oracle water-fill",
+    "static_equal": "Static equal", "reactive_prop": "Reactive prop.", "maxweight": "MaxWeight",
+    "queue_aware": "Deadline-aware reactive", "point_forecast": "Point forecast", "fixed_quantile": "Fixed quantile",
+    "proposed_window": "Proposed (window q.)", "proposed": "Proposed (GBM q.)", "proposed_cal": "Proposed + ACI cal.",
+    "oracle": "Oracle water-fill", "proposed_miscal": "Proposed (miscalibrated)",
 }
 
 plt.rcParams.update({"font.size": 10, "axes.titlesize": 11, "axes.labelsize": 10, "legend.fontsize": 8.5,
@@ -60,9 +62,9 @@ def fig_primary_by_scenario(df: pd.DataFrame):
     ax.set_xticks(x)
     ax.set_xticklabels([SCENARIO_LABELS[s] for s in scen])
     ax.set_ylabel("Priority-weighted deadline-violation ratio [%]")
-    ax.set_title("Primary metric per scenario (mean ± std over 5 test seeds; lower is better)")
+    ax.set_title(f"Primary metric per scenario (mean ± std over {df.seed.nunique()} test seeds; lower is better)")
     ax.grid(axis="y", alpha=0.3)
-    ax.legend(ncol=4, loc="upper left")
+    ax.legend(ncol=5, loc="upper left", fontsize=7.5)
     _save(fig, "fig1_primary_by_scenario")
 
 
@@ -271,6 +273,52 @@ def fig_decision_time(df: pd.DataFrame):
     _save(fig, "fig7_decision_time")
 
 
+def fig_miscalibration(mis: pd.DataFrame):
+    """Proposition 4 check: weighted violations vs probability-level shift of the forecast."""
+    if mis is None or mis.empty:
+        return
+    scen = [s for s in SCENARIO_ORDER if s in mis.scenario.unique()]
+    fig, axes = plt.subplots(1, len(scen), figsize=(4.2 * len(scen), 3.4), squeeze=False)
+    for ax, sc in zip(axes[0], scen):
+        d = mis[(mis.scenario == sc) & (mis.method == "proposed_miscal")]
+        g = d.groupby("eps")[PRIMARY_METRIC]
+        eps = sorted(d.eps.unique())
+        ax.errorbar(eps, g.mean().reindex(eps).values * 100, yerr=g.std().reindex(eps).fillna(0).values * 100,
+                    marker="o", color=COLORS["proposed"], capsize=2, label="Proposed, levels shifted by ε")
+        for m, ls in (("point_forecast", "--"), ("queue_aware", ":")):
+            v = mis[(mis.scenario == sc) & (mis.method == m)][PRIMARY_METRIC].mean() * 100
+            if np.isfinite(v):
+                ax.axhline(v, ls=ls, color=COLORS[m], label=SHORT[m])
+        ax.set_xlabel("probability-level shift ε of all forecast quantiles")
+        ax.set_ylabel("Weighted violation ratio [%]")
+        ax.set_title(SCENARIO_LABELS.get(sc, sc))
+        ax.grid(alpha=0.3)
+    handles, labels = axes[0][0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=8, bbox_to_anchor=(0.5, -0.08), frameon=False)
+    fig.suptitle("Robustness to forecast miscalibration (ε < 0: under-reserve, ε > 0: over-reserve)", y=1.03)
+    _save(fig, "fig10_miscalibration")
+
+
+def fig_delay(dl: pd.DataFrame):
+    """Sensitivity to the telemetry delay tau."""
+    if dl is None or dl.empty:
+        return
+    methods = [m for m in METHOD_ORDER if m in dl.method.unique()]
+    taus = sorted(dl.telemetry_delay_slots.unique())
+    fig, ax = plt.subplots(figsize=(5.2, 3.4))
+    for m in methods:
+        g = dl[dl.method == m].groupby("telemetry_delay_slots")[PRIMARY_METRIC]
+        ax.errorbar(np.array(taus) * 0.5, g.mean().reindex(taus).values * 100,
+                    yerr=g.std().reindex(taus).fillna(0).values * 100, marker="o", color=COLORS[m], label=SHORT[m],
+                    capsize=2)
+    ax.set_xlabel("telemetry delay τ [ms]")
+    ax.set_ylabel("Weighted violation ratio [%]")
+    ax.set_title("Effect of stale state information (scenario high)")
+    ax.grid(alpha=0.3)
+    ax.legend(fontsize=8)
+    _save(fig, "fig11_delay")
+
+
 def main():
     main_path = os.path.join(RESULTS_DIR, "main_runs.csv")
     if os.path.exists(main_path):
@@ -288,6 +336,10 @@ def main():
     comp_path = os.path.join(RESULTS_DIR, "compression_runs.csv")
     if os.path.exists(comp_path):
         fig_compression(pd.read_csv(comp_path))
+    for name, fn in (("miscalibration_runs.csv", fig_miscalibration), ("delay_runs.csv", fig_delay)):
+        pth = os.path.join(RESULTS_DIR, name)
+        if os.path.exists(pth):
+            fn(pd.read_csv(pth))
     fig_forecast_quality(os.path.join(RESULTS_DIR, "forecast_training_T20_d2.json"))
     fig_demo(os.path.join(RESULTS_DIR, "demo_timeseries.npz"))
 
