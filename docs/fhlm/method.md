@@ -203,6 +203,27 @@ value of budget below B_i is w_i; any cell with lambda < w_i is allocated at
 least min(B_i, cap_i) before any uncertain demand of a cell of equal or lower
 weight is funded.
 
+**Proposition 4 (robustness to miscalibration).** Let G_i be the true
+distribution of r*_i and F_i the forecast, with sup_x |F_i(x) - G_i(x)| <= eps
+for every cell (Kolmogorov distance). Write J_P(r) = sum_i w_i E_{P_i}[min(B_i +
+X_i, r_i)] for P in {F, G}, let r^F maximise J_F and r^G maximise J_G over the
+feasible set. Then
+
+    J_G(r^G) - J_G(r^F)  <=  eps * sum_i w_i [ (r_i^G - B_i)^+ + (r_i^F - B_i)^+ ]  <=  2 eps w_max C_u.
+
+*Proof.* E_P[min(B_i + X_i, r_i)] = min(B_i, r_i) + int_0^{(r_i - B_i)^+} (1 - P_i(x)) dx,
+so |J_F(r) - J_G(r)| <= eps sum_i w_i (r_i - B_i)^+ for every r. Decompose
+J_G(r^G) - J_G(r^F) = [J_G(r^G) - J_F(r^G)] + [J_F(r^G) - J_F(r^F)] + [J_F(r^F) - J_G(r^F)];
+the middle term is <= 0 by optimality of r^F for J_F, and the other two are
+bounded by the previous inequality. Finally sum_i (r_i - B_i)^+ <= sum_i r_i <= C_u.
+QED.
+
+In words: the loss of expected weighted served demand caused by using a
+miscalibrated forecast grows at most linearly in the calibration error, with
+a slope of twice the weighted link capacity. The `miscalibration` experiment
+shifts every quantile level by eps in {-0.3, ..., +0.3} and checks that the
+realised weighted violation ratio degrades gracefully (Sec. 7 / results).
+
 **Complexity.** O(N K) to build the inverse CDFs and O(N n_iter) for the
 bisection (K = 6, n_iter = 60): a few tens of microseconds for N = 8. The
 measured decision time (~3.4 ms per control epoch of 10 ms, pure Python on a
