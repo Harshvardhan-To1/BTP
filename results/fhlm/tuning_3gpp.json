@@ -1,0 +1,174 @@
+{
+  "primary_metric": "weighted_violation_ratio",
+  "validation_scenarios": [
+    "tgpp_moderate",
+    "tgpp_high"
+  ],
+  "validation_seeds": [
+    2000,
+    2001,
+    2002,
+    2003
+  ],
+  "family": "3gpp",
+  "selected": {
+    "fixed_quantile": {
+      "level": 0.75
+    },
+    "maxweight": {
+      "margin": 0.0,
+      "hol_weight": 1.0
+    },
+    "point_forecast": {
+      "margin": 0.0
+    },
+    "proposed_cal": {
+      "gamma": 0.005
+    },
+    "queue_aware": {
+      "margin": 0.0,
+      "num_horizons": 1
+    },
+    "reactive_prop": {
+      "margin": 0.5,
+      "ewma_window": 60
+    }
+  },
+  "table": [
+    {
+      "method": "fixed_quantile",
+      "params": "{\"level\": 0.75}",
+      "weighted_violation_ratio": 0.08053601921514701
+    },
+    {
+      "method": "fixed_quantile",
+      "params": "{\"level\": 0.9}",
+      "weighted_violation_ratio": 0.10286900830291193
+    },
+    {
+      "method": "fixed_quantile",
+      "params": "{\"level\": 0.95}",
+      "weighted_violation_ratio": 0.11209412281958576
+    },
+    {
+      "method": "maxweight",
+      "params": "{\"margin\": 0.0, \"hol_weight\": 1.0}",
+      "weighted_violation_ratio": 0.20245819165377163
+    },
+    {
+      "method": "maxweight",
+      "params": "{\"margin\": 0.0, \"hol_weight\": 0.0}",
+      "weighted_violation_ratio": 0.2034686402086189
+    },
+    {
+      "method": "maxweight",
+      "params": "{\"margin\": 0.25, \"hol_weight\": 1.0}",
+      "weighted_violation_ratio": 0.21010701085021763
+    },
+    {
+      "method": "maxweight",
+      "params": "{\"margin\": 0.25, \"hol_weight\": 0.0}",
+      "weighted_violation_ratio": 0.2111483818622076
+    },
+    {
+      "method": "maxweight",
+      "params": "{\"margin\": 0.5, \"hol_weight\": 1.0}",
+      "weighted_violation_ratio": 0.2173965311195201
+    },
+    {
+      "method": "maxweight",
+      "params": "{\"margin\": 0.5, \"hol_weight\": 0.0}",
+      "weighted_violation_ratio": 0.21805645505259064
+    },
+    {
+      "method": "point_forecast",
+      "params": "{\"margin\": 0.0}",
+      "weighted_violation_ratio": 0.07180997858485243
+    },
+    {
+      "method": "point_forecast",
+      "params": "{\"margin\": 0.25}",
+      "weighted_violation_ratio": 0.08217742493887509
+    },
+    {
+      "method": "point_forecast",
+      "params": "{\"margin\": 0.5}",
+      "weighted_violation_ratio": 0.0948375950308041
+    },
+    {
+      "method": "proposed_cal",
+      "params": "{\"gamma\": 0.005}",
+      "weighted_violation_ratio": 0.062960922741307
+    },
+    {
+      "method": "proposed_cal",
+      "params": "{\"gamma\": 0.01}",
+      "weighted_violation_ratio": 0.06789201444341089
+    },
+    {
+      "method": "proposed_cal",
+      "params": "{\"gamma\": 0.02}",
+      "weighted_violation_ratio": 0.0724665883407483
+    },
+    {
+      "method": "queue_aware",
+      "params": "{\"margin\": 0.0, \"num_horizons\": 1}",
+      "weighted_violation_ratio": 0.0936841218435124
+    },
+    {
+      "method": "queue_aware",
+      "params": "{\"margin\": 0.0, \"num_horizons\": 3}",
+      "weighted_violation_ratio": 0.09695849260507261
+    },
+    {
+      "method": "queue_aware",
+      "params": "{\"margin\": 0.25, \"num_horizons\": 1}",
+      "weighted_violation_ratio": 0.10137475432955359
+    },
+    {
+      "method": "queue_aware",
+      "params": "{\"margin\": 0.0, \"num_horizons\": 6}",
+      "weighted_violation_ratio": 0.10739843447150017
+    },
+    {
+      "method": "queue_aware",
+      "params": "{\"margin\": 0.25, \"num_horizons\": 3}",
+      "weighted_violation_ratio": 0.11220999237828402
+    },
+    {
+      "method": "queue_aware",
+      "params": "{\"margin\": 0.25, \"num_horizons\": 6}",
+      "weighted_violation_ratio": 0.12152500008381936
+    },
+    {
+      "method": "reactive_prop",
+      "params": "{\"margin\": 0.5, \"ewma_window\": 60}",
+      "weighted_violation_ratio": 0.1273635019626585
+    },
+    {
+      "method": "reactive_prop",
+      "params": "{\"margin\": 0.5, \"ewma_window\": 20}",
+      "weighted_violation_ratio": 0.13554898188490577
+    },
+    {
+      "method": "reactive_prop",
+      "params": "{\"margin\": 0.25, \"ewma_window\": 60}",
+      "weighted_violation_ratio": 0.13712850656830808
+    },
+    {
+      "method": "reactive_prop",
+      "params": "{\"margin\": 0.25, \"ewma_window\": 20}",
+      "weighted_violation_ratio": 0.14296628088146096
+    },
+    {
+      "method": "reactive_prop",
+      "params": "{\"margin\": 0.0, \"ewma_window\": 60}",
+      "weighted_violation_ratio": 0.1469168812430225
+    },
+    {
+      "method": "reactive_prop",
+      "params": "{\"margin\": 0.0, \"ewma_window\": 20}",
+      "weighted_violation_ratio": 0.1506744190026665
+    }
+  ]
+}
