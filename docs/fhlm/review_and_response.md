@@ -90,11 +90,21 @@ Restoring `src/` remains **open** for a separate compression paper.
 
 ### R7. Synthetic traffic only
 *Review.* Public per-cell PRB-level fronthaul traces do not exist, but the
-paper must say so plainly and must not claim real-world validation.
-*Response.* Stated in the methodology, limitations and abstract. The held-out
-"shift" family (burstier than training) and the miscalibration sweep are the
-available substitutes for out-of-sample validation. **Open** (requires data
-the authors do not have); clearly labelled.
+paper must say so plainly, must not claim real-world validation, and should
+not rest on a single self-designed generator.
+*Response (second revision).* A second, independent traffic family was added
+that contains nothing hand-designed: 3GPP TR 38.901 UMa channel (LOS
+probability, path loss, shadowing, best server of 7 sites, Jakes-correlated
+Rayleigh fading), TR 36.942 / TS 38.214 link adaptation, FTP Model 3
+(TR 36.814) for eMBB cells, XR video (TR 38.838) for low-latency cells, a
+per-cell round-robin PRB scheduler; fronthaul demand is the scheduler's
+PRB-layers times the BFP cost. It has its own forecaster and its own tuning,
+and the main result reproduces on it (Sec. VII-B of the paper). A
+cross-family transfer test (forecaster trained on one family, applied to the
+other) is also reported. The paper now says "we know of no public per-slot
+per-cell traces (public O-RAN datasets such as ColO-RAN are 250 ms or
+coarser)" instead of "no traces exist". **Partly addressed**: still
+simulated; the scheduler and fronthaul model are ours.
 
 ### R8. Link model is a budget-enforced pipe
 *Review.* No switch queue, no O-RU receive window, one class per cell, no
@@ -103,15 +113,22 @@ HARQ, downlink only.
 **Open**, labelled.
 
 ### R9. Decision time measured in Python
-*Response.* Reported honestly (3.5 ms per 10-ms epoch, dominated by tree
-evaluation; rule itself microseconds); a compiled implementation is listed as
-required for deployment. **Open**, labelled.
+*Response.* Reported honestly (3.2-3.5 ms per 10-ms epoch); profiled: ~2 ms
+is a vectorised NumPy traversal of 1800 trees for 8 rows, 0.2 ms feature
+construction, the rest Python overhead in the 60-step bisection. The paper
+states the work (about 2e5 node visits and 480 interpolations) and that it is
+well under 1 ms when compiled, without claiming a measured compiled number.
+**Open**, labelled.
 
-### R10. Oracle described inconsistently
-*Review.* Early text called it an upper bound; the sweep shows the proposed rule
-beating it.
-*Response.* Consistently "oracle-informed reference for a perfect point
-forecast under the water-fill rule, not a bound". **Addressed.**
+### R10. Oracle described inconsistently / wrong reference
+*Review.* Early text called the oracle water-fill an upper bound; the sweep
+shows the proposed rule beating it. The reference that isolates forecast
+error is the proposed *rule* with a perfect forecast, not water-filling.
+*Response.* Added `oracle_kkt` (the KKT rule with the true r*, i.e. the
+priority-ordered fill of Proposition 2). The gap proposed -> oracle_kkt is
+reported as the cost of forecast error (24-70 % of the proposed rule's
+remaining loss depending on scenario); the oracle water-fill is kept only as
+"perfect point forecast under the baseline rule". **Addressed.**
 
 ### R11. Reproducibility of numbers in the text
 *Review.* Numbers typed by hand into a manuscript drift from the data.
@@ -126,15 +143,44 @@ water-filling, ACI, network-calculus rate) are all known.
 ingredients are borrowed, and positions the closest prior work (Lagen 2022;
 Bega 2019/2020; Kasuluru 2024; Cohen 2023) explicitly. **Addressed by framing.**
 
+### R13. The primary metric favours the method by construction
+*Review.* A priority-weighted ratio with w_LL = 3 rewards exactly what the
+rule does (protect LL). Show the unweighted ratio and a weight sweep.
+*Response.* Both added (Sec. VII-C, `weights` command). Honest outcome: under
+the unweighted ratio the proportional controller loses fewer total bits at
+moderate/high load in the synthetic family; told w_LL = 1 the rule matches it
+and pulls ahead from w_LL = 3. In the 3GPP family at w_LL = 1 the rule is
+clearly worse than the point-forecast water-fill (zero-inflated demand makes
+the equal-fractile cut all-or-nothing); it ties at 2 and leads from 3. The
+paper states that the method is for operators who weight the LL class at
+least 2-3x. **Addressed by disclosure, not removed.**
+
+### R14. Proposition 2 wording, urgency weight, length
+*Review.* "Reduces to water-filling" for a degenerate forecast is loose (it is
+a priority-ordered fill); the urgency factor min(1, H/D) is 1 for both default
+classes and should not be presented as active; 8 pages is over the 6-page
+limit of the target venues.
+*Response.* Prop. 2 now states the priority-ordered fill and `oracle_kkt`
+implements exactly it; the weight is w_i = w_i^p with the H/D scaling
+mentioned as inactive at the defaults; the paper is 6 pages including
+references (Fig. 1, Fig. 2, the paired table and the algorithm box were
+removed, the sensitivity tables merged into one, related work and discussion
+shortened). Repository URL added (to be anonymised for review).
+**Addressed.**
+
 ## What remains open after revision (to be said in the paper and to reviewers)
 
-1. No measured traffic traces (R7).
-2. Simplified link model (R8).
+1. No measured traffic traces (R7); two simulated families instead of one.
+2. Simplified link model (R8); the 3GPP family uses a round-robin scheduler
+   and single-layer link adaptation.
 3. Python timing (R9).
 4. Theory does not cover closed-loop stability or multi-interval optimality.
 5. The learned forecaster adds little under distribution shift; the paper
    presents the non-learned quantile variant as the robust fallback rather
    than hiding this.
+6. The advantage is conditional on the operator weight (R13); with equal
+   weights the simpler controllers are as good or better.
+7. Author affiliations and e-mails in `paper/main.tex` are placeholders.
 
 ## Suggested venue
 

@@ -41,6 +41,22 @@ the two ways to manage that load:
   held for 20 ms, when telemetry is 5 ms old or above ~0.85 load, gains little
   from the ML model under a distribution shift, degrades gracefully when the
   forecast is miscalibrated, and online calibration did not help.
+* Part B on standards-based traffic (second, independent family: 3GPP
+  TR 38.901 urban-macro channel, TS 38.214 link adaptation, FTP Model 3 and
+  XR video traffic, fronthaul demand = output of a PRB scheduler; own
+  forecaster, own tuning, 20 test seeds): the proposed rule is again the best
+  real controller at both loads (-11 % vs the point forecast, -31 % vs the
+  deadline-aware reactive controller, -50 % vs reactive proportional at load
+  0.80, 20/20 seeds each) and here also under the unweighted ratio. A
+  forecaster trained on the synthetic family and applied unchanged to 3GPP
+  traffic still beats every reactive controller but not the in-family point
+  forecast. The "oracle + KKT" reference (same rule, perfect forecast) shows
+  that 24-40 % of the proposed rule's remaining loss at high load is forecast
+  error.
+* Honest caveat on the metric: the gain is a priority trade. Under the
+  unweighted violation ratio the plain proportional controller loses fewer
+  total bits at high load in the synthetic family; the LL-weight sweep
+  (`weights` command) shows where the crossover is.
 * A + B (same user traffic, BFP width 6 / 9 / 12 / 14 bits -> load 0.44 / 0.65 /
   0.86 / 0.99): at 0.44 almost nothing is lost whatever the rule; at 0.65 the
   proposed rule loses about half as much as the reactive controllers; at 0.86
@@ -58,7 +74,8 @@ reviewer-style assessment of what was missing and what was added:
 | Path | Part | Purpose |
 |---|---|---|
 | `fhlm/config.py` | B | Units, 7-2x fronthaul constants (bits per PRB-layer incl. BFP width), cells, link |
-| `fhlm/traffic.py` | B | Synthetic traffic: smooth part + heavy-tailed ON/OFF bursts + slow load changes + spectral-efficiency drift |
+| `fhlm/traffic.py` | B | Synthetic traffic family: smooth part + heavy-tailed ON/OFF bursts + slow load changes + spectral-efficiency drift; dispatches to the 3GPP family and caches its traces |
+| `fhlm/traffic_3gpp.py` | B | Standards-based traffic family: 3GPP TR 38.901 UMa channel (best server of 7 sites, shadowing, Jakes-correlated Rayleigh fading), TR 36.942 / TS 38.214 link adaptation, FTP Model 3 (TR 36.814) for eMBB cells, XR video (TR 38.838) for low-latency cells, per-cell round-robin PRB scheduler; fronthaul demand = scheduled PRB-layers x BFP bits |
 | `fhlm/demand.py` | B | Deadline-feasible rate r*(arrivals, deadline) and backlog rate |
 | `fhlm/simulator.py` | B | Slot loop: queues with ages, budgets, link constraint, drops, metrics |
 | `fhlm/controllers.py` | B | Reference controllers: static equal share, reactive proportional, MaxWeight, deadline-aware reactive, point-forecast water-fill, fixed-global-quantile water-fill, oracle water-fill |
@@ -66,9 +83,9 @@ reviewer-style assessment of what was missing and what was added:
 | `fhlm/proposed.py` | B | Proposed controller: forecast quantiles -> KKT allocation rule (+ optional online calibration) |
 | `fhlm/scenarios.py` | B | Five scenarios; separate training / validation / test seed ranges |
 | `fhlm/train.py` | B | Trains the forecaster on training seeds, reports validation quality |
-| `fhlm/run_experiments.py` | B, A+B | `tune`, `main`, `sweep`, `delay`, `miscalibration`, `compression`, `demo` commands; raw JSON + CSV summaries; paired bootstrap / Wilcoxon / Holm statistics |
+| `fhlm/run_experiments.py` | B, A+B | `tune`, `main`, `sweep`, `delay`, `miscalibration`, `weights`, `compression`, `demo` commands (`--family 3gpp` selects the standards-based traffic family); raw JSON + CSV summaries; paired bootstrap / Wilcoxon / Holm statistics |
 | `fhlm/make_figures.py`, `fhlm/make_slides.py`, `fhlm/make_paper_tables.py` | B | All figures, the editable `.pptx` deck (with speaker notes) and the paper's LaTeX tables/macros, from the saved results |
-| `paper/` | B | IEEE conference paper draft. `main.tex` + `generated/` (tables, number macros) + `figures/` are all produced by `make_paper_tables`. For Overleaf upload either the whole `paper/` folder or just `main_standalone.tex` (all inputs inlined) together with `figures/` |
+| `paper/` | B | IEEE conference paper (6 pages incl. references, tables only). `generated/` (tables, number macros) and `main_standalone.tex` are produced by `make_paper_tables`. For Overleaf upload either the whole `paper/` folder or just `main_standalone.tex` (all inputs inlined) |
 | `tests/test_fhlm.py` | B | 14 tests (link constraint, queues, accounting, zero load, overload, reproducibility, r*, KKT properties, no future leakage, fast tree evaluation, compression bridge) |
 | `docs/fhlm/` | B | `method.md`, `literature_review.md`, `results_summary.md`, `review_and_response.md`, `study_guide.md`, `presentation_notes.md`, the deck (`.pptx`, `.pdf`) |
 | `results/fhlm/` | B | Raw per-run metrics, CSV summaries, forecast reports, `figures/` |
@@ -100,11 +117,22 @@ python -m pytest tests/test_fhlm.py -q                                  # 1. tes
 python -m fhlm.train --out models/fhlm_quantile_gbm_T20_d2.pkl \
        --report results/fhlm/forecast_training_T20_d2.json               # 2. train the forecaster (training seeds) + validation report
 python -m fhlm.run_experiments tune                                     # 3. tune baselines on validation seeds (never on test)
-python -m fhlm.run_experiments main                                     # 4. 10 controllers x 5 scenarios x 20 test seeds + paired statistics
+python -m fhlm.run_experiments main                                     # 4. controllers x 5 synthetic scenarios x 20 test seeds + paired statistics
 python -m fhlm.run_experiments sweep --intervals 4 10 20 40 --num-seeds 10  # 5. control-interval sweep (retrains per interval)
 python -m fhlm.run_experiments delay --delays 0 2 5 10 --num-seeds 10   # 6. telemetry-delay sweep (retrains per delay)
 python -m fhlm.run_experiments miscalibration --num-seeds 10            # 7. forecast-miscalibration sweep (Proposition 4 check)
 python -m fhlm.run_experiments demo --scenario high                     # 8. one run with time series (demo figure)
+
+# Part B, standards-based traffic family (3GPP TR 38.901 UMa channel, TS 38.214 CQI, FTP-3 + XR traffic)
+python -m fhlm.train --family 3gpp --out models/fhlm_quantile_gbm_T20_d2_3gpp.pkl \
+       --report results/fhlm/forecast_training_T20_d2_3gpp.json          # 8a. forecaster for the 3GPP family
+python -m fhlm.run_experiments tune --family 3gpp                       # 8b. tune baselines on 3GPP validation seeds
+python -m fhlm.run_experiments main --family 3gpp --append \
+       --methods static_equal reactive_prop maxweight queue_aware point_forecast fixed_quantile \
+                 proposed_window proposed proposed_cal proposed_transfer oracle oracle_kkt   # 8c. tgpp_moderate / tgpp_high
+python -m fhlm.run_experiments main --append --methods oracle_kkt       # 8d. oracle + KKT reference on the synthetic scenarios
+python -m fhlm.run_experiments sweep --append --methods oracle_kkt --num-seeds 10           # 8e. ... and in the interval sweep
+python -m fhlm.run_experiments weights --scenarios high tgpp_high --weights 1 2 3 5 --num-seeds 20  # 8f. LL priority-weight sweep
 
 # A + B
 python -m fhlm.run_experiments compression --scenario moderate --num-seeds 10  # 9. BFP width (6/9/12/14 bits) x allocation rule

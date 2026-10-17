@@ -1,9 +1,12 @@
 # Results summary (all numbers produced by the code in this repository)
 
-Sources: `results/fhlm/main_runs.csv` (1000 runs), `main_summary.csv`,
-`main_paired.csv`, `sweep_runs.csv` (200 runs), `delay_runs.csv` (160 runs),
-`miscalibration_runs.csv` (180 runs), `compression_runs.csv` (160 runs),
-`tuning.json`, `forecast_training_T20_d2.json`, figures in
+Sources: `results/fhlm/main_runs.csv` (1000 synthetic-family runs + 100
+oracle-KKT runs + 480 runs on the 3GPP family), `main_summary.csv`,
+`main_paired.csv`, `main_paired_unweighted.csv`, `sweep_runs.csv` (240 runs),
+`delay_runs.csv` (160 runs), `miscalibration_runs.csv` (180 runs),
+`compression_runs.csv` (160 runs), `weights_runs.csv` (1120 runs),
+`tuning.json`, `tuning_3gpp.json`, `forecast_training_T20_d2.json`,
+`forecast_training_T20_d2_3gpp.json`, figures in
 `results/fhlm/figures/`. The same CSVs feed the paper tables and macros in
 `paper/generated/` (via `python -m fhlm.make_paper_tables`), so the paper and
 this file cannot drift apart from the data. Part A numbers come from
@@ -13,7 +16,10 @@ this file cannot drift apart from the data. Part A numbers come from
 Configuration: 8 cells (3 low-latency, 5 eMBB) on a 25GE link, T = 20 slots
 (10 ms), tau = 2 slots, 20,000 slots per run after 1,000 warm-up, 20 test seeds
 (3000-3019) that were never used for training (1000-1015) or tuning
-(2000-2003). Synthetic traffic.
+(2000-2003). Two traffic families: "Family S" (synthetic, hand-designed,
+bursty; scenarios low / moderate / high / flash crowds / shift) and "Family G"
+(standards-based 3GPP models; scenarios tgpp_moderate / tgpp_high), each with
+its own forecaster and its own tuning.
 
 ## Hypothesis tested
 
@@ -122,13 +128,154 @@ little. ACI calibration does not help (see below).
    17.2 % vs 13.2 % under shift). Per-stream conformal correction does not
    transfer directly to a coupled allocation; reported as a negative result.
 
+## Family G: standards-based traffic (3GPP channel + traffic models)
+
+Nothing in this family is hand-designed. Users are dropped in a 3GPP TR 38.901
+urban-macro cell (ISD 500 m, 3.5 GHz, 100 MHz, 49 dBm; LOS probability,
+LOS/NLOS path loss and shadow fading per the spec), attach to the strongest of
+7 fully loaded sites (the other 6 interfere), see Jakes-correlated Rayleigh
+fading at 3 km/h per slot, and get a spectral efficiency from the TR 36.942
+attenuated-Shannon bound quantised to the TS 38.214 CQI table. eMBB cells carry
+FTP Model 3 (TR 36.814: Poisson 0.5-MByte files, 20 UEs); low-latency cells
+carry XR video (TR 38.838: 60 fps, 30 Mbit/s, truncated-Gaussian frame size and
+jitter). A per-cell round-robin PRB scheduler serves the UEs and the fronthaul
+demand of a cell per slot is the number of PRB-layers it schedules x BFP bits
+per PRB-layer. Only the number of XR UEs per LL cell and the FTP arrival rate
+are calibrated (to the target mean load, within 1 %). Code:
+`fhlm/traffic_3gpp.py`; traces are cached in `results/fhlm/trace_cache/`.
+
+Weighted violation ratio (%, mean ± std over 20 test seeds) and class
+breakdown at load 0.80 (`main_runs.csv`, scenarios `tgpp_*`):
+
+| Method | tgpp_moderate 0.65 | tgpp_high 0.80 | LL (high) | eMBB (high) | unweighted (high) | util. (high) |
+|---|---|---|---|---|---|---|
+| static_equal | 10.75 ± 1.71 | 13.10 ± 2.13 | 6.6 | 30.8 | 19.2 | 43.6 |
+| reactive_prop | 12.05 ± 2.18 | 15.94 ± 1.93 | 17.0 | 13.4 | 15.0 | 61.3 |
+| maxweight | 17.51 ± 2.21 | 25.79 ± 2.15 | 32.2 | 8.3 | 19.7 | 64.6 |
+| queue_aware | 8.95 ± 2.04 | 11.53 ± 1.67 | 4.2 | 31.7 | 18.5 | 53.0 |
+| point_forecast | 6.00 ± 0.94 | 8.98 ± 1.09 | 1.0 | 31.1 | 16.6 | 54.4 |
+| fixed_quantile | 6.80 ± 1.15 | 9.88 ± 1.24 | 0.6 | 35.5 | 18.7 | 51.8 |
+| proposed_window | 6.18 ± 0.99 | 9.01 ± 1.04 | 1.6 | 29.5 | 16.0 | 56.1 |
+| **proposed** | **5.08 ± 0.84** | **8.01 ± 0.99** | 1.3 | 26.6 | 14.4 | 57.8 |
+| proposed_cal | 5.41 ± 0.87 | 8.27 ± 0.98 | 1.1 | 28.1 | 15.1 | 57.3 |
+| proposed_transfer (forecaster trained on Family S) | 6.99 ± 1.29 | 9.89 ± 1.18 | 5.3 | 22.7 | 14.3 | 58.5 |
+| oracle water-fill | 4.82 ± 0.76 | 7.85 ± 1.06 | 0.2 | 28.9 | 15.1 | 55.2 |
+| oracle + KKT rule | 3.47 ± 0.57 | 6.06 ± 0.83 | 0.7 | 20.9 | 11.1 | 59.8 |
+
+Paired comparison at tgpp_high (relative change of the weighted ratio when
+switching from the row controller to the proposed rule; negative = proposed
+better; 95 % bootstrap CI; seeds won by the proposed rule; Holm-corrected
+Wilcoxon p):
+
+| Proposed vs | change % [95 % CI] | wins | Holm p |
+|---|---|---|---|
+| static_equal | -39 [-42, -36] | 20/20 | < 0.001 |
+| reactive_prop | -50 [-52, -47] | 20/20 | < 0.001 |
+| maxweight | -69 [-71, -67] | 20/20 | < 0.001 |
+| queue_aware | -31 [-33, -28] | 20/20 | < 0.001 |
+| point_forecast | -11 [-12, -10] | 20/20 | < 0.001 |
+| fixed_quantile | -19 [-20, -18] | 20/20 | < 0.001 |
+| proposed_window | -11 [-12, -10] | 20/20 | < 0.001 |
+| proposed_cal | -3 [-4, -2] | 19/20 | < 0.001 |
+| proposed_transfer | -19 [-22, -16] | 20/20 | < 0.001 |
+| oracle water-fill | +2 [0, +4] | 5/20 | 0.027 |
+| oracle + KKT rule | +32 [+31, +34] | 0/20 | < 0.001 |
+
+Reading: the main result reproduces on traffic that we did not design. The
+traffic is hard in a different way (an FTP file is a burst at the full cell
+rate; XR frames are periodic at 16.7 ms), so the eMBB class loses ~21 % of its
+bits even with a perfect forecast under 10-ms budgets, and the
+deadline-unaware controllers fall behind even static sharing. Here the proposed
+rule is the best implementable controller also under the *unweighted* ratio.
+The transferred forecaster (never saw a 3GPP trace) under-reserves the LL cells
+and lands between the in-family point forecast and the deadline-aware reactive
+controller: usable, but not better than an in-family point forecast.
+
+Forecaster (`forecast_training_T20_d2_3gpp.json`): validation coverage
+33.9 / 56.8 / 98.1 % at the 5 / 50 / 95 % quantiles (the 5 % figure is a point
+mass at zero: in about a third of the horizons no file or frame arrives),
+median relative error 24 % vs 39 % for persistence.
+
+## Cost of forecast error: oracle + KKT rule
+
+`oracle_kkt` is the proposed rule with a perfect (degenerate) forecast, i.e.
+the priority-ordered fill of Proposition 2 using the true r* of the coming
+horizon. The gap between `proposed` and `oracle_kkt` is what a better
+forecaster could still buy; the rest is the cost of committing budgets for
+10 ms.
+
+| scenario | proposed | oracle + KKT | gap (% of proposed) |
+|---|---|---|---|
+| low | 0.15 | 0.05 | 70 |
+| moderate | 2.15 | 0.88 | 59 |
+| high | 8.00 | 4.77 | 40 |
+| flash crowds | 11.76 | 8.10 | 31 |
+| shift | 10.04 | 5.84 | 42 |
+| tgpp_moderate | 5.08 | 3.47 | 32 |
+| tgpp_high | 8.01 | 6.06 | 24 |
+
+In the interval sweep the oracle + KKT rule reaches 1.91 % at T = 2 ms against
+6.89 % for the oracle water-fill with the same perfect information: the
+allocation rule, not only the forecast, carries the gain at short intervals.
+
+## The objective matters: unweighted ratio and LL priority weight
+
+Unweighted violation ratio (%, all bits count equally; `main_runs.csv`,
+Family S, 20 seeds):
+
+| Method | low | moderate | high | flash crowds | shift |
+|---|---|---|---|---|---|
+| static_equal | 5.96 | 11.95 | 18.16 | 21.76 | 23.82 |
+| reactive_prop | 0.44 | **2.44** | **6.55** | **9.64** | 10.37 |
+| maxweight | 0.48 | 2.73 | 7.18 | 10.44 | **10.26** |
+| queue_aware | 0.40 | 4.69 | 13.81 | 18.39 | 13.50 |
+| point_forecast | 0.26 | 3.93 | 12.88 | 17.62 | 12.96 |
+| fixed_quantile | 0.43 | 6.14 | 16.96 | 21.31 | 16.58 |
+| proposed_window | 0.19 | 2.85 | 11.12 | 16.55 | 12.18 |
+| proposed (run with w_LL = 3) | **0.14** | 2.50 | 10.19 | 15.08 | 11.64 |
+| proposed_cal | 0.15 | 2.52 | 10.65 | 16.33 | 14.19 |
+| oracle water-fill | 0.10 | 2.39 | 10.17 | 14.73 | 9.44 |
+| oracle + KKT rule | 0.07 | 1.29 | 7.02 | 11.70 | 8.17 |
+
+So the gain of every deadline-aware controller is a priority trade: under the
+unweighted ratio the plain proportional controller loses fewer total bits at
+moderate and high load in Family S, because it sacrifices the small LL cells
+(14.7 % of their bits at high load) to serve eMBB volume. Priority-weight
+sweep (`weights_runs.csv`; every controller is told the new weight; parameters
+stay those tuned at w_LL = 3; 20 seeds; weighted ratio in %):
+
+| w_LL (Family S, high) | reactive_prop | maxweight | queue_aware | point_forecast | proposed | oracle | oracle_kkt |
+|---|---|---|---|---|---|---|---|
+| 1 (= unweighted) | **6.55** | 7.38 | 7.75 | 6.77 | 6.58 | 4.86 | 4.86 |
+| 2 | **8.13** | 9.96 | 10.08 | 8.90 | 8.35 | 5.97 | 5.68 |
+| 3 (default) | 9.20 | 11.54 | 11.03 | 9.70 | **8.00** | 6.89 | 4.77 |
+| 5 | 10.56 | 13.38 | 11.69 | 10.57 | **6.93** | 8.29 | 3.63 |
+
+| w_LL (Family G, tgpp_high) | reactive_prop | maxweight | queue_aware | point_forecast | proposed | oracle | oracle_kkt |
+|---|---|---|---|---|---|---|---|
+| 1 (= unweighted) | 15.01 | 19.77 | 13.19 | **10.43** | 15.92 | 8.78 | 8.78 |
+| 2 | 15.62 | 23.92 | 12.50 | **9.74** | **9.74** | 8.31 | 7.78 |
+| 3 (default) | 15.94 | 25.79 | 11.53 | 8.98 | **8.01** | 7.85 | 6.06 |
+| 5 | 16.27 | 27.29 | 9.99 | 7.61 | **5.90** | 6.76 | 4.31 |
+
+Reading: in Family S the rule, told w_LL = 1, matches proportional sharing and
+pulls ahead from w_LL = 3. In Family G at w_LL = 1 it is clearly *worse* than
+the point-forecast water-fill (15.9 vs 10.4 %): XR and FTP demand is
+zero-inflated (often no frame / no file in a horizon), and at a low common
+critical fractile the newsvendor solution reserves nothing beyond backlog for
+many cells, an all-or-nothing allocation that the median water-fill avoids; the
+LL cells then lose 21 % of their bits. The method is for operators who value a
+low-latency bit at least 2-3x an eMBB bit; without that premise the simpler
+controllers are at least as good. With a perfect forecast (oracle + KKT) the
+rule would win at every weight, so the loss at low weights is forecast error.
+
 ## Sensitivity studies (scenario high, 10 seeds each, forecasters retrained per setting)
 
 **Control interval T** (`sweep_runs.csv`), weighted violation ratio in %:
 
 | T | reactive prop. | deadline-aware | point forecast | proposed | oracle WF | proposed vs deadline-aware / vs reactive prop. / vs oracle |
 |---|---|---|---|---|---|---|
-| 4 slots (2 ms) | 3.91 | 7.89 | 6.57 | **3.07** | 6.89 | −61 % / −21 % / −55 % |
+| 4 slots (2 ms) | 3.91 | 7.89 | 6.57 | **3.07** | 6.89 (oracle + KKT: 1.91) | −61 % / −21 % / −55 % |
 | 10 slots (5 ms) | 7.42 | 10.20 | 7.53 | **5.07** | 6.01 | −50 % / −32 % / −16 % |
 | 20 slots (10 ms) | 8.91 | 10.78 | 9.46 | **7.71** | 6.63 | −28 % / −13 % / +16 % |
 | 40 slots (20 ms) | **11.80** | 15.84 | 14.08 | 13.15 | 10.83 | −17 % / +11 % / +21 % |
@@ -250,8 +397,12 @@ curves (`results/figures/exp1_nmse_vs_cr.png`).
 
 ## What we do NOT claim
 
-* No real-world validation (synthetic traffic from one generator family plus
-  one held-out burstier family).
+* No real-world validation: two simulated traffic families (a hand-designed
+  bursty one with a held-out shift, and a standards-based one built from 3GPP
+  channel and traffic models with a simplified round-robin scheduler). The
+  3GPP family removes the "self-generated traffic" objection only partly:
+  the models are standard, the scheduler and the single-link fronthaul are
+  ours.
 * Part A compression figures are not regenerated in this repository (missing
   `src/` package); the inversion benchmark uses random well-conditioned
   matrices, not channel matrices. The paper therefore uses only the BFP
@@ -263,3 +414,10 @@ curves (`results/figures/exp1_nmse_vs_cr.png`).
   flash crowds, loses to it at T = 40 slots, at ≥ 0.86 offered load and
   nearly ties with it when telemetry is 5 ms old; the ML component adds
   ≈ 2 % under the held-out shift.
+* The gain is a priority trade. Under the unweighted violation ratio the
+  proportional controller loses fewer total bits at moderate/high load in
+  Family S, and in Family G with w_LL = 1 the rule is worse than the
+  point-forecast water-fill. The claim holds for operators who weight the
+  low-latency class at least 2-3x.
+* A forecaster transferred from the other traffic family still beats every
+  reactive controller but not the in-family point forecast.
