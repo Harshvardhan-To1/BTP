@@ -68,7 +68,7 @@ reviewer-style assessment of what was missing and what was added:
 | `fhlm/train.py` | B | Trains the forecaster on training seeds, reports validation quality |
 | `fhlm/run_experiments.py` | B, A+B | `tune`, `main`, `sweep`, `delay`, `miscalibration`, `compression`, `demo` commands; raw JSON + CSV summaries; paired bootstrap / Wilcoxon / Holm statistics |
 | `fhlm/make_figures.py`, `fhlm/make_slides.py`, `fhlm/make_paper_tables.py` | B | All figures, the editable `.pptx` deck (with speaker notes) and the paper's LaTeX tables/macros, from the saved results |
-| `paper/` | B | IEEE conference paper draft (`main.tex`; `generated/` is produced by `make_paper_tables`) |
+| `paper/` | B | IEEE conference paper draft. `main.tex` + `generated/` (tables, number macros) + `figures/` are all produced by `make_paper_tables`. For Overleaf upload either the whole `paper/` folder or just `main_standalone.tex` (all inputs inlined) together with `figures/` |
 | `tests/test_fhlm.py` | B | 14 tests (link constraint, queues, accounting, zero load, overload, reproducibility, r*, KKT properties, no future leakage, fast tree evaluation, compression bridge) |
 | `docs/fhlm/` | B | `method.md`, `literature_review.md`, `results_summary.md`, `review_and_response.md`, `study_guide.md`, `presentation_notes.md`, the deck (`.pptx`, `.pdf`) |
 | `results/fhlm/` | B | Raw per-run metrics, CSV summaries, forecast reports, `figures/` |
