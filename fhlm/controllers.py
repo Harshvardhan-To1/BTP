@@ -276,3 +276,41 @@ class OracleWaterfill(Controller):
         rstar = required_rates(future_fh_demand, obs.deadlines)
         demand = backlog_rate_obs(obs) + rstar
         return waterfill(demand, deadline_weights(obs, self.w_min), obs.capacity, obs.budget_caps)
+
+
+class OracleKKT(OracleWaterfill):
+    """Oracle-informed reference for the PROPOSED rule: the KKT allocation with a perfect forecast.
+
+    With a degenerate (point-mass) forecast at the true r*, the KKT rule
+    reduces to a priority-ordered fill: cells are served in decreasing weight,
+    each receiving its full need B_i + r*_i, and the marginal weight class
+    shares the remainder in proportion to need. This is the limit of the
+    proposed rule as forecast uncertainty vanishes, so the gap between it and
+    the proposed controller measures the cost of forecast error under the
+    same allocation rule. Not implementable.
+    """
+
+    name = "oracle_kkt"
+
+    def decide_oracle(self, obs: Observation, future_fh_demand: np.ndarray) -> np.ndarray:
+        rstar = required_rates(future_fh_demand, obs.deadlines)
+        beta = obs.net.fh_bits_per_prb_layer
+        # budgets are spent in whole PRB-layers, so a tight need is rounded up to the next PRB-layer
+        need = np.minimum(np.ceil((backlog_rate_obs(obs) + rstar) / beta) * beta, obs.budget_caps)
+        w = deadline_weights(obs, self.w_min)
+        if need.sum() <= obs.capacity:
+            return waterfill(need, w, obs.capacity, obs.budget_caps)
+        alloc = np.zeros(obs.num_cells)
+        remaining = obs.capacity
+        for level in sorted(np.unique(np.round(w, 9)), reverse=True):
+            grp = np.isclose(np.round(w, 9), level)
+            grp_need = need[grp].sum()
+            if grp_need <= remaining:
+                alloc[grp] = need[grp]
+                remaining -= grp_need
+            else:
+                alloc[grp] = need[grp] * remaining / grp_need if grp_need > 0 else 0.0
+                remaining = 0.0
+                break
+        return np.minimum(alloc, obs.budget_caps)
+

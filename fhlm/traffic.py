@@ -98,6 +98,35 @@ def _gamma_with_cv(rng: np.random.Generator, mean: np.ndarray, cv: float) -> np.
 
 
 def generate_traffic(net: NetworkConfig, tcfg: TrafficConfig, num_slots: int, seed: int) -> TrafficTrace:
+    """Dispatch on the traffic family; see traffic_3gpp.py for the standards-based family."""
+    if getattr(tcfg, "family", "synthetic") == "3gpp":
+        from .traffic_3gpp import generate_traffic_3gpp
+        return _cached("3gpp", lambda: generate_traffic_3gpp(net, tcfg, num_slots, seed), net, tcfg, num_slots, seed)
+    return _generate_synthetic(net, tcfg, num_slots, seed)
+
+
+TRACE_CACHE_DIR = "results/fhlm/trace_cache"
+
+
+def _cached(family: str, make, net: NetworkConfig, tcfg: TrafficConfig, num_slots: int, seed: int) -> TrafficTrace:
+    """On-disk cache for expensive generators (same trace for every controller of a (scenario, seed) anyway)."""
+    import os
+    key = (f"{family}_L{tcfg.load:.3f}_S{num_slots}_s{seed}_b{net.mantissa_bits}_N{net.num_cells}"
+           f"_sh{'-'.join(f'{x:g}' for x in (tcfg.load_share or []))}.npz")
+    path = os.path.join(TRACE_CACHE_DIR, key)
+    if os.path.exists(path):
+        z = np.load(path)
+        return TrafficTrace(arrivals_bits=z["arrivals"], se=z["se"], fh_demand_bits=z["fh"], regime_mult=z["regime"],
+                            mean_fh_load=float(z["load"]))
+    tr = make()
+    os.makedirs(TRACE_CACHE_DIR, exist_ok=True)
+    tmp = path[:-4] + f".tmp{os.getpid()}.npz"
+    np.savez(tmp, arrivals=tr.arrivals_bits, se=tr.se, fh=tr.fh_demand_bits, regime=tr.regime_mult, load=tr.mean_fh_load)
+    os.replace(tmp, path)
+    return tr
+
+
+def _generate_synthetic(net: NetworkConfig, tcfg: TrafficConfig, num_slots: int, seed: int) -> TrafficTrace:
     rng = np.random.default_rng(seed)
     n = net.num_cells
     beta = net.fh_bits_per_prb_layer

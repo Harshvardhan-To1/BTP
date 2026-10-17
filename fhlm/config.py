@@ -152,6 +152,9 @@ class TrafficConfig:
     flash_crowd_mult: float = 1.8     # load multiplier during a flash crowd
     se_drift_sigma: float = 0.02      # per-regime relative drift of spectral efficiency
     load_share: List[float] | None = None  # per-cell share of total load (default: LL 0.6 x eMBB)
+    # traffic family: "synthetic" (this file's generator) or "3gpp" (traffic_3gpp.py: TR 38.901 channel,
+    # FTP Model 3 and TR 38.838 XR traffic, round-robin scheduler). The remaining fields are ignored for "3gpp".
+    family: str = "synthetic"
 
 
 @dataclass

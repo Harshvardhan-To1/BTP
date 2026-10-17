@@ -21,3 +21,5 @@ paper/*.out
 paper/*.bbl
 paper/*.blg
 results/fhlm/chain.status
+results/fhlm/trace_cache/
+models/fhlm_quantile_gbm_T20_d2_3gpp.pkl

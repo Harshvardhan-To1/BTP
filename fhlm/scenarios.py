@@ -27,9 +27,26 @@ SCENARIOS: Dict[str, TrafficConfig] = {
                                         "pareto_alpha_on": 1.2}),
 }
 
-# Loads used for training traces (nominal traffic family)
+
+# Standards-based family (3GPP TR 38.901 channel, FTP Model 3 + TR 38.838 XR traffic); stationary by construction.
+SCENARIOS["tgpp_moderate"] = TrafficConfig(load=0.65, family="3gpp")
+SCENARIOS["tgpp_high"] = TrafficConfig(load=0.80, family="3gpp")
+
+FAMILIES = ("synthetic", "3gpp")
+
+
+def family_of(scenario: str) -> str:
+    return SCENARIOS[scenario].family
+
+
+def scenarios_of(family: str) -> List[str]:
+    return [s for s, c in SCENARIOS.items() if c.family == family]
+
+
+# Loads used for training traces (per family)
 TRAIN_LOADS = [0.5, 0.65, 0.8, 0.95]
 VAL_SCENARIOS = ["moderate", "high"]
+VAL_SCENARIOS_BY_FAMILY = {"synthetic": ["moderate", "high"], "3gpp": ["tgpp_moderate", "tgpp_high"]}
 
 DEFAULT_SLOTS = 20000
 DEFAULT_WARMUP = 1000
@@ -43,7 +60,8 @@ def make_config(scenario: str, seed: int, num_slots: int = DEFAULT_SLOTS, warmup
 
 
 def train_config(load: float, seed: int, num_slots: int = DEFAULT_SLOTS, interval_slots: int = 20,
-                 telemetry_delay_slots: int = 2) -> SimConfig:
+                 telemetry_delay_slots: int = 2, family: str = "synthetic") -> SimConfig:
+    traffic = TrafficConfig(load=load, **NOMINAL) if family == "synthetic" else TrafficConfig(load=load, family=family)
     return SimConfig(num_slots=num_slots, warmup_slots=0, seed=seed, network=NetworkConfig(),
-                     traffic=TrafficConfig(load=load, **NOMINAL),
+                     traffic=traffic,
                      control=ControlConfig(interval_slots=interval_slots, telemetry_delay_slots=telemetry_delay_slots))

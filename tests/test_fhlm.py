@@ -290,3 +290,39 @@ def test_compression_bridge_rescales_fronthaul_bits_only():
     a = run_simulation(cfg, ReactiveProportional(), trace=trace)
     b = run_simulation(cfg6, ReactiveProportional(), trace=tr6)
     assert b.metrics["weighted_violation_ratio"] <= a.metrics["weighted_violation_ratio"] + 1e-12
+
+
+def test_3gpp_traffic_family_is_calibrated_feasible_and_reproducible():
+    """Standards-based family: offered load within 2 % of target, per-slot demand within the cell peaks,
+    LL cells carry less than eMBB cells, identical trace for identical seed."""
+    net = NetworkConfig()
+    tcfg = TrafficConfig(load=0.65, family="3gpp")
+    tr = generate_traffic(net, tcfg, 8000, 3000)
+    tr2 = generate_traffic(net, tcfg, 8000, 3000)
+    assert np.allclose(tr.fh_demand_bits, tr2.fh_demand_bits)
+    assert abs(tr.mean_fh_load - 0.65) < 0.02
+    peaks = np.array(net.peak_bits_per_slot)
+    assert (tr.fh_demand_bits <= peaks[:, None] * (1 + 1e-9)).all()
+    assert (tr.arrivals_bits >= 0).all() and (tr.se > 0).all()
+    ll = np.array([c.deadline_slots <= 10 for c in net.cells])
+    assert tr.fh_demand_bits[ll].mean() < tr.fh_demand_bits[~ll].mean()
+    # demand per slot is the scheduled PRB-layers times beta: an integer multiple of beta
+    k = tr.fh_demand_bits / net.fh_bits_per_prb_layer
+    assert np.allclose(k, np.round(k))
+    # a different seed gives a different trace
+    assert not np.allclose(generate_traffic(net, tcfg, 8000, 3001).fh_demand_bits, tr.fh_demand_bits)
+
+
+def test_oracle_kkt_is_priority_ordered_and_feasible():
+    """The perfect-forecast KKT reference serves higher-weight cells first, respects caps and the link."""
+    from fhlm.controllers import OracleKKT
+    cfg = small_cfg(load=0.9, slots=4000, seed=5)
+    trace = generate_traffic(cfg.network, cfg.traffic, cfg.num_slots, cfg.seed)
+    res = run_simulation(cfg, OracleKKT(), trace=trace)
+    assert res.metrics["weighted_violation_ratio"] >= 0
+    # LL cells (weight 3) are protected before eMBB (weight 1) when the link binds
+    assert res.metrics["violation_ratio_ll"] < res.metrics["violation_ratio_embb"]
+    assert res.metrics["violation_ratio_ll"] < 0.01
+    # it maximises the weighted objective, so on the weighted metric it beats the oracle water-fill
+    res_wf = run_simulation(cfg, OracleWaterfill(), trace=trace)
+    assert res.metrics["weighted_violation_ratio"] <= res_wf.metrics["weighted_violation_ratio"]

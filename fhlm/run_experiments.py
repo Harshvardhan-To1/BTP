@@ -26,11 +26,12 @@ from typing import Dict, Any, List, Tuple
 import numpy as np
 import pandas as pd
 
-from .scenarios import (SCENARIOS, TEST_SEEDS, VAL_SEEDS, VAL_SCENARIOS, make_config, DEFAULT_SLOTS, DEFAULT_WARMUP)
+from .scenarios import (SCENARIOS, TEST_SEEDS, VAL_SEEDS, VAL_SCENARIOS, VAL_SCENARIOS_BY_FAMILY, make_config,
+                        DEFAULT_SLOTS, DEFAULT_WARMUP, family_of, scenarios_of)
 from .traffic import generate_traffic
 from .simulator import run_simulation
 from .controllers import (StaticEqualShare, ReactiveProportional, QueueAwareReactive, PointForecastWaterfill,
-                          OracleWaterfill,
+                          OracleWaterfill, OracleKKT,
                           MaxWeightReactive, FixedQuantileWaterfill)
 from .proposed import UncertaintyAwareAllocator
 from .forecast import QuantileGBMForecaster, WindowQuantileForecaster
@@ -43,7 +44,7 @@ PRIMARY_METRIC = "weighted_violation_ratio"
 
 # method name -> (constructor, needs_forecaster)
 METHOD_ORDER = ["static_equal", "reactive_prop", "maxweight", "queue_aware", "point_forecast", "fixed_quantile",
-                "proposed_window", "proposed", "proposed_cal", "oracle"]
+                "proposed_window", "proposed", "proposed_cal", "proposed_transfer", "oracle", "oracle_kkt"]
 METHOD_LABELS = {
     "static_equal": "Static equal share",
     "reactive_prop": "Reactive proportional (EWMA)",
@@ -54,29 +55,39 @@ METHOD_LABELS = {
     "proposed_window": "Proposed rule with window quantiles (no ML)",
     "proposed": "Proposed: GBM quantiles + KKT allocation",
     "proposed_cal": "Proposed + online (ACI) calibration",
+    "proposed_transfer": "Proposed with the forecaster trained on the OTHER traffic family (transfer)",
     "oracle": "Oracle water-fill (true r*, not implementable; reference, not a bound)",
+    "oracle_kkt": "Oracle + KKT rule (true r*, priority-ordered fill; the proposed rule with a perfect forecast)",
 }
 
 _FORECASTER_CACHE: Dict[str, QuantileGBMForecaster] = {}
 
 
-def model_path(interval: int, delay: int) -> str:
-    return os.path.join(MODEL_DIR, f"fhlm_quantile_gbm_T{interval}_d{delay}.pkl")
+def _fam_suffix(family: str) -> str:
+    return "" if family == "synthetic" else f"_{family}"
 
 
-def ensure_forecaster(interval: int, delay: int) -> QuantileGBMForecaster:
-    path = model_path(interval, delay)
+def model_path(interval: int, delay: int, family: str = "synthetic") -> str:
+    return os.path.join(MODEL_DIR, f"fhlm_quantile_gbm_T{interval}_d{delay}{_fam_suffix(family)}.pkl")
+
+
+def ensure_forecaster(interval: int, delay: int, family: str = "synthetic") -> QuantileGBMForecaster:
+    path = model_path(interval, delay, family)
     if path not in _FORECASTER_CACHE:
         if not os.path.exists(path):
-            print(f"[runner] training forecaster for T={interval}, tau={delay} -> {path}")
+            print(f"[runner] training forecaster for T={interval}, tau={delay}, family={family} -> {path}")
             subprocess.run([sys.executable, "-m", "fhlm.train", "--out", path, "--interval", str(interval),
-                            "--delay", str(delay), "--report",
-                            os.path.join(RESULTS_DIR, f"forecast_training_T{interval}_d{delay}.json")], check=True)
+                            "--delay", str(delay), "--family", family, "--report",
+                            os.path.join(RESULTS_DIR, f"forecast_training_T{interval}_d{delay}{_fam_suffix(family)}.json")],
+                           check=True)
         _FORECASTER_CACHE[path] = QuantileGBMForecaster.load(path)
     return _FORECASTER_CACHE[path]
 
 
-def build_controller(name: str, params: Dict[str, Any], interval: int, delay: int):
+FORECAST_METHODS = ("point_forecast", "fixed_quantile", "proposed", "proposed_cal", "proposed_miscal", "proposed_transfer")
+
+
+def build_controller(name: str, params: Dict[str, Any], interval: int, delay: int, family: str = "synthetic"):
     p = dict(params or {})
     if name == "static_equal":
         return StaticEqualShare()
@@ -89,25 +100,31 @@ def build_controller(name: str, params: Dict[str, Any], interval: int, delay: in
         return MaxWeightReactive(margin=p.get("margin", 0.0), ewma_window=p.get("ewma_window"),
                                  hol_weight=p.get("hol_weight", 0.0))
     if name == "fixed_quantile":
-        return FixedQuantileWaterfill(ensure_forecaster(interval, delay), level=p.get("level", 0.9),
+        return FixedQuantileWaterfill(ensure_forecaster(interval, delay, family), level=p.get("level", 0.9),
                                       w_min=p.get("w_min", 0.25))
     if name == "point_forecast":
-        return PointForecastWaterfill(ensure_forecaster(interval, delay), margin=p.get("margin", 0.0),
+        return PointForecastWaterfill(ensure_forecaster(interval, delay, family), margin=p.get("margin", 0.0),
                                       w_min=p.get("w_min", 0.25))
     if name == "proposed_window":
         return UncertaintyAwareAllocator(WindowQuantileForecaster(window=p.get("window", 30)), calibrate=False,
                                          w_min=p.get("w_min", 0.25), name="proposed_window")
     if name == "proposed":
-        return UncertaintyAwareAllocator(ensure_forecaster(interval, delay), calibrate=False,
+        return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, family), calibrate=False,
                                          w_min=p.get("w_min", 0.25), name="proposed")
+    if name == "proposed_transfer":
+        other = "synthetic" if family == "3gpp" else "3gpp"
+        return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, other), calibrate=False,
+                                         w_min=p.get("w_min", 0.25), name="proposed_transfer")
     if name == "proposed_cal":
-        return UncertaintyAwareAllocator(ensure_forecaster(interval, delay), calibrate=True,
+        return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, family), calibrate=True,
                                          gamma=p.get("gamma", 0.02), w_min=p.get("w_min", 0.25), name="proposed_cal")
     if name == "proposed_miscal":
-        return UncertaintyAwareAllocator(MiscalibratedForecaster(ensure_forecaster(interval, delay), p.get("eps", 0.0)),
+        return UncertaintyAwareAllocator(MiscalibratedForecaster(ensure_forecaster(interval, delay, family), p.get("eps", 0.0)),
                                          calibrate=False, w_min=p.get("w_min", 0.25), name="proposed_miscal")
     if name == "oracle":
         return OracleWaterfill(w_min=p.get("w_min", 0.25))
+    if name == "oracle_kkt":
+        return OracleKKT(w_min=p.get("w_min", 0.25))
     raise ValueError(name)
 
 
@@ -129,25 +146,37 @@ def with_compression(cfg, trace, mantissa_bits: int):
     return replace(cfg, network=net), new_trace
 
 
+def with_ll_priority(cfg, ll_priority: float):
+    """Same traffic, different operator weight for the low-latency class (eMBB weight stays 1)."""
+    from dataclasses import replace
+    cells = [replace(c, priority=ll_priority) if c.priority != 1.0 else c for c in cfg.network.cells]
+    return replace(cfg, network=replace(cfg.network, cells=cells))
+
+
 def run_one(job) -> Dict[str, Any]:
     scenario, seed, method, params, interval, delay, slots, warmup, tag = job[:9]
     mantissa = job[9] if len(job) > 9 else None
+    ll_priority = job[10] if len(job) > 10 else None
     cfg = make_config(scenario, seed, slots, warmup, interval, delay)
     trace = generate_traffic(cfg.network, cfg.traffic, cfg.num_slots, cfg.seed)
     if mantissa is not None:
         cfg, trace = with_compression(cfg, trace, mantissa)
-    ctrl = build_controller(method, params, interval, delay)
+    if ll_priority is not None:
+        cfg = with_ll_priority(cfg, ll_priority)
+    ctrl = build_controller(method, params, interval, delay, cfg.traffic.family)
     t0 = time.perf_counter()
     res = run_simulation(cfg, ctrl, trace=trace)
     row = {"scenario": scenario, "seed": seed, "method": method, "params": json.dumps(params or {}),
            "interval_slots": interval, "telemetry_delay_slots": delay, "wall_s": time.perf_counter() - t0,
-           "realised_load": trace.mean_fh_load, "mantissa_bits": cfg.network.mantissa_bits}
+           "realised_load": trace.mean_fh_load, "mantissa_bits": cfg.network.mantissa_bits,
+           "family": cfg.traffic.family, "ll_priority": max(c.priority for c in cfg.network.cells)}
     row.update(res.metrics)
     if hasattr(ctrl, "stats"):
         row["controller_stats"] = json.dumps(ctrl.stats)
     if tag:
         os.makedirs(RAW_DIR, exist_ok=True)
-        suffix = f"_b{mantissa}" if mantissa is not None else ""
+        suffix = (f"_b{mantissa}" if mantissa is not None else "") + \
+                 (f"_w{ll_priority:g}" if ll_priority is not None else "")
         fn = os.path.join(RAW_DIR, f"{tag}_{scenario}_s{seed}_T{interval}_{method}{suffix}.json")
         with open(fn, "w") as f:
             json.dump({"row": row, "per_cell": res.per_cell, "config": res.config,
@@ -158,8 +187,11 @@ def run_one(job) -> Dict[str, Any]:
 def run_jobs(jobs: List[tuple], workers: int) -> pd.DataFrame:
     # make sure any required forecaster exists before forking workers
     for job in jobs:
-        if job[2] in ("point_forecast", "fixed_quantile", "proposed", "proposed_cal", "proposed_miscal"):
-            ensure_forecaster(job[4], job[5])
+        if job[2] in FORECAST_METHODS:
+            fam = family_of(job[0])
+            ensure_forecaster(job[4], job[5], fam)
+            if job[2] == "proposed_transfer":
+                ensure_forecaster(job[4], job[5], "synthetic" if fam == "3gpp" else "3gpp")
     t0 = time.perf_counter()
     if workers > 1:
         with Pool(workers) as pool:
@@ -170,12 +202,20 @@ def run_jobs(jobs: List[tuple], workers: int) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def load_tuning() -> Dict[str, Dict[str, Any]]:
-    path = os.path.join(RESULTS_DIR, "tuning.json")
+def load_tuning(family: str = "synthetic") -> Dict[str, Dict[str, Any]]:
+    path = os.path.join(RESULTS_DIR, f"tuning{_fam_suffix(family)}.json")
     if os.path.exists(path):
         with open(path) as f:
             return json.load(f)["selected"]
     return {}
+
+
+def tuned_params(method: str, scenario: str) -> Dict[str, Any]:
+    """Parameters selected on the validation seeds of the scenario's own traffic family."""
+    t = load_tuning(family_of(scenario)).get(method)
+    if t is None and method == "proposed_transfer":
+        t = load_tuning(family_of(scenario)).get("proposed")
+    return t or {}
 
 
 # ---------------------------------------------------------------------------
@@ -189,13 +229,14 @@ def cmd_tune(args):
         "proposed_cal": [{"gamma": g} for g in (0.005, 0.01, 0.02)],
     }
     jobs = []
+    val_scenarios = VAL_SCENARIOS_BY_FAMILY[args.family]
     for method, plist in grid.items():
         for params in plist:
-            for sc in VAL_SCENARIOS:
+            for sc in val_scenarios:
                 for seed in VAL_SEEDS:
                     jobs.append((sc, seed, method, params, args.interval, args.delay, args.slots, args.warmup, ""))
     df = run_jobs(jobs, args.workers)
-    df.to_csv(os.path.join(RESULTS_DIR, "tuning_runs.csv"), index=False)
+    df.to_csv(os.path.join(RESULTS_DIR, f"tuning_runs{_fam_suffix(args.family)}.csv"), index=False)
     selected, table = {}, []
     for method, g in df.groupby("method"):
         agg = g.groupby("params")[PRIMARY_METRIC].mean().sort_values()
@@ -203,22 +244,27 @@ def cmd_tune(args):
         selected[method] = json.loads(best)
         for p, v in agg.items():
             table.append({"method": method, "params": p, PRIMARY_METRIC: v})
-    out = {"primary_metric": PRIMARY_METRIC, "validation_scenarios": VAL_SCENARIOS, "validation_seeds": VAL_SEEDS,
-           "selected": selected, "table": table}
-    with open(os.path.join(RESULTS_DIR, "tuning.json"), "w") as f:
+    out = {"primary_metric": PRIMARY_METRIC, "validation_scenarios": val_scenarios, "validation_seeds": VAL_SEEDS,
+           "family": args.family, "selected": selected, "table": table}
+    with open(os.path.join(RESULTS_DIR, f"tuning{_fam_suffix(args.family)}.json"), "w") as f:
         json.dump(out, f, indent=2)
     print(json.dumps(out["selected"], indent=1))
     print(pd.DataFrame(table).to_string())
 
 
 def cmd_main(args):
-    tuned = load_tuning()
-    methods = args.methods or METHOD_ORDER
-    scenarios = args.scenarios or list(SCENARIOS)
-    jobs = [(sc, seed, m, tuned.get(m, {}), args.interval, args.delay, args.slots, args.warmup, "main")
+    methods = args.methods or [m for m in METHOD_ORDER if m != "proposed_transfer"]
+    scenarios = args.scenarios or scenarios_of(args.family)
+    jobs = [(sc, seed, m, tuned_params(m, sc), args.interval, args.delay, args.slots, args.warmup, "main")
             for sc in scenarios for seed in TEST_SEEDS for m in methods]
     df = run_jobs(jobs, args.workers)
-    df.to_csv(os.path.join(RESULTS_DIR, "main_runs.csv"), index=False)
+    path = os.path.join(RESULTS_DIR, "main_runs.csv")
+    if args.append and os.path.exists(path):
+        old = pd.read_csv(path)
+        keys = set(zip(df.scenario, df.method))
+        old = old[~old.apply(lambda r: (r.scenario, r.method) in keys, axis=1)]
+        df = pd.concat([old, df], ignore_index=True)
+    df.to_csv(path, index=False)
     metrics = [PRIMARY_METRIC, "violation_ratio", "violation_ratio_ll", "violation_ratio_embb", "fh_utilisation",
                "fh_unused_allocation_fraction", "mean_queueing_delay_ms", "p99_queueing_delay_ms",
                "jain_fairness_service_ratio", "min_cell_service_ratio", "decision_time_ms_mean", "realised_load"]
@@ -320,14 +366,13 @@ def cmd_miscalibration(args):
     eps_list = args.eps or [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3]
     seeds = TEST_SEEDS[:args.num_seeds]
     scenarios = args.scenarios or ["high", "shift"]
-    tuned = load_tuning()
     jobs = []
     for sc in scenarios:
         for seed in seeds:
             for e in eps_list:
                 jobs.append((sc, seed, "proposed_miscal", {"eps": e}, args.interval, args.delay, args.slots, args.warmup, ""))
             for m in ("point_forecast", "queue_aware"):
-                jobs.append((sc, seed, m, tuned.get(m, {}), args.interval, args.delay, args.slots, args.warmup, ""))
+                jobs.append((sc, seed, m, tuned_params(m, sc), args.interval, args.delay, args.slots, args.warmup, ""))
     df = run_jobs(jobs, args.workers)
     df["eps"] = df.params.apply(lambda s_: json.loads(s_).get("eps", np.nan))
     df.to_csv(os.path.join(RESULTS_DIR, "miscalibration_runs.csv"), index=False)
@@ -342,8 +387,7 @@ def cmd_delay(args):
     taus = args.delays or [0, 2, 5, 10]
     methods = args.methods or ["reactive_prop", "queue_aware", "point_forecast", "proposed"]
     seeds = TEST_SEEDS[:args.num_seeds]
-    tuned = load_tuning()
-    jobs = [(args.scenario, seed, m, tuned.get(m, {}), args.interval, tau, args.slots, args.warmup, "delay")
+    jobs = [(args.scenario, seed, m, tuned_params(m, args.scenario), args.interval, tau, args.slots, args.warmup, "delay")
             for tau in taus for seed in seeds for m in methods]
     df = run_jobs(jobs, args.workers)
     df.to_csv(os.path.join(RESULTS_DIR, "delay_runs.csv"), index=False)
@@ -352,18 +396,46 @@ def cmd_delay(args):
 
 
 def cmd_sweep(args):
-    tuned = load_tuning()
     intervals = args.intervals or [4, 10, 20, 40]
     methods = args.methods or ["reactive_prop", "queue_aware", "point_forecast", "proposed", "oracle"]
     seeds = TEST_SEEDS[:args.num_seeds]
-    jobs = [(args.scenario, seed, m, tuned.get(m, {}), T, args.delay, args.slots, args.warmup, "sweep")
+    jobs = [(args.scenario, seed, m, tuned_params(m, args.scenario), T, args.delay, args.slots, args.warmup, "sweep")
             for T in intervals for seed in seeds for m in methods]
     df = run_jobs(jobs, args.workers)
-    df.to_csv(os.path.join(RESULTS_DIR, "sweep_runs.csv"), index=False)
+    path = os.path.join(RESULTS_DIR, "sweep_runs.csv")
+    if args.append and os.path.exists(path):
+        old = pd.read_csv(path)
+        keys = set(zip(df.interval_slots.astype(int), df.method))
+        old = old[~old.apply(lambda r: (int(r.interval_slots), r.method) in keys, axis=1)]
+        df = pd.concat([old, df], ignore_index=True)
+    df.to_csv(path, index=False)
     agg = df.groupby(["interval_slots", "method"])[[PRIMARY_METRIC, "violation_ratio_ll", "violation_ratio_embb",
                                                     "fh_utilisation"]].agg(["mean", "std"])
     agg.columns = [f"{a}_{b}" for a, b in agg.columns]
     agg.reset_index().to_csv(os.path.join(RESULTS_DIR, "sweep_summary.csv"), index=False)
+    print(agg.to_string())
+
+
+def cmd_weights(args):
+    """Sensitivity to the operator weight of the low-latency class (eMBB weight fixed at 1).
+
+    w_LL = 1 makes the objective the plain unweighted violation ratio, so this
+    sweep also answers "does the rule help when the operator does not
+    prioritise?". Tuned parameters are those selected at the default w_LL = 3.
+    """
+    weights = args.weights or [1.0, 2.0, 3.0, 5.0]
+    methods = args.methods or ["reactive_prop", "maxweight", "queue_aware", "point_forecast", "proposed", "oracle",
+                               "oracle_kkt"]
+    scenarios = args.scenarios or [args.scenario]
+    seeds = TEST_SEEDS[:args.num_seeds]
+    jobs = [(sc, seed, m, tuned_params(m, sc), args.interval, args.delay, args.slots, args.warmup, "weights", None, w)
+            for sc in scenarios for w in weights for seed in seeds for m in methods]
+    df = run_jobs(jobs, args.workers)
+    df.to_csv(os.path.join(RESULTS_DIR, "weights_runs.csv"), index=False)
+    agg = df.groupby(["scenario", "ll_priority", "method"])[[PRIMARY_METRIC, "violation_ratio", "violation_ratio_ll",
+                                                             "violation_ratio_embb"]].agg(["mean", "std"])
+    agg.columns = [f"{a}_{b}" for a, b in agg.columns]
+    agg.reset_index().to_csv(os.path.join(RESULTS_DIR, "weights_summary.csv"), index=False)
     print(agg.to_string())
 
 
@@ -373,11 +445,10 @@ def cmd_compression(args):
     Same user traffic and seeds; only the BFP mantissa width changes, which
     rescales the fronthaul bits per PRB-layer (and therefore the offered load).
     """
-    tuned = load_tuning()
     widths = args.mantissa or [6, 9, 12, 14]
     methods = args.methods or ["reactive_prop", "queue_aware", "point_forecast", "proposed"]
     seeds = TEST_SEEDS[:args.num_seeds]
-    jobs = [(args.scenario, seed, m, tuned.get(m, {}), args.interval, args.delay, args.slots, args.warmup,
+    jobs = [(args.scenario, seed, m, tuned_params(m, args.scenario), args.interval, args.delay, args.slots, args.warmup,
              "compression", b) for b in widths for seed in seeds for m in methods]
     df = run_jobs(jobs, args.workers)
     df.to_csv(os.path.join(RESULTS_DIR, "compression_runs.csv"), index=False)
@@ -389,13 +460,12 @@ def cmd_compression(args):
 
 
 def cmd_demo(args):
-    tuned = load_tuning()
     cfg = make_config(args.scenario, TEST_SEEDS[0], args.slots, args.warmup, args.interval, args.delay)
     trace = generate_traffic(cfg.network, cfg.traffic, cfg.num_slots, cfg.seed)
     os.makedirs(RESULTS_DIR, exist_ok=True)
     out = {}
     for m in ["queue_aware", "point_forecast", "proposed"]:  # demo methods
-        ctrl = build_controller(m, tuned.get(m, {}), args.interval, args.delay)
+        ctrl = build_controller(m, tuned_params(m, args.scenario), args.interval, args.delay, cfg.traffic.family)
         res = run_simulation(cfg, ctrl, trace=trace, record_timeseries=True)
         out[m] = res
         print(f"{m:16s} {PRIMARY_METRIC}={res.metrics[PRIMARY_METRIC]:.4f}  LL={res.metrics['violation_ratio_ll']:.4f}  "
@@ -413,7 +483,7 @@ def cmd_demo(args):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=["tune", "main", "sweep", "compression", "miscalibration", "delay", "demo"])
+    ap.add_argument("command", choices=["tune", "main", "sweep", "compression", "miscalibration", "delay", "weights", "demo"])
     ap.add_argument("--interval", type=int, default=20)
     ap.add_argument("--delay", type=int, default=2)
     ap.add_argument("--slots", type=int, default=DEFAULT_SLOTS)
@@ -427,10 +497,14 @@ def main(argv=None):
     ap.add_argument("--mantissa", nargs="*", type=int, help="BFP mantissa widths for the compression sweep")
     ap.add_argument("--eps", nargs="*", type=float, help="probability-level shifts for the miscalibration sweep")
     ap.add_argument("--delays", nargs="*", type=int, help="telemetry delays (slots) for the delay sweep")
+    ap.add_argument("--weights", nargs="*", type=float, help="low-latency priority weights for the weight sweep")
+    ap.add_argument("--family", default="synthetic", choices=["synthetic", "3gpp"],
+                    help="traffic family for tune/main (scenario set and forecaster)")
+    ap.add_argument("--append", action="store_true", help="main: merge into the existing main_runs.csv instead of replacing it")
     args = ap.parse_args(argv)
     os.makedirs(RESULTS_DIR, exist_ok=True)
     {"tune": cmd_tune, "main": cmd_main, "sweep": cmd_sweep, "compression": cmd_compression,
-     "miscalibration": cmd_miscalibration, "delay": cmd_delay, "demo": cmd_demo}[args.command](args)
+     "miscalibration": cmd_miscalibration, "delay": cmd_delay, "weights": cmd_weights, "demo": cmd_demo}[args.command](args)
 
 
 if __name__ == "__main__":
