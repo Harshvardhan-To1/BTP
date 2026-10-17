@@ -242,18 +242,26 @@ def build(out: str = OUT):
     main, paired, sweep, comp, tuning, fc, bench = (R["main"], R["paired"], R["sweep"], R["comp"], R["tuning"],
                                                     R["forecast"], R["matinv"])
     SC = ["low", "moderate", "high", "overload_bursts", "shift"]
+    # the deck tells the synthetic-family story; the 3GPP family and the extra reference controllers live in the paper
+    if main is not None:
+        main = main[main.scenario.isin(SC) & ~main.method.isin(["oracle_kkt", "proposed_transfer"])]
+    if paired is not None:
+        paired = paired[paired.scenario.isin(SC)]
+    if sweep is not None:
+        sweep = sweep[sweep.method != "oracle_kkt"]
     SCL = {"low": "Low 0.50", "moderate": "Moderate 0.65", "high": "High 0.80", "overload_bursts": "Flash crowds",
            "shift": "Shift (held-out)"}
     LAB = {"static_equal": "Static equal share", "reactive_prop": "Reactive proportional",
            "maxweight": "MaxWeight (queue-weighted)", "fixed_quantile": "Fixed global quantile + water-fill",
            "queue_aware": "Deadline-aware reactive", "point_forecast": "Point forecast + water-fill",
            "proposed_window": "Proposed rule, simple quantiles (no ML)", "proposed": "Proposed (GBM quantiles + KKT rule)",
-           "proposed_cal": "Proposed + online calibration", "oracle": "Oracle water-fill (knows the future)"}
+           "proposed_cal": "Proposed + online calibration", "oracle": "Oracle water-fill (knows the future)",
+           "oracle_kkt": "Oracle + KKT rule (perfect forecast)", "proposed_transfer": "Proposed, forecaster from other traffic family"}
 
     SHORT_LAB = {"reactive_prop": "reactive prop.", "queue_aware": "deadline-aware", "point_forecast": "point forecast",
                  "maxweight": "MaxWeight", "fixed_quantile": "fixed quantile",
                  "proposed": "proposed", "proposed_window": "proposed (no ML)", "proposed_cal": "proposed + cal.",
-                 "static_equal": "static", "oracle": "oracle"}
+                 "static_equal": "static", "oracle": "oracle", "oracle_kkt": "oracle KKT", "proposed_transfer": "proposed (transfer)"}
 
     NS = int(main.seed.nunique()) if main is not None else 20
     NM = int(main.method.nunique()) if main is not None else 10

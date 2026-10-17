@@ -3,8 +3,6 @@
 \IEEEoverridecommandlockouts
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts,amsthm}
-\usepackage{algorithmic}
-\usepackage{algorithm}
 \usepackage{graphicx}
 \usepackage{textcomp}
 \usepackage{xcolor}
@@ -13,208 +11,633 @@
 \graphicspath{{figures/}}
 % ---- inlined from generated/macros ----
 \newcommand{\nSeeds}{20}
-\newcommand{\nRuns}{1000}
-\newcommand{\nMethods}{10}
+\newcommand{\nRuns}{1100}
+\newcommand{\nMethods}{11}
+\newcommand{\nSeedsTgpp}{20}
+\newcommand{\nRunsTgpp}{480}
+\newcommand{\nMethodsTgpp}{12}
+\newcommand{\loadTgppHigh}{0.80}
+\newcommand{\loadTgppMod}{0.65}
 \newcommand{\meanlowstaticequal}{4.45}
 \newcommand{\meanlowstaticequalLL}{1.3}
 \newcommand{\meanlowstaticequalEMBB}{7.4}
 \newcommand{\meanlowstaticequalUtil}{47.2}
+\newcommand{\meanlowstaticequalUnw}{6.0}
 \newcommand{\meanlowreactiveprop}{0.83}
 \newcommand{\meanlowreactivepropLL}{1.6}
 \newcommand{\meanlowreactivepropEMBB}{0.1}
 \newcommand{\meanlowreactivepropUtil}{50.0}
+\newcommand{\meanlowreactivepropUnw}{0.4}
 \newcommand{\meanlowmaxweight}{0.90}
 \newcommand{\meanlowmaxweightLL}{1.8}
 \newcommand{\meanlowmaxweightEMBB}{0.1}
 \newcommand{\meanlowmaxweightUtil}{50.0}
+\newcommand{\meanlowmaxweightUnw}{0.5}
 \newcommand{\meanlowqueueaware}{0.52}
 \newcommand{\meanlowqueueawareLL}{0.7}
 \newcommand{\meanlowqueueawareEMBB}{0.3}
 \newcommand{\meanlowqueueawareUtil}{50.0}
+\newcommand{\meanlowqueueawareUnw}{0.4}
 \newcommand{\meanlowpointforecast}{0.27}
 \newcommand{\meanlowpointforecastLL}{0.3}
 \newcommand{\meanlowpointforecastEMBB}{0.2}
 \newcommand{\meanlowpointforecastUtil}{50.1}
+\newcommand{\meanlowpointforecastUnw}{0.3}
 \newcommand{\meanlowfixedquantile}{0.34}
 \newcommand{\meanlowfixedquantileLL}{0.1}
 \newcommand{\meanlowfixedquantileEMBB}{0.5}
 \newcommand{\meanlowfixedquantileUtil}{50.0}
+\newcommand{\meanlowfixedquantileUnw}{0.4}
 \newcommand{\meanlowproposedwindow}{0.25}
 \newcommand{\meanlowproposedwindowLL}{0.4}
 \newcommand{\meanlowproposedwindowEMBB}{0.1}
 \newcommand{\meanlowproposedwindowUtil}{50.1}
+\newcommand{\meanlowproposedwindowUnw}{0.2}
 \newcommand{\meanlowproposed}{0.15}
 \newcommand{\meanlowproposedLL}{0.2}
 \newcommand{\meanlowproposedEMBB}{0.1}
 \newcommand{\meanlowproposedUtil}{50.1}
+\newcommand{\meanlowproposedUnw}{0.1}
 \newcommand{\meanlowproposedcal}{0.17}
 \newcommand{\meanlowproposedcalLL}{0.2}
 \newcommand{\meanlowproposedcalEMBB}{0.1}
 \newcommand{\meanlowproposedcalUtil}{50.1}
+\newcommand{\meanlowproposedcalUnw}{0.1}
 \newcommand{\meanloworacle}{0.07}
 \newcommand{\meanloworacleLL}{0.0}
 \newcommand{\meanloworacleEMBB}{0.1}
 \newcommand{\meanloworacleUtil}{50.2}
+\newcommand{\meanloworacleUnw}{0.1}
+\newcommand{\meanloworaclekkt}{0.05}
+\newcommand{\meanloworaclekktLL}{0.0}
+\newcommand{\meanloworaclekktEMBB}{0.1}
+\newcommand{\meanloworaclekktUtil}{50.2}
+\newcommand{\meanloworaclekktUnw}{0.1}
 \newcommand{\meanmoderatestaticequal}{9.65}
 \newcommand{\meanmoderatestaticequalLL}{4.8}
 \newcommand{\meanmoderatestaticequalEMBB}{14.2}
 \newcommand{\meanmoderatestaticequalUtil}{57.5}
+\newcommand{\meanmoderatestaticequalUnw}{11.9}
 \newcommand{\meanmoderatereactiveprop}{4.11}
 \newcommand{\meanmoderatereactivepropLL}{7.6}
 \newcommand{\meanmoderatereactivepropEMBB}{0.8}
 \newcommand{\meanmoderatereactivepropUtil}{63.5}
+\newcommand{\meanmoderatereactivepropUnw}{2.4}
 \newcommand{\meanmoderatemaxweight}{4.85}
 \newcommand{\meanmoderatemaxweightLL}{9.3}
 \newcommand{\meanmoderatemaxweightEMBB}{0.7}
 \newcommand{\meanmoderatemaxweightUtil}{63.3}
+\newcommand{\meanmoderatemaxweightUnw}{2.7}
 \newcommand{\meanmoderatequeueaware}{4.24}
 \newcommand{\meanmoderatequeueawareLL}{3.3}
 \newcommand{\meanmoderatequeueawareEMBB}{5.1}
 \newcommand{\meanmoderatequeueawareUtil}{62.2}
+\newcommand{\meanmoderatequeueawareUnw}{4.7}
 \newcommand{\meanmoderatepointforecast}{3.23}
 \newcommand{\meanmoderatepointforecastLL}{1.8}
 \newcommand{\meanmoderatepointforecastEMBB}{4.6}
 \newcommand{\meanmoderatepointforecastUtil}{62.7}
+\newcommand{\meanmoderatepointforecastUnw}{3.9}
 \newcommand{\meanmoderatefixedquantile}{4.35}
 \newcommand{\meanmoderatefixedquantileLL}{0.6}
 \newcommand{\meanmoderatefixedquantileEMBB}{7.9}
 \newcommand{\meanmoderatefixedquantileUtil}{61.3}
+\newcommand{\meanmoderatefixedquantileUnw}{6.1}
 \newcommand{\meanmoderateproposedwindow}{2.57}
 \newcommand{\meanmoderateproposedwindowLL}{2.0}
 \newcommand{\meanmoderateproposedwindowEMBB}{3.1}
 \newcommand{\meanmoderateproposedwindowUtil}{63.4}
+\newcommand{\meanmoderateproposedwindowUnw}{2.9}
 \newcommand{\meanmoderateproposed}{2.15}
 \newcommand{\meanmoderateproposedLL}{1.4}
 \newcommand{\meanmoderateproposedEMBB}{2.8}
 \newcommand{\meanmoderateproposedUtil}{63.6}
+\newcommand{\meanmoderateproposedUnw}{2.5}
 \newcommand{\meanmoderateproposedcal}{2.17}
 \newcommand{\meanmoderateproposedcalLL}{1.4}
 \newcommand{\meanmoderateproposedcalEMBB}{2.9}
 \newcommand{\meanmoderateproposedcalUtil}{63.6}
+\newcommand{\meanmoderateproposedcalUnw}{2.5}
 \newcommand{\meanmoderateoracle}{1.62}
 \newcommand{\meanmoderateoracleLL}{0.0}
 \newcommand{\meanmoderateoracleEMBB}{3.1}
 \newcommand{\meanmoderateoracleUtil}{63.7}
+\newcommand{\meanmoderateoracleUnw}{2.4}
+\newcommand{\meanmoderateoraclekkt}{0.88}
+\newcommand{\meanmoderateoraclekktLL}{0.0}
+\newcommand{\meanmoderateoraclekktEMBB}{1.7}
+\newcommand{\meanmoderateoraclekktUtil}{64.4}
+\newcommand{\meanmoderateoraclekktUnw}{1.3}
 \newcommand{\meanhighstaticequal}{15.46}
 \newcommand{\meanhighstaticequalLL}{9.8}
 \newcommand{\meanhighstaticequalEMBB}{20.8}
 \newcommand{\meanhighstaticequalUtil}{65.8}
+\newcommand{\meanhighstaticequalUnw}{18.2}
 \newcommand{\meanhighreactiveprop}{9.20}
 \newcommand{\meanhighreactivepropLL}{14.7}
 \newcommand{\meanhighreactivepropEMBB}{4.0}
 \newcommand{\meanhighreactivepropUtil}{74.7}
+\newcommand{\meanhighreactivepropUnw}{6.5}
 \newcommand{\meanhighmaxweight}{11.54}
 \newcommand{\meanhighmaxweightLL}{20.6}
 \newcommand{\meanhighmaxweightEMBB}{2.9}
 \newcommand{\meanhighmaxweightUtil}{74.1}
+\newcommand{\meanhighmaxweightUnw}{7.2}
 \newcommand{\meanhighqueueaware}{11.03}
 \newcommand{\meanhighqueueawareLL}{5.2}
 \newcommand{\meanhighqueueawareEMBB}{16.5}
 \newcommand{\meanhighqueueawareUtil}{69.3}
+\newcommand{\meanhighqueueawareUnw}{13.8}
 \newcommand{\meanhighpointforecast}{9.70}
 \newcommand{\meanhighpointforecastLL}{3.1}
 \newcommand{\meanhighpointforecastEMBB}{16.0}
 \newcommand{\meanhighpointforecastUtil}{70.1}
+\newcommand{\meanhighpointforecastUnw}{12.9}
 \newcommand{\meanhighfixedquantile}{11.76}
 \newcommand{\meanhighfixedquantileLL}{0.9}
 \newcommand{\meanhighfixedquantileEMBB}{22.0}
 \newcommand{\meanhighfixedquantileUtil}{67.0}
+\newcommand{\meanhighfixedquantileUnw}{17.0}
 \newcommand{\meanhighproposedwindow}{8.72}
 \newcommand{\meanhighproposedwindowLL}{3.7}
 \newcommand{\meanhighproposedwindowEMBB}{13.5}
 \newcommand{\meanhighproposedwindowUtil}{71.5}
+\newcommand{\meanhighproposedwindowUnw}{11.1}
 \newcommand{\meanhighproposed}{8.00}
 \newcommand{\meanhighproposedLL}{3.4}
 \newcommand{\meanhighproposedEMBB}{12.3}
 \newcommand{\meanhighproposedUtil}{72.2}
+\newcommand{\meanhighproposedUnw}{10.2}
 \newcommand{\meanhighproposedcal}{8.14}
 \newcommand{\meanhighproposedcalLL}{2.9}
 \newcommand{\meanhighproposedcalEMBB}{13.1}
 \newcommand{\meanhighproposedcalUtil}{71.9}
+\newcommand{\meanhighproposedcalUnw}{10.6}
 \newcommand{\meanhighoracle}{6.89}
 \newcommand{\meanhighoracleLL}{0.0}
 \newcommand{\meanhighoracleEMBB}{13.4}
 \newcommand{\meanhighoracleUtil}{72.3}
+\newcommand{\meanhighoracleUnw}{10.2}
+\newcommand{\meanhighoraclekkt}{4.77}
+\newcommand{\meanhighoraclekktLL}{0.1}
+\newcommand{\meanhighoraclekktEMBB}{9.2}
+\newcommand{\meanhighoraclekktUtil}{74.8}
+\newcommand{\meanhighoraclekktUnw}{7.0}
 \newcommand{\meanoverloadburstsstaticequal}{19.15}
 \newcommand{\meanoverloadburstsstaticequalLL}{13.4}
 \newcommand{\meanoverloadburstsstaticequalEMBB}{24.2}
 \newcommand{\meanoverloadburstsstaticequalUtil}{67.9}
+\newcommand{\meanoverloadburstsstaticequalUnw}{21.8}
 \newcommand{\meanoverloadburstsreactiveprop}{12.27}
 \newcommand{\meanoverloadburstsreactivepropLL}{17.8}
 \newcommand{\meanoverloadburstsreactivepropEMBB}{7.1}
 \newcommand{\meanoverloadburstsreactivepropUtil}{78.0}
+\newcommand{\meanoverloadburstsreactivepropUnw}{9.6}
 \newcommand{\meanoverloadburstsmaxweight}{15.24}
 \newcommand{\meanoverloadburstsmaxweightLL}{25.4}
 \newcommand{\meanoverloadburstsmaxweightEMBB}{5.8}
 \newcommand{\meanoverloadburstsmaxweightUtil}{77.0}
+\newcommand{\meanoverloadburstsmaxweightUnw}{10.4}
 \newcommand{\meanoverloadburstsqueueaware}{14.51}
 \newcommand{\meanoverloadburstsqueueawareLL}{6.2}
 \newcommand{\meanoverloadburstsqueueawareEMBB}{22.1}
 \newcommand{\meanoverloadburstsqueueawareUtil}{71.0}
+\newcommand{\meanoverloadburstsqueueawareUnw}{18.4}
 \newcommand{\meanoverloadburstspointforecast}{13.33}
 \newcommand{\meanoverloadburstspointforecastLL}{4.1}
 \newcommand{\meanoverloadburstspointforecastEMBB}{21.8}
 \newcommand{\meanoverloadburstspointforecastUtil}{71.7}
+\newcommand{\meanoverloadburstspointforecastUnw}{17.6}
 \newcommand{\meanoverloadburstsfixedquantile}{15.09}
 \newcommand{\meanoverloadburstsfixedquantileLL}{1.9}
 \newcommand{\meanoverloadburstsfixedquantileEMBB}{27.3}
 \newcommand{\meanoverloadburstsfixedquantileUtil}{68.7}
+\newcommand{\meanoverloadburstsfixedquantileUnw}{21.3}
 \newcommand{\meanoverloadburstsproposedwindow}{12.67}
 \newcommand{\meanoverloadburstsproposedwindowLL}{4.4}
 \newcommand{\meanoverloadburstsproposedwindowEMBB}{20.3}
 \newcommand{\meanoverloadburstsproposedwindowUtil}{72.6}
+\newcommand{\meanoverloadburstsproposedwindowUnw}{16.5}
 \newcommand{\meanoverloadburstsproposed}{11.76}
 \newcommand{\meanoverloadburstsproposedLL}{4.6}
 \newcommand{\meanoverloadburstsproposedEMBB}{18.3}
 \newcommand{\meanoverloadburstsproposedUtil}{73.8}
+\newcommand{\meanoverloadburstsproposedUnw}{15.1}
 \newcommand{\meanoverloadburstsproposedcal}{12.27}
 \newcommand{\meanoverloadburstsproposedcalLL}{3.6}
 \newcommand{\meanoverloadburstsproposedcalEMBB}{20.3}
 \newcommand{\meanoverloadburstsproposedcalUtil}{72.8}
+\newcommand{\meanoverloadburstsproposedcalUnw}{16.3}
 \newcommand{\meanoverloadburstsoracle}{10.16}
 \newcommand{\meanoverloadburstsoracleLL}{0.4}
 \newcommand{\meanoverloadburstsoracleEMBB}{19.1}
 \newcommand{\meanoverloadburstsoracleUtil}{74.3}
+\newcommand{\meanoverloadburstsoracleUnw}{14.7}
+\newcommand{\meanoverloadburstsoraclekkt}{8.10}
+\newcommand{\meanoverloadburstsoraclekktLL}{0.4}
+\newcommand{\meanoverloadburstsoraclekktEMBB}{15.2}
+\newcommand{\meanoverloadburstsoraclekktUtil}{76.8}
+\newcommand{\meanoverloadburstsoraclekktUnw}{11.7}
 \newcommand{\meanshiftstaticequal}{22.31}
 \newcommand{\meanshiftstaticequalLL}{19.0}
 \newcommand{\meanshiftstaticequalEMBB}{25.2}
 \newcommand{\meanshiftstaticequalUtil}{54.5}
+\newcommand{\meanshiftstaticequalUnw}{23.8}
 \newcommand{\meanshiftreactiveprop}{11.70}
 \newcommand{\meanshiftreactivepropLL}{14.4}
 \newcommand{\meanshiftreactivepropEMBB}{9.0}
 \newcommand{\meanshiftreactivepropUtil}{64.0}
+\newcommand{\meanshiftreactivepropUnw}{10.4}
 \newcommand{\meanshiftmaxweight}{12.31}
 \newcommand{\meanshiftmaxweightLL}{16.5}
 \newcommand{\meanshiftmaxweightEMBB}{8.2}
 \newcommand{\meanshiftmaxweightUtil}{64.0}
+\newcommand{\meanshiftmaxweightUnw}{10.3}
 \newcommand{\meanshiftqueueaware}{12.56}
 \newcommand{\meanshiftqueueawareLL}{10.5}
 \newcommand{\meanshiftqueueawareEMBB}{14.4}
 \newcommand{\meanshiftqueueawareUtil}{61.9}
+\newcommand{\meanshiftqueueawareUnw}{13.5}
 \newcommand{\meanshiftpointforecast}{11.30}
 \newcommand{\meanshiftpointforecastLL}{7.8}
 \newcommand{\meanshiftpointforecastEMBB}{14.6}
 \newcommand{\meanshiftpointforecastUtil}{62.3}
+\newcommand{\meanshiftpointforecastUnw}{13.0}
 \newcommand{\meanshiftfixedquantile}{12.85}
 \newcommand{\meanshiftfixedquantileLL}{5.0}
 \newcommand{\meanshiftfixedquantileEMBB}{20.2}
 \newcommand{\meanshiftfixedquantileUtil}{59.9}
+\newcommand{\meanshiftfixedquantileUnw}{16.6}
 \newcommand{\meanshiftproposedwindow}{10.22}
 \newcommand{\meanshiftproposedwindowLL}{6.1}
 \newcommand{\meanshiftproposedwindowEMBB}{14.1}
 \newcommand{\meanshiftproposedwindowUtil}{62.9}
+\newcommand{\meanshiftproposedwindowUnw}{12.2}
 \newcommand{\meanshiftproposed}{10.04}
 \newcommand{\meanshiftproposedLL}{6.6}
 \newcommand{\meanshiftproposedEMBB}{13.2}
 \newcommand{\meanshiftproposedUtil}{63.3}
+\newcommand{\meanshiftproposedUnw}{11.6}
 \newcommand{\meanshiftproposedcal}{11.12}
 \newcommand{\meanshiftproposedcalLL}{4.7}
 \newcommand{\meanshiftproposedcalEMBB}{17.2}
 \newcommand{\meanshiftproposedcalUtil}{61.5}
+\newcommand{\meanshiftproposedcalUnw}{14.2}
 \newcommand{\meanshiftoracle}{6.69}
 \newcommand{\meanshiftoracleLL}{0.9}
 \newcommand{\meanshiftoracleEMBB}{12.1}
 \newcommand{\meanshiftoracleUtil}{65.0}
+\newcommand{\meanshiftoracleUnw}{9.4}
+\newcommand{\meanshiftoraclekkt}{5.84}
+\newcommand{\meanshiftoraclekktLL}{0.9}
+\newcommand{\meanshiftoraclekktEMBB}{10.4}
+\newcommand{\meanshiftoraclekktUtil}{65.9}
+\newcommand{\meanshiftoraclekktUnw}{8.2}
+\newcommand{\meantgppmoderatestaticequal}{10.75}
+\newcommand{\meantgppmoderatestaticequalLL}{5.3}
+\newcommand{\meantgppmoderatestaticequalEMBB}{27.3}
+\newcommand{\meantgppmoderatestaticequalUtil}{36.5}
+\newcommand{\meantgppmoderatestaticequalUnw}{16.2}
+\newcommand{\meantgppmoderatereactiveprop}{12.05}
+\newcommand{\meantgppmoderatereactivepropLL}{13.3}
+\newcommand{\meantgppmoderatereactivepropEMBB}{8.8}
+\newcommand{\meantgppmoderatereactivepropUtil}{53.2}
+\newcommand{\meantgppmoderatereactivepropUnw}{10.9}
+\newcommand{\meantgppmoderatemaxweight}{17.51}
+\newcommand{\meantgppmoderatemaxweightLL}{21.6}
+\newcommand{\meantgppmoderatemaxweightEMBB}{5.4}
+\newcommand{\meantgppmoderatemaxweightUtil}{54.7}
+\newcommand{\meantgppmoderatemaxweightUnw}{13.5}
+\newcommand{\meantgppmoderatequeueaware}{8.95}
+\newcommand{\meantgppmoderatequeueawareLL}{4.7}
+\newcommand{\meantgppmoderatequeueawareEMBB}{22.2}
+\newcommand{\meantgppmoderatequeueawareUtil}{47.5}
+\newcommand{\meantgppmoderatequeueawareUnw}{13.2}
+\newcommand{\meantgppmoderatepointforecast}{6.00}
+\newcommand{\meantgppmoderatepointforecastLL}{0.9}
+\newcommand{\meantgppmoderatepointforecastEMBB}{21.6}
+\newcommand{\meantgppmoderatepointforecastUtil}{48.9}
+\newcommand{\meantgppmoderatepointforecastUnw}{11.1}
+\newcommand{\meantgppmoderatefixedquantile}{6.80}
+\newcommand{\meantgppmoderatefixedquantileLL}{0.6}
+\newcommand{\meantgppmoderatefixedquantileEMBB}{25.9}
+\newcommand{\meantgppmoderatefixedquantileUtil}{46.7}
+\newcommand{\meantgppmoderatefixedquantileUnw}{13.0}
+\newcommand{\meantgppmoderateproposedwindow}{6.18}
+\newcommand{\meantgppmoderateproposedwindowLL}{1.4}
+\newcommand{\meantgppmoderateproposedwindowEMBB}{20.8}
+\newcommand{\meantgppmoderateproposedwindowUtil}{50.0}
+\newcommand{\meantgppmoderateproposedwindowUnw}{10.9}
+\newcommand{\meantgppmoderateproposed}{5.08}
+\newcommand{\meantgppmoderateproposedLL}{1.0}
+\newcommand{\meantgppmoderateproposedEMBB}{17.7}
+\newcommand{\meantgppmoderateproposedUtil}{51.6}
+\newcommand{\meantgppmoderateproposedUnw}{9.2}
+\newcommand{\meantgppmoderateproposedcal}{5.41}
+\newcommand{\meantgppmoderateproposedcalLL}{1.0}
+\newcommand{\meantgppmoderateproposedcalEMBB}{18.9}
+\newcommand{\meantgppmoderateproposedcalUtil}{51.3}
+\newcommand{\meantgppmoderateproposedcalUnw}{9.8}
+\newcommand{\meantgppmoderateproposedtransfer}{6.99}
+\newcommand{\meantgppmoderateproposedtransferLL}{4.6}
+\newcommand{\meantgppmoderateproposedtransferEMBB}{14.6}
+\newcommand{\meantgppmoderateproposedtransferUtil}{51.7}
+\newcommand{\meantgppmoderateproposedtransferUnw}{9.4}
+\newcommand{\meantgppmoderateoracle}{4.82}
+\newcommand{\meantgppmoderateoracleLL}{0.2}
+\newcommand{\meantgppmoderateoracleEMBB}{19.0}
+\newcommand{\meantgppmoderateoracleUtil}{49.9}
+\newcommand{\meantgppmoderateoracleUnw}{9.4}
+\newcommand{\meantgppmoderateoraclekkt}{3.47}
+\newcommand{\meantgppmoderateoraclekktLL}{0.6}
+\newcommand{\meantgppmoderateoraclekktEMBB}{12.3}
+\newcommand{\meantgppmoderateoraclekktUtil}{53.4}
+\newcommand{\meantgppmoderateoraclekktUnw}{6.3}
+\newcommand{\meantgpphighstaticequal}{13.10}
+\newcommand{\meantgpphighstaticequalLL}{6.6}
+\newcommand{\meantgpphighstaticequalEMBB}{30.8}
+\newcommand{\meantgpphighstaticequalUtil}{43.6}
+\newcommand{\meantgpphighstaticequalUnw}{19.2}
+\newcommand{\meantgpphighreactiveprop}{15.94}
+\newcommand{\meantgpphighreactivepropLL}{17.0}
+\newcommand{\meantgpphighreactivepropEMBB}{13.4}
+\newcommand{\meantgpphighreactivepropUtil}{61.3}
+\newcommand{\meantgpphighreactivepropUnw}{15.0}
+\newcommand{\meantgpphighmaxweight}{25.79}
+\newcommand{\meantgpphighmaxweightLL}{32.2}
+\newcommand{\meantgpphighmaxweightEMBB}{8.3}
+\newcommand{\meantgpphighmaxweightUtil}{64.6}
+\newcommand{\meantgpphighmaxweightUnw}{19.7}
+\newcommand{\meantgpphighqueueaware}{11.53}
+\newcommand{\meantgpphighqueueawareLL}{4.2}
+\newcommand{\meantgpphighqueueawareEMBB}{31.7}
+\newcommand{\meantgpphighqueueawareUtil}{53.0}
+\newcommand{\meantgpphighqueueawareUnw}{18.5}
+\newcommand{\meantgpphighpointforecast}{8.98}
+\newcommand{\meantgpphighpointforecastLL}{1.0}
+\newcommand{\meantgpphighpointforecastEMBB}{31.1}
+\newcommand{\meantgpphighpointforecastUtil}{54.4}
+\newcommand{\meantgpphighpointforecastUnw}{16.6}
+\newcommand{\meantgpphighfixedquantile}{9.88}
+\newcommand{\meantgpphighfixedquantileLL}{0.6}
+\newcommand{\meantgpphighfixedquantileEMBB}{35.5}
+\newcommand{\meantgpphighfixedquantileUtil}{51.8}
+\newcommand{\meantgpphighfixedquantileUnw}{18.7}
+\newcommand{\meantgpphighproposedwindow}{9.01}
+\newcommand{\meantgpphighproposedwindowLL}{1.6}
+\newcommand{\meantgpphighproposedwindowEMBB}{29.5}
+\newcommand{\meantgpphighproposedwindowUtil}{56.1}
+\newcommand{\meantgpphighproposedwindowUnw}{16.0}
+\newcommand{\meantgpphighproposed}{8.01}
+\newcommand{\meantgpphighproposedLL}{1.3}
+\newcommand{\meantgpphighproposedEMBB}{26.6}
+\newcommand{\meantgpphighproposedUtil}{57.8}
+\newcommand{\meantgpphighproposedUnw}{14.4}
+\newcommand{\meantgpphighproposedcal}{8.27}
+\newcommand{\meantgpphighproposedcalLL}{1.1}
+\newcommand{\meantgpphighproposedcalEMBB}{28.1}
+\newcommand{\meantgpphighproposedcalUtil}{57.3}
+\newcommand{\meantgpphighproposedcalUnw}{15.1}
+\newcommand{\meantgpphighproposedtransfer}{9.89}
+\newcommand{\meantgpphighproposedtransferLL}{5.3}
+\newcommand{\meantgpphighproposedtransferEMBB}{22.7}
+\newcommand{\meantgpphighproposedtransferUtil}{58.5}
+\newcommand{\meantgpphighproposedtransferUnw}{14.3}
+\newcommand{\meantgpphighoracle}{7.85}
+\newcommand{\meantgpphighoracleLL}{0.2}
+\newcommand{\meantgpphighoracleEMBB}{28.9}
+\newcommand{\meantgpphighoracleUtil}{55.2}
+\newcommand{\meantgpphighoracleUnw}{15.1}
+\newcommand{\meantgpphighoraclekkt}{6.06}
+\newcommand{\meantgpphighoraclekktLL}{0.7}
+\newcommand{\meantgpphighoraclekktEMBB}{20.9}
+\newcommand{\meantgpphighoraclekktUtil}{59.8}
+\newcommand{\meantgpphighoraclekktUnw}{11.1}
+\newcommand{\unwBestCount}{1}
+\newcommand{\unwSecond}{MaxWeight (drift)}
+\newcommand{\unwhighstaticequal}{44}
+\newcommand{\unwhighstaticequalWins}{20/20}
+\newcommand{\unwhighstaticequalP}{0.000}
+\newcommand{\unwhighreactiveprop}{-56}
+\newcommand{\unwhighreactivepropWins}{0/20}
+\newcommand{\unwhighreactivepropP}{0.000}
+\newcommand{\unwhighmaxweight}{-42}
+\newcommand{\unwhighmaxweightWins}{0/20}
+\newcommand{\unwhighmaxweightP}{0.000}
+\newcommand{\unwhighqueueaware}{26}
+\newcommand{\unwhighqueueawareWins}{20/20}
+\newcommand{\unwhighqueueawareP}{0.000}
+\newcommand{\unwhighpointforecast}{21}
+\newcommand{\unwhighpointforecastWins}{20/20}
+\newcommand{\unwhighpointforecastP}{0.000}
+\newcommand{\unwhighfixedquantile}{40}
+\newcommand{\unwhighfixedquantileWins}{20/20}
+\newcommand{\unwhighfixedquantileP}{0.000}
+\newcommand{\unwhighproposedwindow}{8}
+\newcommand{\unwhighproposedwindowWins}{20/20}
+\newcommand{\unwhighproposedwindowP}{0.000}
+\newcommand{\unwhighproposedcal}{4}
+\newcommand{\unwhighproposedcalWins}{20/20}
+\newcommand{\unwhighproposedcalP}{0.000}
+\newcommand{\unwhighoracle}{-0}
+\newcommand{\unwhighoracleWins}{10/20}
+\newcommand{\unwhighoracleP}{0.701}
+\newcommand{\unwhighoraclekkt}{-45}
+\newcommand{\unwhighoraclekktWins}{0/20}
+\newcommand{\unwhighoraclekktP}{0.000}
+\newcommand{\unwlowstaticequal}{98}
+\newcommand{\unwlowstaticequalWins}{20/20}
+\newcommand{\unwlowstaticequalP}{0.000}
+\newcommand{\unwlowreactiveprop}{68}
+\newcommand{\unwlowreactivepropWins}{19/20}
+\newcommand{\unwlowreactivepropP}{0.000}
+\newcommand{\unwlowmaxweight}{70}
+\newcommand{\unwlowmaxweightWins}{19/20}
+\newcommand{\unwlowmaxweightP}{0.000}
+\newcommand{\unwlowqueueaware}{65}
+\newcommand{\unwlowqueueawareWins}{20/20}
+\newcommand{\unwlowqueueawareP}{0.000}
+\newcommand{\unwlowpointforecast}{44}
+\newcommand{\unwlowpointforecastWins}{20/20}
+\newcommand{\unwlowpointforecastP}{0.000}
+\newcommand{\unwlowfixedquantile}{67}
+\newcommand{\unwlowfixedquantileWins}{20/20}
+\newcommand{\unwlowfixedquantileP}{0.000}
+\newcommand{\unwlowproposedwindow}{24}
+\newcommand{\unwlowproposedwindowWins}{20/20}
+\newcommand{\unwlowproposedwindowP}{0.000}
+\newcommand{\unwlowproposedcal}{3}
+\newcommand{\unwlowproposedcalWins}{15/20}
+\newcommand{\unwlowproposedcalP}{0.030}
+\newcommand{\unwloworacle}{-44}
+\newcommand{\unwloworacleWins}{1/20}
+\newcommand{\unwloworacleP}{0.000}
+\newcommand{\unwloworaclekkt}{-112}
+\newcommand{\unwloworaclekktWins}{0/20}
+\newcommand{\unwloworaclekktP}{0.000}
+\newcommand{\unwmoderatestaticequal}{79}
+\newcommand{\unwmoderatestaticequalWins}{20/20}
+\newcommand{\unwmoderatestaticequalP}{0.000}
+\newcommand{\unwmoderatereactiveprop}{-2}
+\newcommand{\unwmoderatereactivepropWins}{8/20}
+\newcommand{\unwmoderatereactivepropP}{0.546}
+\newcommand{\unwmoderatemaxweight}{8}
+\newcommand{\unwmoderatemaxweightWins}{16/20}
+\newcommand{\unwmoderatemaxweightP}{0.058}
+\newcommand{\unwmoderatequeueaware}{47}
+\newcommand{\unwmoderatequeueawareWins}{20/20}
+\newcommand{\unwmoderatequeueawareP}{0.000}
+\newcommand{\unwmoderatepointforecast}{36}
+\newcommand{\unwmoderatepointforecastWins}{20/20}
+\newcommand{\unwmoderatepointforecastP}{0.000}
+\newcommand{\unwmoderatefixedquantile}{59}
+\newcommand{\unwmoderatefixedquantileWins}{20/20}
+\newcommand{\unwmoderatefixedquantileP}{0.000}
+\newcommand{\unwmoderateproposedwindow}{12}
+\newcommand{\unwmoderateproposedwindowWins}{20/20}
+\newcommand{\unwmoderateproposedwindowP}{0.000}
+\newcommand{\unwmoderateproposedcal}{1}
+\newcommand{\unwmoderateproposedcalWins}{12/20}
+\newcommand{\unwmoderateproposedcalP}{0.195}
+\newcommand{\unwmoderateoracle}{-5}
+\newcommand{\unwmoderateoracleWins}{4/20}
+\newcommand{\unwmoderateoracleP}{0.043}
+\newcommand{\unwmoderateoraclekkt}{-94}
+\newcommand{\unwmoderateoraclekktWins}{0/20}
+\newcommand{\unwmoderateoraclekktP}{0.000}
+\newcommand{\unwoverloadburstsstaticequal}{31}
+\newcommand{\unwoverloadburstsstaticequalWins}{20/20}
+\newcommand{\unwoverloadburstsstaticequalP}{0.000}
+\newcommand{\unwoverloadburstsreactiveprop}{-56}
+\newcommand{\unwoverloadburstsreactivepropWins}{0/20}
+\newcommand{\unwoverloadburstsreactivepropP}{0.000}
+\newcommand{\unwoverloadburstsmaxweight}{-44}
+\newcommand{\unwoverloadburstsmaxweightWins}{0/20}
+\newcommand{\unwoverloadburstsmaxweightP}{0.000}
+\newcommand{\unwoverloadburstsqueueaware}{18}
+\newcommand{\unwoverloadburstsqueueawareWins}{20/20}
+\newcommand{\unwoverloadburstsqueueawareP}{0.000}
+\newcommand{\unwoverloadburstspointforecast}{14}
+\newcommand{\unwoverloadburstspointforecastWins}{20/20}
+\newcommand{\unwoverloadburstspointforecastP}{0.000}
+\newcommand{\unwoverloadburstsfixedquantile}{29}
+\newcommand{\unwoverloadburstsfixedquantileWins}{20/20}
+\newcommand{\unwoverloadburstsfixedquantileP}{0.000}
+\newcommand{\unwoverloadburstsproposedwindow}{9}
+\newcommand{\unwoverloadburstsproposedwindowWins}{20/20}
+\newcommand{\unwoverloadburstsproposedwindowP}{0.000}
+\newcommand{\unwoverloadburstsproposedcal}{8}
+\newcommand{\unwoverloadburstsproposedcalWins}{20/20}
+\newcommand{\unwoverloadburstsproposedcalP}{0.000}
+\newcommand{\unwoverloadburstsoracle}{-2}
+\newcommand{\unwoverloadburstsoracleWins}{2/20}
+\newcommand{\unwoverloadburstsoracleP}{0.000}
+\newcommand{\unwoverloadburstsoraclekkt}{-29}
+\newcommand{\unwoverloadburstsoraclekktWins}{0/20}
+\newcommand{\unwoverloadburstsoraclekktP}{0.000}
+\newcommand{\unwshiftstaticequal}{51}
+\newcommand{\unwshiftstaticequalWins}{20/20}
+\newcommand{\unwshiftstaticequalP}{0.000}
+\newcommand{\unwshiftreactiveprop}{-12}
+\newcommand{\unwshiftreactivepropWins}{2/20}
+\newcommand{\unwshiftreactivepropP}{0.000}
+\newcommand{\unwshiftmaxweight}{-13}
+\newcommand{\unwshiftmaxweightWins}{2/20}
+\newcommand{\unwshiftmaxweightP}{0.000}
+\newcommand{\unwshiftqueueaware}{14}
+\newcommand{\unwshiftqueueawareWins}{20/20}
+\newcommand{\unwshiftqueueawareP}{0.000}
+\newcommand{\unwshiftpointforecast}{10}
+\newcommand{\unwshiftpointforecastWins}{20/20}
+\newcommand{\unwshiftpointforecastP}{0.000}
+\newcommand{\unwshiftfixedquantile}{30}
+\newcommand{\unwshiftfixedquantileWins}{20/20}
+\newcommand{\unwshiftfixedquantileP}{0.000}
+\newcommand{\unwshiftproposedwindow}{4}
+\newcommand{\unwshiftproposedwindowWins}{20/20}
+\newcommand{\unwshiftproposedwindowP}{0.000}
+\newcommand{\unwshiftproposedcal}{18}
+\newcommand{\unwshiftproposedcalWins}{20/20}
+\newcommand{\unwshiftproposedcalP}{0.000}
+\newcommand{\unwshiftoracle}{-23}
+\newcommand{\unwshiftoracleWins}{0/20}
+\newcommand{\unwshiftoracleP}{0.000}
+\newcommand{\unwshiftoraclekkt}{-43}
+\newcommand{\unwshiftoraclekktWins}{0/20}
+\newcommand{\unwshiftoraclekktP}{0.000}
+\newcommand{\unwtgpphighstaticequal}{25}
+\newcommand{\unwtgpphighstaticequalWins}{20/20}
+\newcommand{\unwtgpphighstaticequalP}{0.000}
+\newcommand{\unwtgpphighreactiveprop}{4}
+\newcommand{\unwtgpphighreactivepropWins}{11/20}
+\newcommand{\unwtgpphighreactivepropP}{0.246}
+\newcommand{\unwtgpphighmaxweight}{27}
+\newcommand{\unwtgpphighmaxweightWins}{20/20}
+\newcommand{\unwtgpphighmaxweightP}{0.000}
+\newcommand{\unwtgpphighqueueaware}{22}
+\newcommand{\unwtgpphighqueueawareWins}{20/20}
+\newcommand{\unwtgpphighqueueawareP}{0.000}
+\newcommand{\unwtgpphighpointforecast}{13}
+\newcommand{\unwtgpphighpointforecastWins}{20/20}
+\newcommand{\unwtgpphighpointforecastP}{0.000}
+\newcommand{\unwtgpphighfixedquantile}{23}
+\newcommand{\unwtgpphighfixedquantileWins}{20/20}
+\newcommand{\unwtgpphighfixedquantileP}{0.000}
+\newcommand{\unwtgpphighproposedwindow}{10}
+\newcommand{\unwtgpphighproposedwindowWins}{20/20}
+\newcommand{\unwtgpphighproposedwindowP}{0.000}
+\newcommand{\unwtgpphighproposedcal}{4}
+\newcommand{\unwtgpphighproposedcalWins}{19/20}
+\newcommand{\unwtgpphighproposedcalP}{0.000}
+\newcommand{\unwtgpphighproposedtransfer}{-1}
+\newcommand{\unwtgpphighproposedtransferWins}{9/20}
+\newcommand{\unwtgpphighproposedtransferP}{0.388}
+\newcommand{\unwtgpphighoracle}{5}
+\newcommand{\unwtgpphighoracleWins}{20/20}
+\newcommand{\unwtgpphighoracleP}{0.000}
+\newcommand{\unwtgpphighoraclekkt}{-29}
+\newcommand{\unwtgpphighoraclekktWins}{0/20}
+\newcommand{\unwtgpphighoraclekktP}{0.000}
+\newcommand{\unwtgppmoderatestaticequal}{43}
+\newcommand{\unwtgppmoderatestaticequalWins}{20/20}
+\newcommand{\unwtgppmoderatestaticequalP}{0.000}
+\newcommand{\unwtgppmoderatereactiveprop}{16}
+\newcommand{\unwtgppmoderatereactivepropWins}{19/20}
+\newcommand{\unwtgppmoderatereactivepropP}{0.000}
+\newcommand{\unwtgppmoderatemaxweight}{32}
+\newcommand{\unwtgppmoderatemaxweightWins}{20/20}
+\newcommand{\unwtgppmoderatemaxweightP}{0.000}
+\newcommand{\unwtgppmoderatequeueaware}{31}
+\newcommand{\unwtgppmoderatequeueawareWins}{20/20}
+\newcommand{\unwtgppmoderatequeueawareP}{0.000}
+\newcommand{\unwtgppmoderatepointforecast}{17}
+\newcommand{\unwtgppmoderatepointforecastWins}{20/20}
+\newcommand{\unwtgppmoderatepointforecastP}{0.000}
+\newcommand{\unwtgppmoderatefixedquantile}{30}
+\newcommand{\unwtgppmoderatefixedquantileWins}{20/20}
+\newcommand{\unwtgppmoderatefixedquantileP}{0.000}
+\newcommand{\unwtgppmoderateproposedwindow}{16}
+\newcommand{\unwtgppmoderateproposedwindowWins}{20/20}
+\newcommand{\unwtgppmoderateproposedwindowP}{0.000}
+\newcommand{\unwtgppmoderateproposedcal}{6}
+\newcommand{\unwtgppmoderateproposedcalWins}{19/20}
+\newcommand{\unwtgppmoderateproposedcalP}{0.000}
+\newcommand{\unwtgppmoderateproposedtransfer}{3}
+\newcommand{\unwtgppmoderateproposedtransferWins}{14/20}
+\newcommand{\unwtgppmoderateproposedtransferP}{0.090}
+\newcommand{\unwtgppmoderateoracle}{3}
+\newcommand{\unwtgppmoderateoracleWins}{16/20}
+\newcommand{\unwtgppmoderateoracleP}{0.001}
+\newcommand{\unwtgppmoderateoraclekkt}{-45}
+\newcommand{\unwtgppmoderateoraclekktWins}{0/20}
+\newcommand{\unwtgppmoderateoraclekktP}{0.000}
+\newcommand{\gapKKTlow}{70}
+\newcommand{\gapKKTmoderate}{59}
+\newcommand{\gapKKThigh}{40}
+\newcommand{\gapKKToverloadbursts}{31}
+\newcommand{\gapKKTshift}{42}
+\newcommand{\gapKKTtgppmoderate}{32}
+\newcommand{\gapKKTtgpphigh}{24}
 \newcommand{\redhighstaticequal}{48}
 \newcommand{\redhighstaticequalWins}{20/20}
 \newcommand{\redhighstaticequalP}{0.000}
@@ -251,6 +674,10 @@
 \newcommand{\redhighoracleWins}{0/20}
 \newcommand{\redhighoracleP}{0.000}
 \newcommand{\redhighoracleCI}{[-18, -14]}
+\newcommand{\redhighoraclekkt}{-68}
+\newcommand{\redhighoraclekktWins}{0/20}
+\newcommand{\redhighoraclekktP}{0.000}
+\newcommand{\redhighoraclekktCI}{[-74, -62]}
 \newcommand{\redlowstaticequal}{97}
 \newcommand{\redlowstaticequalWins}{20/20}
 \newcommand{\redlowstaticequalP}{0.000}
@@ -286,7 +713,11 @@
 \newcommand{\redloworacle}{-130}
 \newcommand{\redloworacleWins}{0/20}
 \newcommand{\redloworacleP}{0.000}
-\newcommand{\redloworacleCI}{[-288, -78]}
+\newcommand{\redloworacleCI}{[-287, -79]}
+\newcommand{\redloworaclekkt}{-237}
+\newcommand{\redloworaclekktWins}{0/20}
+\newcommand{\redloworaclekktP}{0.000}
+\newcommand{\redloworaclekktCI}{[-751, -134]}
 \newcommand{\redmoderatestaticequal}{78}
 \newcommand{\redmoderatestaticequalWins}{20/20}
 \newcommand{\redmoderatestaticequalP}{0.000}
@@ -323,14 +754,18 @@
 \newcommand{\redmoderateoracleWins}{0/20}
 \newcommand{\redmoderateoracleP}{0.000}
 \newcommand{\redmoderateoracleCI}{[-39, -28]}
+\newcommand{\redmoderateoraclekkt}{-145}
+\newcommand{\redmoderateoraclekktWins}{0/20}
+\newcommand{\redmoderateoraclekktP}{0.000}
+\newcommand{\redmoderateoraclekktCI}{[-172, -123]}
 \newcommand{\redoverloadburstsstaticequal}{39}
 \newcommand{\redoverloadburstsstaticequalWins}{20/20}
 \newcommand{\redoverloadburstsstaticequalP}{0.000}
-\newcommand{\redoverloadburstsstaticequalCI}{[35, 43]}
+\newcommand{\redoverloadburstsstaticequalCI}{[34, 43]}
 \newcommand{\redoverloadburstsreactiveprop}{4}
 \newcommand{\redoverloadburstsreactivepropWins}{16/20}
 \newcommand{\redoverloadburstsreactivepropP}{0.033}
-\newcommand{\redoverloadburstsreactivepropCI}{[1, 8]}
+\newcommand{\redoverloadburstsreactivepropCI}{[0, 8]}
 \newcommand{\redoverloadburstsmaxweight}{23}
 \newcommand{\redoverloadburstsmaxweightWins}{20/20}
 \newcommand{\redoverloadburstsmaxweightP}{0.000}
@@ -342,7 +777,7 @@
 \newcommand{\redoverloadburstspointforecast}{12}
 \newcommand{\redoverloadburstspointforecastWins}{20/20}
 \newcommand{\redoverloadburstspointforecastP}{0.000}
-\newcommand{\redoverloadburstspointforecastCI}{[10, 13]}
+\newcommand{\redoverloadburstspointforecastCI}{[11, 13]}
 \newcommand{\redoverloadburstsfixedquantile}{22}
 \newcommand{\redoverloadburstsfixedquantileWins}{20/20}
 \newcommand{\redoverloadburstsfixedquantileP}{0.000}
@@ -359,6 +794,10 @@
 \newcommand{\redoverloadburstsoracleWins}{0/20}
 \newcommand{\redoverloadburstsoracleP}{0.000}
 \newcommand{\redoverloadburstsoracleCI}{[-18, -14]}
+\newcommand{\redoverloadburstsoraclekkt}{-45}
+\newcommand{\redoverloadburstsoraclekktWins}{0/20}
+\newcommand{\redoverloadburstsoraclekktP}{0.000}
+\newcommand{\redoverloadburstsoraclekktCI}{[-51, -40]}
 \newcommand{\redshiftstaticequal}{55}
 \newcommand{\redshiftstaticequalWins}{20/20}
 \newcommand{\redshiftstaticequalP}{0.000}
@@ -395,6 +834,98 @@
 \newcommand{\redshiftoracleWins}{0/20}
 \newcommand{\redshiftoracleP}{0.000}
 \newcommand{\redshiftoracleCI}{[-58, -43]}
+\newcommand{\redshiftoraclekkt}{-72}
+\newcommand{\redshiftoraclekktWins}{0/20}
+\newcommand{\redshiftoraclekktP}{0.000}
+\newcommand{\redshiftoraclekktCI}{[-83, -62]}
+\newcommand{\redtgpphighstaticequal}{39}
+\newcommand{\redtgpphighstaticequalWins}{20/20}
+\newcommand{\redtgpphighstaticequalP}{0.000}
+\newcommand{\redtgpphighstaticequalCI}{[36, 42]}
+\newcommand{\redtgpphighreactiveprop}{50}
+\newcommand{\redtgpphighreactivepropWins}{20/20}
+\newcommand{\redtgpphighreactivepropP}{0.000}
+\newcommand{\redtgpphighreactivepropCI}{[47, 52]}
+\newcommand{\redtgpphighmaxweight}{69}
+\newcommand{\redtgpphighmaxweightWins}{20/20}
+\newcommand{\redtgpphighmaxweightP}{0.000}
+\newcommand{\redtgpphighmaxweightCI}{[67, 71]}
+\newcommand{\redtgpphighqueueaware}{31}
+\newcommand{\redtgpphighqueueawareWins}{20/20}
+\newcommand{\redtgpphighqueueawareP}{0.000}
+\newcommand{\redtgpphighqueueawareCI}{[28, 33]}
+\newcommand{\redtgpphighpointforecast}{11}
+\newcommand{\redtgpphighpointforecastWins}{20/20}
+\newcommand{\redtgpphighpointforecastP}{0.000}
+\newcommand{\redtgpphighpointforecastCI}{[10, 12]}
+\newcommand{\redtgpphighfixedquantile}{19}
+\newcommand{\redtgpphighfixedquantileWins}{20/20}
+\newcommand{\redtgpphighfixedquantileP}{0.000}
+\newcommand{\redtgpphighfixedquantileCI}{[18, 20]}
+\newcommand{\redtgpphighproposedwindow}{11}
+\newcommand{\redtgpphighproposedwindowWins}{20/20}
+\newcommand{\redtgpphighproposedwindowP}{0.000}
+\newcommand{\redtgpphighproposedwindowCI}{[10, 12]}
+\newcommand{\redtgpphighproposedcal}{3}
+\newcommand{\redtgpphighproposedcalWins}{19/20}
+\newcommand{\redtgpphighproposedcalP}{0.000}
+\newcommand{\redtgpphighproposedcalCI}{[2, 4]}
+\newcommand{\redtgpphighproposedtransfer}{19}
+\newcommand{\redtgpphighproposedtransferWins}{20/20}
+\newcommand{\redtgpphighproposedtransferP}{0.000}
+\newcommand{\redtgpphighproposedtransferCI}{[16, 22]}
+\newcommand{\redtgpphighoracle}{-2}
+\newcommand{\redtgpphighoracleWins}{5/20}
+\newcommand{\redtgpphighoracleP}{0.027}
+\newcommand{\redtgpphighoracleCI}{[-4, -0]}
+\newcommand{\redtgpphighoraclekkt}{-32}
+\newcommand{\redtgpphighoraclekktWins}{0/20}
+\newcommand{\redtgpphighoraclekktP}{0.000}
+\newcommand{\redtgpphighoraclekktCI}{[-34, -31]}
+\newcommand{\redtgppmoderatestaticequal}{53}
+\newcommand{\redtgppmoderatestaticequalWins}{20/20}
+\newcommand{\redtgppmoderatestaticequalP}{0.000}
+\newcommand{\redtgppmoderatestaticequalCI}{[51, 54]}
+\newcommand{\redtgppmoderatereactiveprop}{58}
+\newcommand{\redtgppmoderatereactivepropWins}{20/20}
+\newcommand{\redtgppmoderatereactivepropP}{0.000}
+\newcommand{\redtgppmoderatereactivepropCI}{[55, 60]}
+\newcommand{\redtgppmoderatemaxweight}{71}
+\newcommand{\redtgppmoderatemaxweightWins}{20/20}
+\newcommand{\redtgppmoderatemaxweightP}{0.000}
+\newcommand{\redtgppmoderatemaxweightCI}{[69, 73]}
+\newcommand{\redtgppmoderatequeueaware}{43}
+\newcommand{\redtgppmoderatequeueawareWins}{20/20}
+\newcommand{\redtgppmoderatequeueawareP}{0.000}
+\newcommand{\redtgppmoderatequeueawareCI}{[40, 46]}
+\newcommand{\redtgppmoderatepointforecast}{15}
+\newcommand{\redtgppmoderatepointforecastWins}{20/20}
+\newcommand{\redtgppmoderatepointforecastP}{0.000}
+\newcommand{\redtgppmoderatepointforecastCI}{[14, 16]}
+\newcommand{\redtgppmoderatefixedquantile}{25}
+\newcommand{\redtgppmoderatefixedquantileWins}{20/20}
+\newcommand{\redtgppmoderatefixedquantileP}{0.000}
+\newcommand{\redtgppmoderatefixedquantileCI}{[24, 27]}
+\newcommand{\redtgppmoderateproposedwindow}{18}
+\newcommand{\redtgppmoderateproposedwindowWins}{20/20}
+\newcommand{\redtgppmoderateproposedwindowP}{0.000}
+\newcommand{\redtgppmoderateproposedwindowCI}{[17, 19]}
+\newcommand{\redtgppmoderateproposedcal}{6}
+\newcommand{\redtgppmoderateproposedcalWins}{20/20}
+\newcommand{\redtgppmoderateproposedcalP}{0.000}
+\newcommand{\redtgppmoderateproposedcalCI}{[4, 8]}
+\newcommand{\redtgppmoderateproposedtransfer}{27}
+\newcommand{\redtgppmoderateproposedtransferWins}{20/20}
+\newcommand{\redtgppmoderateproposedtransferP}{0.000}
+\newcommand{\redtgppmoderateproposedtransferCI}{[24, 30]}
+\newcommand{\redtgppmoderateoracle}{-5}
+\newcommand{\redtgppmoderateoracleWins}{3/20}
+\newcommand{\redtgppmoderateoracleP}{0.000}
+\newcommand{\redtgppmoderateoracleCI}{[-7, -4]}
+\newcommand{\redtgppmoderateoraclekkt}{-46}
+\newcommand{\redtgppmoderateoraclekktWins}{0/20}
+\newcommand{\redtgppmoderateoraclekktP}{0.000}
+\newcommand{\redtgppmoderateoraclekktCI}{[-50, -44]}
 \newcommand{\redPFmin}{11}
 \newcommand{\redPFmax}{43}
 \newcommand{\redQAmin}{19}
@@ -403,25 +934,55 @@
 \newcommand{\dtreactiveprop}{0.04}
 \newcommand{\dtmaxweight}{0.05}
 \newcommand{\dtqueueaware}{0.09}
-\newcommand{\dtpointforecast}{2.50}
-\newcommand{\dtfixedquantile}{2.50}
-\newcommand{\dtproposedwindow}{2.24}
-\newcommand{\dtproposed}{3.46}
-\newcommand{\dtproposedcal}{3.48}
+\newcommand{\dtpointforecast}{2.16}
+\newcommand{\dtfixedquantile}{2.16}
+\newcommand{\dtproposedwindow}{2.26}
+\newcommand{\dtproposed}{3.16}
+\newcommand{\dtproposedcal}{3.19}
+\newcommand{\dtproposedtransfer}{3.17}
 \newcommand{\dtoracle}{0.09}
+\newcommand{\dtoraclekkt}{0.10}
 \newcommand{\nSeedsSweep}{10}
-\newcommand{\sweepTfourqueueaware}{+61}
-\newcommand{\sweepTfourreactiveprop}{+22}
-\newcommand{\sweepTfouroracle}{+55}
-\newcommand{\sweepTonezeroqueueaware}{+50}
-\newcommand{\sweepTonezeroreactiveprop}{+32}
-\newcommand{\sweepTonezerooracle}{+16}
-\newcommand{\sweepTtwozeroqueueaware}{+28}
-\newcommand{\sweepTtwozeroreactiveprop}{+13}
+\newcommand{\sweepTfourqueueaware}{61}
+\newcommand{\sweepTfourreactiveprop}{22}
+\newcommand{\sweepTfouroracle}{55}
+\newcommand{\sweepTfouroraclekkt}{-61}
+\newcommand{\sweepTfourreactivepropAbs}{3.91}
+\newcommand{\sweepTfourqueueawareAbs}{7.89}
+\newcommand{\sweepTfourpointforecastAbs}{6.57}
+\newcommand{\sweepTfourproposedAbs}{3.07}
+\newcommand{\sweepTfouroracleAbs}{6.89}
+\newcommand{\sweepTfouroraclekktAbs}{1.91}
+\newcommand{\sweepTonezeroqueueaware}{50}
+\newcommand{\sweepTonezeroreactiveprop}{32}
+\newcommand{\sweepTonezerooracle}{16}
+\newcommand{\sweepTonezerooraclekkt}{-85}
+\newcommand{\sweepTonezeroreactivepropAbs}{7.42}
+\newcommand{\sweepTonezeroqueueawareAbs}{10.20}
+\newcommand{\sweepTonezeropointforecastAbs}{7.53}
+\newcommand{\sweepTonezeroproposedAbs}{5.07}
+\newcommand{\sweepTonezerooracleAbs}{6.01}
+\newcommand{\sweepTonezerooraclekktAbs}{2.74}
+\newcommand{\sweepTtwozeroqueueaware}{28}
+\newcommand{\sweepTtwozeroreactiveprop}{13}
 \newcommand{\sweepTtwozerooracle}{-16}
-\newcommand{\sweepTfourzeroqueueaware}{+17}
+\newcommand{\sweepTtwozerooraclekkt}{-71}
+\newcommand{\sweepTtwozeroreactivepropAbs}{8.91}
+\newcommand{\sweepTtwozeroqueueawareAbs}{10.78}
+\newcommand{\sweepTtwozeropointforecastAbs}{9.46}
+\newcommand{\sweepTtwozeroproposedAbs}{7.71}
+\newcommand{\sweepTtwozerooracleAbs}{6.63}
+\newcommand{\sweepTtwozerooraclekktAbs}{4.52}
+\newcommand{\sweepTfourzeroqueueaware}{17}
 \newcommand{\sweepTfourzeroreactiveprop}{-11}
 \newcommand{\sweepTfourzerooracle}{-21}
+\newcommand{\sweepTfourzerooraclekkt}{-62}
+\newcommand{\sweepTfourzeroreactivepropAbs}{11.80}
+\newcommand{\sweepTfourzeroqueueawareAbs}{15.84}
+\newcommand{\sweepTfourzeropointforecastAbs}{14.08}
+\newcommand{\sweepTfourzeroproposedAbs}{13.15}
+\newcommand{\sweepTfourzerooracleAbs}{10.83}
+\newcommand{\sweepTfourzerooraclekktAbs}{8.14}
 \newcommand{\nSeedsDelay}{10}
 \newcommand{\delayTauzeroqueueaware}{31}
 \newcommand{\delayTauzeroreactiveprop}{16}
@@ -449,14 +1010,168 @@
 \newcommand{\miscshiftpointforecast}{12.42}
 \newcommand{\miscshiftqueueaware}{13.68}
 \newcommand{\nSeedsComp}{10}
+\newcommand{\nSeedsWeights}{20}
+\newcommand{\wthighWonereactiveprop}{6.55}
+\newcommand{\wthighWonereactivepropLL}{14.7}
+\newcommand{\wthighWonemaxweight}{7.38}
+\newcommand{\wthighWonemaxweightLL}{22.8}
+\newcommand{\wthighWonequeueaware}{7.75}
+\newcommand{\wthighWonequeueawareLL}{9.8}
+\newcommand{\wthighWonepointforecast}{6.77}
+\newcommand{\wthighWonepointforecastLL}{8.3}
+\newcommand{\wthighWoneproposed}{6.58}
+\newcommand{\wthighWoneproposedLL}{12.1}
+\newcommand{\wthighWoneoracle}{4.86}
+\newcommand{\wthighWoneoracleLL}{3.5}
+\newcommand{\wthighWoneoraclekkt}{4.86}
+\newcommand{\wthighWoneoraclekktLL}{3.5}
+\newcommand{\wthighWonereactivepropRed}{0}
+\newcommand{\wthighWonemaxweightRed}{11}
+\newcommand{\wthighWonequeueawareRed}{15}
+\newcommand{\wthighWonepointforecastRed}{3}
+\newcommand{\wthighWtworeactiveprop}{8.13}
+\newcommand{\wthighWtworeactivepropLL}{14.7}
+\newcommand{\wthighWtwomaxweight}{9.96}
+\newcommand{\wthighWtwomaxweightLL}{21.3}
+\newcommand{\wthighWtwoqueueaware}{10.08}
+\newcommand{\wthighWtwoqueueawareLL}{6.4}
+\newcommand{\wthighWtwopointforecast}{8.90}
+\newcommand{\wthighWtwopointforecastLL}{4.6}
+\newcommand{\wthighWtwoproposed}{8.35}
+\newcommand{\wthighWtwoproposedLL}{5.4}
+\newcommand{\wthighWtwooracle}{5.97}
+\newcommand{\wthighWtwooracleLL}{0.3}
+\newcommand{\wthighWtwooraclekkt}{5.68}
+\newcommand{\wthighWtwooraclekktLL}{0.1}
+\newcommand{\wthighWtworeactivepropRed}{-3}
+\newcommand{\wthighWtwomaxweightRed}{16}
+\newcommand{\wthighWtwoqueueawareRed}{17}
+\newcommand{\wthighWtwopointforecastRed}{6}
+\newcommand{\wthighWthreereactiveprop}{9.20}
+\newcommand{\wthighWthreereactivepropLL}{14.7}
+\newcommand{\wthighWthreemaxweight}{11.54}
+\newcommand{\wthighWthreemaxweightLL}{20.6}
+\newcommand{\wthighWthreequeueaware}{11.03}
+\newcommand{\wthighWthreequeueawareLL}{5.2}
+\newcommand{\wthighWthreepointforecast}{9.70}
+\newcommand{\wthighWthreepointforecastLL}{3.1}
+\newcommand{\wthighWthreeproposed}{8.00}
+\newcommand{\wthighWthreeproposedLL}{3.4}
+\newcommand{\wthighWthreeoracle}{6.89}
+\newcommand{\wthighWthreeoracleLL}{0.0}
+\newcommand{\wthighWthreeoraclekkt}{4.77}
+\newcommand{\wthighWthreeoraclekktLL}{0.1}
+\newcommand{\wthighWthreereactivepropRed}{13}
+\newcommand{\wthighWthreemaxweightRed}{31}
+\newcommand{\wthighWthreequeueawareRed}{27}
+\newcommand{\wthighWthreepointforecastRed}{18}
+\newcommand{\wthighWfivereactiveprop}{10.56}
+\newcommand{\wthighWfivereactivepropLL}{14.7}
+\newcommand{\wthighWfivemaxweight}{13.38}
+\newcommand{\wthighWfivemaxweightLL}{19.8}
+\newcommand{\wthighWfivequeueaware}{11.69}
+\newcommand{\wthighWfivequeueawareLL}{3.9}
+\newcommand{\wthighWfivepointforecast}{10.57}
+\newcommand{\wthighWfivepointforecastLL}{1.9}
+\newcommand{\wthighWfiveproposed}{6.93}
+\newcommand{\wthighWfiveproposedLL}{1.9}
+\newcommand{\wthighWfiveoracle}{8.29}
+\newcommand{\wthighWfiveoracleLL}{0.0}
+\newcommand{\wthighWfiveoraclekkt}{3.63}
+\newcommand{\wthighWfiveoraclekktLL}{0.1}
+\newcommand{\wthighWfivereactivepropRed}{34}
+\newcommand{\wthighWfivemaxweightRed}{48}
+\newcommand{\wthighWfivequeueawareRed}{41}
+\newcommand{\wthighWfivepointforecastRed}{34}
+\newcommand{\wttgpphighWonereactiveprop}{15.01}
+\newcommand{\wttgpphighWonereactivepropLL}{17.0}
+\newcommand{\wttgpphighWonemaxweight}{19.77}
+\newcommand{\wttgpphighWonemaxweightLL}{33.5}
+\newcommand{\wttgpphighWonequeueaware}{13.19}
+\newcommand{\wttgpphighWonequeueawareLL}{10.0}
+\newcommand{\wttgpphighWonepointforecast}{10.43}
+\newcommand{\wttgpphighWonepointforecastLL}{5.3}
+\newcommand{\wttgpphighWoneproposed}{15.92}
+\newcommand{\wttgpphighWoneproposedLL}{21.1}
+\newcommand{\wttgpphighWoneoracle}{8.78}
+\newcommand{\wttgpphighWoneoracleLL}{4.5}
+\newcommand{\wttgpphighWoneoraclekkt}{8.78}
+\newcommand{\wttgpphighWoneoraclekktLL}{4.5}
+\newcommand{\wttgpphighWonereactivepropRed}{-6}
+\newcommand{\wttgpphighWonemaxweightRed}{19}
+\newcommand{\wttgpphighWonequeueawareRed}{-21}
+\newcommand{\wttgpphighWonepointforecastRed}{-53}
+\newcommand{\wttgpphighWtworeactiveprop}{15.62}
+\newcommand{\wttgpphighWtworeactivepropLL}{17.0}
+\newcommand{\wttgpphighWtwomaxweight}{23.92}
+\newcommand{\wttgpphighWtwomaxweightLL}{32.8}
+\newcommand{\wttgpphighWtwoqueueaware}{12.50}
+\newcommand{\wttgpphighWtwoqueueawareLL}{5.4}
+\newcommand{\wttgpphighWtwopointforecast}{9.74}
+\newcommand{\wttgpphighWtwopointforecastLL}{1.6}
+\newcommand{\wttgpphighWtwoproposed}{9.74}
+\newcommand{\wttgpphighWtwoproposedLL}{1.9}
+\newcommand{\wttgpphighWtwooracle}{8.31}
+\newcommand{\wttgpphighWtwooracleLL}{0.6}
+\newcommand{\wttgpphighWtwooraclekkt}{7.78}
+\newcommand{\wttgpphighWtwooraclekktLL}{0.7}
+\newcommand{\wttgpphighWtworeactivepropRed}{38}
+\newcommand{\wttgpphighWtwomaxweightRed}{59}
+\newcommand{\wttgpphighWtwoqueueawareRed}{22}
+\newcommand{\wttgpphighWtwopointforecastRed}{0}
+\newcommand{\wttgpphighWthreereactiveprop}{15.94}
+\newcommand{\wttgpphighWthreereactivepropLL}{17.0}
+\newcommand{\wttgpphighWthreemaxweight}{25.79}
+\newcommand{\wttgpphighWthreemaxweightLL}{32.2}
+\newcommand{\wttgpphighWthreequeueaware}{11.53}
+\newcommand{\wttgpphighWthreequeueawareLL}{4.2}
+\newcommand{\wttgpphighWthreepointforecast}{8.98}
+\newcommand{\wttgpphighWthreepointforecastLL}{1.0}
+\newcommand{\wttgpphighWthreeproposed}{8.01}
+\newcommand{\wttgpphighWthreeproposedLL}{1.3}
+\newcommand{\wttgpphighWthreeoracle}{7.85}
+\newcommand{\wttgpphighWthreeoracleLL}{0.2}
+\newcommand{\wttgpphighWthreeoraclekkt}{6.06}
+\newcommand{\wttgpphighWthreeoraclekktLL}{0.7}
+\newcommand{\wttgpphighWthreereactivepropRed}{50}
+\newcommand{\wttgpphighWthreemaxweightRed}{69}
+\newcommand{\wttgpphighWthreequeueawareRed}{31}
+\newcommand{\wttgpphighWthreepointforecastRed}{11}
+\newcommand{\wttgpphighWfivereactiveprop}{16.27}
+\newcommand{\wttgpphighWfivereactivepropLL}{17.0}
+\newcommand{\wttgpphighWfivemaxweight}{27.29}
+\newcommand{\wttgpphighWfivemaxweightLL}{31.3}
+\newcommand{\wttgpphighWfivequeueaware}{9.99}
+\newcommand{\wttgpphighWfivequeueawareLL}{3.6}
+\newcommand{\wttgpphighWfivepointforecast}{7.61}
+\newcommand{\wttgpphighWfivepointforecastLL}{0.8}
+\newcommand{\wttgpphighWfiveproposed}{5.90}
+\newcommand{\wttgpphighWfiveproposedLL}{0.8}
+\newcommand{\wttgpphighWfiveoracle}{6.76}
+\newcommand{\wttgpphighWfiveoracleLL}{0.2}
+\newcommand{\wttgpphighWfiveoraclekkt}{4.31}
+\newcommand{\wttgpphighWfiveoraclekktLL}{0.7}
+\newcommand{\wttgpphighWfivereactivepropRed}{64}
+\newcommand{\wttgpphighWfivemaxweightRed}{78}
+\newcommand{\wttgpphighWfivequeueawareRed}{41}
+\newcommand{\wttgpphighWfivepointforecastRed}{22}
 \newcommand{\fixedQuantileLevel}{0.75}
 \newcommand{\maxweightParams}{margin 0, head-of-line-age weight 1}
+\newcommand{\fixedQuantileLevelTgpp}{0.75}
 \newcommand{\covFive}{5.6}
 \newcommand{\covFifty}{50.7}
+\newcommand{\covNinety}{89.9}
 \newcommand{\covNinetyFive}{94.9}
 \newcommand{\maeGBM}{37}
 \newcommand{\maePersist}{52}
 \newcommand{\nTrainRows}{101,248}
+\newcommand{\covFiveTgpp}{33.9}
+\newcommand{\covFiftyTgpp}{56.8}
+\newcommand{\covNinetyTgpp}{90.7}
+\newcommand{\covNinetyFiveTgpp}{98.1}
+\newcommand{\maeGBMTgpp}{24}
+\newcommand{\maePersistTgpp}{39}
+\newcommand{\nTrainRowsTgpp}{101,248}
 % ---- end generated/macros ----
 
 \newtheorem{proposition}{Proposition}
@@ -488,7 +1203,7 @@ email@institute.edu}
 \maketitle
 
 \begin{abstract}
-In the Open RAN 7-2x functional split, several radio units share one packet-switched fronthaul link whose capacity is deliberately smaller than the sum of their peak rates. A controller in the distributed unit must therefore decide, once per control interval and before the traffic of that interval is known, how much link capacity each cell may use. Cells differ in deadline and priority, and bits that wait in the distributed unit longer than their deadline are useless. We formulate this budget allocation as a constrained multi-item newsvendor problem whose random demand is the deadline-feasible rate of each cell, that is, the smallest constant service rate at which no bit of the coming interval misses its deadline. A gradient-boosted quantile forecaster provides a predictive distribution of this rate, and the Karush-Kuhn-Tucker conditions yield a closed-form allocation in which every cell is cut at the same priority-weighted tail probability, so that safety margins are derived per cell from forecast uncertainty instead of being tuned globally. We prove feasibility, the equal-risk property, backlog priority, and a linear robustness bound with respect to forecast miscalibration. On a slot-level simulator with twenty held-out seeds and five traffic scenarios including a distribution shift never seen in training or tuning, the proposed rule reduces the priority-weighted deadline-violation ratio by \redPFmin{} to \redPFmax{} percent compared with the same controller driven by the forecast median, and by \redQAmin{} to \redQAmax{} percent compared with a tuned deadline-aware reactive controller, with Holm-corrected Wilcoxon significance. It also outperforms a MaxWeight drift-minimising controller and a tuned global-quantile controller. We report where the method does not help: long control intervals, sustained overload, and per-stream conformal calibration, which degrades the coupled allocation. A final experiment varies the block-floating-point compression width and shows that compression selects the load regime while allocation determines the loss within it.
+In the Open RAN 7-2x functional split several radio units share one packet-switched fronthaul link whose capacity is smaller than the sum of their peak rates, and a controller in the distributed unit must decide, once per control interval and before the traffic of that interval is known, how much of the link each cell may use. We formulate this budget allocation as a constrained multi-item newsvendor problem whose random demand is the \emph{deadline-feasible rate} of each cell, the smallest constant service rate at which no bit of the coming interval misses its deadline. A gradient-boosted quantile forecaster provides a predictive distribution of this rate and the KKT conditions give a closed-form allocation in which every cell is cut at the same priority-weighted tail probability, so that safety margins follow from forecast uncertainty instead of being tuned globally. We prove feasibility, equal weighted risk, backlog priority and a linear robustness bound with respect to forecast miscalibration. The evaluation uses two independent traffic families on a slot-level simulator: a hand-designed bursty family with a held-out distribution shift, and a standards-based family built from the 3GPP TR~38.901 urban-macro channel, TS~38.214 link adaptation, FTP and XR traffic models, in which fronthaul demand is the output of a PRB scheduler. On \nSeeds{} held-out seeds per scenario the proposed rule is the best implementable controller for the priority-weighted violation ratio in every scenario of both families, reduces that ratio by \redPFmin{}--\redPFmax{}\,\% (bursty family) and \redtgpphighpointforecast{}--\redtgppmoderatepointforecast{}\,\% (3GPP family) against the same controller driven by the forecast median, and keeps most of its gain when the forecaster is trained on the other family. We also report its limits: the gain is a priority trade that reverses under an unweighted objective at high load in the bursty family, it disappears for control intervals or telemetry delays well beyond the shortest deadline and under sustained overload, and per-stream conformal calibration harms the coupled allocation.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -498,174 +1213,117 @@ Open RAN, fronthaul, functional split 7-2x, resource allocation, quantile foreca
 \section{Introduction}
 \label{sec:intro}
 
-The fronthaul connects the radio unit (O-RU) on the tower with the distributed unit (O-DU). With the O-RAN 7-2x functional split \cite{oran_cus,tr38801}, the O-RU performs only the lowest physical-layer functions and sends frequency-domain IQ samples per scheduled physical resource block (PRB). The resulting bit rate is large, several Gbit/s per cell, but, unlike the constant-rate splits 7-1 and 8, it varies with the scheduled load \cite{larsen2019}. Operators exploit this variability by aggregating several O-RUs onto one Ethernet link whose capacity is smaller than the sum of the cell peaks \cite{perez2018,perez2019,wang2017}. Such statistical multiplexing is economical, but when bursts coincide some cells must wait, and the O-RAN delay-management windows and the queueing deadlines of low-latency services allow only a few milliseconds of waiting.
+With the O-RAN 7-2x functional split \cite{oran_cus,polese2023} the radio unit (O-RU) sends frequency-domain IQ samples per scheduled physical resource block (PRB) to the distributed unit (O-DU). The rate is several Gbit/s per cell but, unlike the constant-rate splits 7-1 and 8, follows the scheduled load \cite{larsen2019}, so operators aggregate several O-RUs onto one Ethernet link smaller than the sum of the cell peaks \cite{perez2018,wang2017}. When bursts coincide some cells must wait, and low-latency services allow only a few milliseconds of waiting. Block floating point (BFP) compression \cite{oran_cus} makes the data smaller; this paper is about the other lever, deciding every few milliseconds how much of the link each cell may use. The decision is made in advance: a budget is a reservation held by the O-DU scheduler or a switch policer for a control interval, telemetry is stale by a few slots and the arrivals of the coming interval are unknown. Prior work on shared 7-2x fronthaul controls compression and scheduling reactively per slot \cite{lagen2022}; forecast-driven capacity allocation \cite{bega2019,bega2020,sciancalepore2017,kavehmadavani2023} uses a single predicted number, often inflated by a tuned margin, and does not model per-cell deadlines; probabilistic forecasts \cite{kasuluru2024,cohen2023} choose the percentile globally or per stream.
 
-There are two levers for managing fronthaul load. One is to make the data smaller: block floating point (BFP) compression is standardised \cite{oran_cus}, and matrix-structure encoders exploiting the low rank or the delay-domain sparsity of the IQ matrix can go further \cite{eckart1936,halko2011}. The other lever, the subject of this paper, is to share the link well: to decide, every few milliseconds, how much of the link each cell may use. The decision has to be made in advance. A budget is a reservation held by the O-DU scheduler or a switch policer for a control interval of several milliseconds, telemetry is stale by a few slots, and the arrivals of the coming interval are unknown. Prior work on shared 7-2x fronthaul controls compression and scheduling reactively from the current slot \cite{lagen2022}; prior work on forecast-driven capacity allocation \cite{bega2019,bega2020,sciancalepore2017,mikaeil2018,kavehmadavani2023} uses a single predicted number, often inflated by a tuned safety margin, and does not model per-cell deadlines. Probabilistic traffic forecasts have been proposed \cite{kasuluru2024,cohen2023}, but the percentile is chosen globally or for a single stream.
-
-This paper asks a simple question: if each cell's fronthaul need for the next interval is available as a forecast \emph{distribution}, how should a shared link be split between cells with different deadlines and priorities, and does doing so matter against strong reactive and point-forecast controllers? Our contributions are:
+We ask: if each cell's need for the next interval is available as a forecast \emph{distribution}, how should a shared link be split between cells with different deadlines and priorities, and does it matter against strong reactive and point-forecast controllers? Contributions:
 \begin{enumerate}
-\item \textbf{A deadline-aware notion of demand.} We forecast the \emph{deadline-feasible rate} $r^\ast$ of each cell, the smallest constant service rate that lets no bit of the coming interval wait longer than its deadline, instead of the traffic volume. For a 2-ms class $r^\ast$ is essentially the peak 2-ms burst rate; it is heavily right-skewed, which is why point forecasts are a poor basis for a reservation (Sec.~\ref{sec:demand}).
-\item \textbf{A closed-form uncertainty-aware allocation.} Maximising priority-weighted expected served demand under the forecast distributions subject to the link constraint is a separable concave program; its KKT conditions give $r_i = B_i + F_i^{-1}(1-\lambda/w_i)$ with one scalar multiplier $\lambda$ (Sec.~\ref{sec:method}). We prove feasibility, the equal weighted-risk property, backlog priority, and a robustness bound: the loss from a forecast with Kolmogorov error $\epsilon$ is at most $2\epsilon\, w_{\max} C$.
-\item \textbf{A fair, reproducible evaluation with negative results.} Ten controllers are compared on identical traffic traces with identical stale observations, including a Lyapunov/MaxWeight controller, a tuned global-quantile controller, a point-forecast ablation, a non-learned quantile ablation, an online-conformal variant and an oracle-informed reference, over \nSeeds{} held-out seeds per scenario with Holm-corrected Wilcoxon tests (Sec.~\ref{sec:eval}--\ref{sec:results}). We report the regimes where the method does not win.
-\item \textbf{Compression as a load lever.} We vary the BFP mantissa width with the same user traffic and show that compression selects the load regime in which allocation does or does not matter (Sec.~\ref{sec:compression}).
+\item \textbf{A deadline-aware notion of demand.} We forecast the deadline-feasible rate $r^\ast$ of each cell rather than its volume. For a 2-ms class $r^\ast$ is essentially the peak 2-ms burst rate and is strongly right-skewed, which is why a point forecast is a poor basis for a reservation (Sec.~\ref{sec:demand}).
+\item \textbf{A closed-form uncertainty-aware allocation.} Maximising priority-weighted expected served demand under the forecast distributions subject to the link constraint is a separable concave program whose KKT conditions give $r_i = B_i + F_i^{-1}(1-\lambda/w_i)$ with one scalar multiplier (Sec.~\ref{sec:method}). We prove feasibility, equal weighted risk, backlog priority and a robustness bound: a forecast with Kolmogorov error $\epsilon$ loses at most $2\epsilon\, w_{\max} C$.
+\item \textbf{A two-family, paired evaluation with negative results.} Twelve controllers, including MaxWeight, a tuned global-quantile rule, point-forecast and non-learned ablations and two oracle references, are compared on identical traces with identical stale observations, on a bursty synthetic family with a held-out shift and on a standards-based family (3GPP TR~38.901 channel, TS~38.214 link adaptation, FTP-3 and XR traffic) with a cross-family transfer test, over \nSeeds{} seeds per scenario with Holm-corrected Wilcoxon statistics (Sec.~\ref{sec:eval}--\ref{sec:results}). We state where the method loses, including under an unweighted objective.
 \end{enumerate}
-All code, raw per-run metrics, and the scripts that regenerate every figure, table and number in this paper are available in the companion repository.
+Code, raw per-run metrics and the scripts that regenerate every number in this paper are in the companion repository\footnote{\url{https://github.com/Harshvardhan-To1/BTP} (anonymised for review).}.
 
 \section{Related Work}
 \label{sec:related}
-
-\textbf{Fronthaul model and sharing.} Larsen et al.\ \cite{larsen2019} survey functional splits and establish that the 7-2 bit rate varies with user load with about 8\,\% Ethernet overhead. P\'erez et al.\ \cite{perez2018,perez2019} model packet-switched aggregation of eCPRI flows and dimension links by high delay percentiles; Wang and Zhou \cite{wang2017} quantify the statistical multiplexing gain of sharing a link between radio units. Lag\'en et al.\ \cite{lagen2022} study the deployment closest to ours, several 7-2x cells behind an L2 switch, and control compression and scheduling reactively per slot without forecasting. We keep their deployment and study the budget coordination problem that arises when the coordination loop is slower than a slot.
-
-\textbf{Forecast-driven allocation.} DeepCog \cite{bega2019} and AZTEC \cite{bega2020} forecast slice demand with deep networks whose loss encodes an over- versus under-provisioning cost, and allocate capacity minutes ahead; Sciancalepore et al.\ \cite{sciancalepore2017} use forecasts for slice admission; traffic-estimation-based dynamic bandwidth allocation for PON fronthaul \cite{mikaeil2018} pre-computes grants from point predictions; Kavehmadavani et al.\ \cite{kavehmadavani2023} feed LSTM forecasts to an allocation with a fronthaul capacity constraint. All of these use a point forecast and none models per-cell deadlines; the trade-off between over- and under-provisioning is fixed inside the model or by a margin.
-
-\textbf{Uncertainty-aware forecasting.} Kasuluru et al.\ \cite{kasuluru2024} forecast PRB load probabilistically and show the effect of selecting a percentile, chosen globally. Cohen et al.\ \cite{cohen2023} use online conformal prediction \cite{gibbs2021} to guarantee reliability for one URLLC stream. Our rule derives a different quantile per cell from a coupled allocation, and our ablation shows that per-stream conformal correction does not transfer to the coupled setting.
-
-\textbf{Queue-based allocation.} MaxWeight and drift-plus-penalty policies \cite{neely2010} allocate capacity to the largest weighted queues and are throughput-optimal; they are the natural non-forecast comparator and we include one. The allocation rule itself is the constrained multi-item newsvendor \cite{hadley1963}, and the deadline-feasible rate follows from network-calculus arrival and service curves \cite{leboudec2001}.
+\textbf{Fronthaul sharing.} Larsen et al.\ \cite{larsen2019} establish that the 7-2 bit rate follows the user load; P\'erez et al.\ \cite{perez2018} dimension packet-switched eCPRI aggregation by delay percentiles and Wang and Zhou \cite{wang2017} quantify the multiplexing gain. Lag\'en et al.\ \cite{lagen2022} study the deployment closest to ours, several 7-2x cells behind an L2 switch, with per-slot reactive compression control; we keep their deployment and study the coordination problem that arises when the loop is slower than a slot. O-RAN near-real-time control runs on 10-ms to 1-s loops \cite{polese2023}, and public O-RAN datasets (e.g.\ ColO-RAN \cite{colo_ran}) report KPIs at 250-ms or coarser resolution, which is why Sec.~\ref{sec:eval} relies on models.
+\textbf{Forecast-driven allocation.} DeepCog and AZTEC \cite{bega2019,bega2020} forecast slice demand with a loss encoding over- versus under-provisioning cost; \cite{sciancalepore2017,kavehmadavani2023} feed point forecasts to slice admission or fronthaul-constrained allocation. None models per-cell deadlines, and the risk trade-off is fixed inside the model or by a margin. Kasuluru et al.\ \cite{kasuluru2024} forecast PRB load probabilistically with a globally chosen percentile; Cohen et al.\ \cite{cohen2023} apply adaptive conformal inference \cite{gibbs2021} to one URLLC stream. Our rule derives a different quantile per cell from a coupled allocation, and our ablation shows that per-stream conformal correction does not transfer to it.
+\textbf{Queue-based allocation.} MaxWeight and drift-plus-penalty \cite{neely2010} are the natural non-forecast comparators and we include one. The rule itself is a constrained multi-item newsvendor \cite{hadley1963}; the deadline-feasible rate follows from network-calculus service curves \cite{leboudec2001}.
 
 \section{System Model}
 \label{sec:model}
+\textbf{Shared resource.} $N$ 7-2x cells connect through a fronthaul switch to co-located O-DUs over one Ethernet link of capacity $C_{\rm link}$ (downlink). Time is slotted with $\Delta = 0.5$~ms (numerology~1); a fraction $\rho_c$ of the link is reserved for control and management planes, so the user-plane capacity is $C = (1-\rho_c)C_{\rm link}\Delta$ bits per slot. Defaults: $N = 8$, $C_{\rm link} = 25$~Gbit/s, $\rho_c = 3\,\%$, $C = 12.125$~Mbit/slot.
 
-\subsection{Topology and shared resource}
-$N$ O-RAN 7-2x cells (O-RUs) connect through a fronthaul switch to co-located O-DUs over one Ethernet link of capacity $C_{\rm link}$ (downlink direction). Time is slotted with slot length $\Delta$; we use $\Delta = 0.5$~ms (numerology~1). Each slot the link can carry $C_{\rm link}\Delta$ bits, of which a fraction $\rho_c$ is reserved for control and management planes; the user-plane capacity is $C = (1-\rho_c)\,C_{\rm link}\Delta$ bits per slot. Default values: $N = 8$, $C_{\rm link} = 25$~Gbit/s, $\rho_c = 3\,\%$, so $C = 12.125$~Mbit/slot.
-
-\subsection{Fronthaul cost of user traffic}
-With BFP compression of $b$ mantissa bits and a shared 8-bit exponent per PRB, 14 symbols per slot and an Ethernet/eCPRI overhead factor $\kappa$, one scheduled PRB-layer for one slot costs
+\textbf{Fronthaul cost.} With BFP compression of $b$ mantissa bits, a shared 8-bit exponent per PRB, 14 symbols per slot and overhead factor $\kappa$, one PRB-layer for one slot costs
 \begin{equation}
-\beta(b) = \big(12 \cdot 2 \cdot b + 8\big)\cdot 14 \cdot \kappa \quad \text{bits},
+\beta(b) = (12 \cdot 2 \cdot b + 8)\cdot 14 \cdot \kappa \ \text{bits},
 \label{eq:beta}
 \end{equation}
-which is 3387 bits for $b = 9$, $\kappa = 1.08$. A cell with 273 PRBs (100~MHz) and $L = 4$ layers has a peak of $\mathrm{cap}_i = 273 L \beta$ bits per slot, i.e.\ 7.4~Gbit/s; eight such cells have an aggregate peak of 2.44$\,C$. If cell $i$ must deliver $a_i(t)$ user bits in slot $t$ at spectral efficiency $\eta_i(t)$ user bits per PRB-layer, the fronthaul bits needed to carry them immediately are
+3387 bits for $b = 9$, $\kappa = 1.08$. A 273-PRB cell with $L = 4$ layers peaks at $\mathrm{cap}_i = 273 L \beta$ bits per slot (7.4~Gbit/s); eight cells peak at $2.44\,C$. If cell $i$ must deliver $a_i(t)$ user bits in slot $t$ at $\eta_i(t)$ user bits per PRB-layer, carrying them immediately needs
 \begin{equation}
-d_i(t) = \big\lceil a_i(t)/\eta_i(t) \big\rceil \beta .
+d_i(t) = \lceil a_i(t)/\eta_i(t) \rceil \beta
 \label{eq:demand}
 \end{equation}
-Fronthaul load is therefore a function of scheduled PRB-layers, not of application bits \cite{larsen2019}; two cells with equal throughput can differ two- to threefold in fronthaul load. Equation~\eqref{eq:beta} is also where compression enters: the mantissa width $b$ rescales $\beta$ and hence the offered load (Sec.~\ref{sec:compression}).
+fronthaul bits: fronthaul load is a function of scheduled PRB-layers, not of application bits \cite{larsen2019}.
 
-\subsection{Queues, deadlines and accounting}
-Each cell has a first-in-first-out queue in the O-DU holding user bits waiting for fronthaul capacity. Cell $i$ belongs to a class with deadline $D_i$ slots and priority $w_i^{\rm p}$; default: three low-latency (LL) cells with $D = 4$ slots (2~ms) and $w^{\rm p} = 3$, five enhanced mobile broadband (eMBB) cells with $D = 20$ slots (10~ms) and $w^{\rm p} = 1$. Bits that have waited $D_i$ slots are discarded and counted as \emph{deadline violations}. Given a budget $r_i$ (bits per slot), the cell may schedule $\lfloor r_i/\beta \rfloor$ PRB-layers, bounded by its own air-interface capacity, and serves its queue oldest first. The violation is a DU-side queueing deadline; switch queueing and the O-RU receive window are not modelled, since budgets keep the link from queueing.
+\textbf{Queues, deadlines, accounting.} Each cell has a FIFO queue in the O-DU of user bits waiting for fronthaul capacity. Cell $i$ belongs to a class with deadline $D_i$ slots and operator priority $w_i^{\rm p}$; default: three low-latency (LL) cells with $D = 4$ slots (2~ms), $w^{\rm p} = 3$, and five eMBB cells with $D = 20$ slots (10~ms), $w^{\rm p} = 1$. Bits that have waited $D_i$ slots are discarded and counted as \emph{deadline violations}. Given a budget $r_i$ bits per slot the cell schedules $\lfloor r_i/\beta \rfloor$ PRB-layers, bounded by its air-interface capacity, oldest bits first. Switch queueing and the O-RU receive window are not modelled, since budgets keep the link from queueing.
 
-\subsection{Decision, timing and information}
-Every $T$ slots (default $T = 20$, i.e.\ 10~ms) the controller sets budgets $r = (r_1,\dots,r_N)$ with
+\textbf{Decision and information.} Every $T$ slots (default $T = 20$, 10~ms) the controller sets budgets $r$ with
 \begin{equation}
-\sum_i r_i \le C, \qquad 0 \le r_i \le \mathrm{cap}_i ,
+\textstyle\sum_i r_i \le C, \qquad 0 \le r_i \le \mathrm{cap}_i ,
 \label{eq:feasible}
 \end{equation}
-which are held for the interval. The controller observes the queue lengths, head-of-line ages, spectral efficiencies and the history of fronthaul demand up to slot $t-\tau$ (default telemetry delay $\tau = 2$ slots) and never observes future arrivals; a unit test enforces this. The horizon that a decision must cover is thus $H = T + \tau$ slots.
+held for the interval. It observes queue lengths, head-of-line ages, spectral efficiencies and the demand history up to slot $t-\tau$ (default $\tau = 2$ slots) and never future arrivals; a decision must cover $H = T + \tau$ slots.
 
-\subsection{Metrics}
-The primary metric, fixed before any tuning, is the priority-weighted deadline-violation ratio
+\textbf{Metric.} The primary metric, fixed before any tuning, is the priority-weighted deadline-violation ratio
 \begin{equation}
-V_w = \frac{\sum_i w_i^{\rm p}\, \mathrm{violated}_i}{\sum_i w_i^{\rm p}\, \mathrm{arrived}_i},
+V_w = \textstyle\sum_i w_i^{\rm p}\, \mathrm{violated}_i \,\big/\, \sum_i w_i^{\rm p}\, \mathrm{arrived}_i
 \label{eq:metric}
 \end{equation}
-over the post-warm-up slots. We also report violation ratios per class, link utilisation, queueing delay percentiles, Jain's fairness index of per-cell service ratios, and decision time.
+over post-warm-up slots. It is the objective an operator who pays $w^{\rm p}$ per lost LL bit relative to an eMBB bit would minimise; because this choice matters, Sec.~\ref{sec:weights} also reports the unweighted ratio ($w^{\rm p} \equiv 1$) and a sweep of $w^{\rm p}_{\rm LL}$. We further report per-class ratios, utilisation and decision time.
 
 \section{Deadline-Feasible Demand}
 \label{sec:demand}
-
-Let $a = (a_1,\dots,a_H)$ be the fronthaul bits arriving in the $H$ slots of a horizon and $D$ the deadline in slots. The deadline-feasible rate is the smallest constant service rate $r$ such that no bit waits longer than $D$ slots:
+Let $a = (a_1,\dots,a_H)$ be the fronthaul bits arriving in the $H$ slots of a horizon and $D$ the deadline. The deadline-feasible rate is the smallest constant rate at which no bit waits longer than $D$ slots,
 \begin{equation}
-r^\ast(a, D) = \max_{1 \le s \le e \le H} \frac{\sum_{t=s}^{e} a_t}{e - s + 1 + D} .
+r^\ast(a, D) = \max_{1 \le s \le e \le H} \frac{\sum_{t=s}^{e} a_t}{e - s + 1 + D} ,
 \label{eq:rstar}
 \end{equation}
-This is the standard network-calculus statement that a constant-rate server with latency $D$ meets the arrival curve \cite{leboudec2001}; it is computed in $O(H^2)$ and is tight (a unit test checks that serving at $r^\ast$ produces no violation and at $0.95 r^\ast$ does). For $D \gg H$, $r^\ast \approx$ the mean rate; for $D \ll H$, $r^\ast \approx$ the peak $(D{+}1)$-slot window rate. For the LL class with $D = 4$ and $H = 22$, $r^\ast$ is driven by the single strongest 2-ms burst and is strongly right-skewed across horizons, whereas for eMBB it is close to the interval mean. The budget a cell needs for the coming interval is
+the network-calculus condition that a rate-latency server meets the arrival curve \cite{leboudec2001}; it is tight. For $D \gg H$, $r^\ast \approx$ the mean rate; for $D \ll H$ it is the peak $(D{+}1)$-slot window rate. With $D = 4$ and $H = 22$ the LL value is driven by the single strongest 2-ms burst and is strongly right-skewed across horizons, whereas the eMBB value is close to the interval mean. The budget a cell needs is
 \begin{equation}
 \text{need}_i = B_i + r^\ast_i ,
 \label{eq:need}
 \end{equation}
-where $B_i$ is the \emph{backlog rate}, the rate that clears the observed backlog of cell $i$ within the slack remaining before its oldest bits expire, computed from the observed queue and head-of-line age, and $r^\ast_i$ refers to the unseen arrivals of the horizon. All deadline-aware controllers in this paper use \eqref{eq:need}; they differ only in how $r^\ast_i$ is estimated and how a shortage is split.
+where the \emph{backlog rate} $B_i$ clears the observed backlog within the slack left before its oldest bits expire, and $r^\ast_i$ refers to unseen arrivals. All deadline-aware controllers below use \eqref{eq:need}; they differ in how $r^\ast_i$ is estimated and how a shortage is split.
 
 \section{Proposed Allocation Rule}
 \label{sec:method}
+\textbf{Forecast distribution.} A forecaster provides quantiles $q_i(\alpha_k)$ of $r^\ast_i$ for the coming horizon at the levels 0.05, 0.25, 0.5, 0.75, 0.9 and 0.95: one histogram gradient-boosted tree model per quantile (pinball loss, 300 trees) with 28 features from past slots only (demand lags, exponentially weighted means at three horizons, last horizon's $r^\ast$ and mean, recent 90th percentile of $r^\ast$, queue, head-of-line age, spectral efficiency and trend, cell one-hot). Targets are normalised by the fixed cell peak. Quantiles are sorted after prediction and $F_i^{-1}$ is the piecewise-linear interpolation through the knots, extrapolated linearly above 0.95. The empirical quantiles of $r^\ast$ over the last 30 horizons are a non-learned alternative (ablation and fallback).
 
-\subsection{Forecast distribution}
-A forecaster provides, for each cell, quantiles $q_i(\alpha_k)$ of $r^\ast_i$ for the coming horizon at levels $\alpha \in \{0.05, 0.25, 0.5, 0.75, 0.9, 0.95\}$. We use one histogram gradient-boosted regression tree model per quantile (pinball loss, 300 trees, depth 6) with 28 features built from past slots only: lags of per-slot fronthaul demand, exponentially weighted means at three horizons, the last horizon's $r^\ast$ and mean, the empirical 90th percentile of recent $r^\ast$, the observed queue and head-of-line age, spectral efficiency and its trend, and a cell-identity one-hot vector. Targets are normalised by the fixed cell peak so that no statistic is fitted on evaluation data. Quantiles are sorted after prediction to enforce monotonicity, and $F_i^{-1}$ is the piecewise-linear interpolation through the knots, extrapolated linearly above $\alpha = 0.95$. A non-learned alternative, the empirical quantiles of $r^\ast$ over the last 30 horizons, is used as an ablation and as the fallback.
-
-\subsection{Allocation}
-Let $X_i \sim F_i$ denote the forecast random variable for $r^\ast_i$, $B_i$ the backlog rate and $w_i$ a weight combining the priority with the deadline urgency, $w_i = w_i^{\rm p} \min(1, \max(w_{\min}, H/D_i))$: a deferred LL bit surely violates within the horizon, whereas a deferred eMBB bit may still be served later. We choose budgets to maximise the weighted expected amount of need that is served:
+\textbf{Allocation.} Let $X_i \sim F_i$ be the forecast of $r^\ast_i$ and $w_i = w_i^{\rm p}$ (for classes whose deadline exceeds the horizon the weight is scaled by $H/D_i$, since a deferred bit may still be served later; this does not occur for the default classes). We maximise the weighted expected served need,
 \begin{equation}
-\max_{r}\; \sum_i w_i\, \mathbb{E}\big[\min(B_i + X_i, r_i)\big] \quad \text{s.t.\ } \eqref{eq:feasible}.
+\max_{r}\ \textstyle\sum_i w_i\, \mathbb{E}[\min(B_i + X_i, r_i)] \quad \text{s.t.\ } \eqref{eq:feasible}.
 \label{eq:obj}
 \end{equation}
-Since $\frac{\partial}{\partial r_i}\mathbb{E}[\min(B_i + X_i, r_i)] = 1 - F_i(r_i - B_i) = \Pr(\text{the marginal bit is needed})$, the objective is separable and concave. The KKT conditions give, for a multiplier $\lambda \ge 0$ on the link constraint,
+Since $\partial_{r_i}\mathbb{E}[\min(B_i + X_i, r_i)] = 1 - F_i(r_i - B_i)$, the probability that the marginal bit is needed, the objective is separable and concave and the KKT conditions give, for a multiplier $\lambda \ge 0$ on the link constraint,
 \begin{equation}
-r_i(\lambda) = \mathrm{clip}\Big( B_i + F_i^{-1}\big(1 - \lambda/w_i\big),\; 0,\; \mathrm{cap}_i \Big),
+r_i(\lambda) = \mathrm{clip}\big( B_i + F_i^{-1}(1 - \lambda/w_i),\, 0,\, \mathrm{cap}_i \big),
 \label{eq:kkt}
 \end{equation}
-with $r_i(\lambda) = 0$ when $\lambda \ge w_i$. $\sum_i r_i(\lambda)$ is non-increasing in $\lambda$, so the unique $\lambda^\ast$ with $\sum_i r_i(\lambda^\ast) = C$ is found by bisection (60 steps); if $\sum_i r_i(0) \le C$ the constraint is slack and the surplus is distributed as headroom in proportion to the remaining per-cell room, exactly as in the baselines. Algorithm~\ref{alg:kkt} summarises the decision.
+with $r_i(\lambda) = 0$ for $\lambda \ge w_i$. $\sum_i r_i(\lambda)$ is non-increasing, so the $\lambda^\ast$ with $\sum_i r_i(\lambda^\ast) = C$ is found by bisection (60 steps); if $\sum_i r_i(0) \le C$ the constraint is slack and the surplus is distributed as headroom in proportion to the remaining per-cell room, as in all baselines. One epoch is: observe; compute $B_i$; forecast quantiles and build $F_i^{-1}$; solve \eqref{eq:kkt}; hold $r$ for $T$ slots.
 
-\begin{algorithm}[t]
-\caption{Uncertainty-aware budget allocation (one epoch)}
-\label{alg:kkt}
-\begin{algorithmic}[1]
-\STATE Observe queues, head-of-line ages, spectral efficiencies and demand history up to slot $t-\tau$
-\STATE Compute backlog rates $B_i$ and weights $w_i$
-\STATE Forecast quantiles $q_i(\alpha_k)$ of $r^\ast_i$; build $F_i^{-1}$ by interpolation
-\IF{$\sum_i r_i(0) \le C$}
-\STATE $r \leftarrow r(0)$ plus proportional headroom
-\ELSE
-\STATE Bisection on $\lambda \in [0, \max_i w_i]$ until $\sum_i r_i(\lambda) = C$ using \eqref{eq:kkt}
-\ENDIF
-\RETURN budgets $r$, held for $T$ slots
-\end{algorithmic}
-\end{algorithm}
-
-\subsection{Properties}
+\textbf{Properties.}
 \begin{proposition}[Feasibility]
 For any forecasts and any $\lambda$ the budgets \eqref{eq:kkt} satisfy the caps, and the returned budgets satisfy $\sum_i r_i \le C$.
 \end{proposition}
 \begin{proposition}[Equal weighted risk]
-At an interior optimum every cell satisfies $w_i\,(1 - F_i(r_i - B_i)) = \lambda^\ast$: all cells are cut at the same priority-weighted probability of needing one more bit. A wider predictive distribution or a higher weight yields a larger margin above the median; a degenerate (point) forecast reduces the rule to a priority-ordered fill, which is why water-filling on the forecast median is the natural point-forecast comparator.
+At an interior optimum $w_i\,(1 - F_i(r_i - B_i)) = \lambda^\ast$ for every cell: all cells are cut at the same priority-weighted probability of needing one more bit. A wider predictive distribution or a higher weight yields a larger margin above the median. If every $F_i$ is degenerate at a point $\hat r_i$, the rule reduces to a priority-ordered fill: cells are served their need $B_i + \hat r_i$ in decreasing order of $w_i$ and the marginal weight group shares the remainder in proportion to need.
 \end{proposition}
 \begin{proposition}[Backlog first]
-Since $F_i(x) = 0$ for $x < 0$, the marginal value of budget below $B_i$ is $w_i$; every cell with $\lambda^\ast < w_i$ receives at least $\min(B_i, \mathrm{cap}_i)$ before any uncertain demand of a cell of equal or lower weight is funded.
+Since $F_i(x) = 0$ for $x < 0$, the marginal value of budget below $B_i$ is $w_i$; every cell with $\lambda^\ast < w_i$ receives at least $\min(B_i, \mathrm{cap}_i)$ before uncertain demand of any cell of equal or lower weight is funded.
 \end{proposition}
 \begin{proposition}[Robustness to miscalibration]
 \label{prop:robust}
-Let $G_i$ be the true distribution of $r^\ast_i$ and $F_i$ the forecast with $\sup_x |F_i(x) - G_i(x)| \le \epsilon$ for all $i$. Let $J_P(r) = \sum_i w_i \mathbb{E}_{P_i}[\min(B_i + X_i, r_i)]$, and let $r^F$, $r^G$ maximise $J_F$, $J_G$ over \eqref{eq:feasible}. Then
-\begin{multline}
-J_G(r^G) - J_G(r^F) \le \epsilon \sum_i w_i \big[(r^G_i - B_i)^+ + (r^F_i - B_i)^+\big] \\ \le 2\epsilon\, w_{\max}\, C .
-\end{multline}
+Let $G_i$ be the true distribution of $r^\ast_i$, $F_i$ the forecast with $\sup_x |F_i(x) - G_i(x)| \le \epsilon$ for all $i$, $J_P(r) = \sum_i w_i \mathbb{E}_{P_i}[\min(B_i + X_i, r_i)]$, and $r^F$, $r^G$ maximisers of $J_F$, $J_G$ over \eqref{eq:feasible}. Then
+$J_G(r^G) - J_G(r^F) \le \epsilon \sum_i w_i [(r^G_i - B_i)^+ + (r^F_i - B_i)^+] \le 2\epsilon\, w_{\max}\, C$.
 \end{proposition}
 \begin{proof}
-$\mathbb{E}_{P}[\min(B_i + X_i, r_i)] = \min(B_i, r_i) + \int_0^{(r_i - B_i)^+} (1 - P_i(x))\,dx$, hence $|J_F(r) - J_G(r)| \le \epsilon \sum_i w_i (r_i - B_i)^+$ for every $r$. Write $J_G(r^G) - J_G(r^F) = [J_G(r^G) - J_F(r^G)] + [J_F(r^G) - J_F(r^F)] + [J_F(r^F) - J_G(r^F)]$; the middle term is non-positive by optimality of $r^F$ for $J_F$ and the other two are bounded by the previous inequality. Finally $\sum_i (r_i - B_i)^+ \le \sum_i r_i \le C$.
+$\mathbb{E}_{P}[\min(B_i + X_i, r_i)] = \min(B_i, r_i) + \int_0^{(r_i - B_i)^+} (1 - P_i(x))\,dx$, so $|J_F(r) - J_G(r)| \le \epsilon \sum_i w_i (r_i - B_i)^+$ for every $r$. Split $J_G(r^G) - J_G(r^F) = [J_G - J_F](r^G) + [J_F(r^G) - J_F(r^F)] + [J_F - J_G](r^F)$; the middle term is $\le 0$ by optimality of $r^F$ and the others are bounded as above; finally $\sum_i (r_i - B_i)^+ \le C$.
 \end{proof}
-The expected weighted \emph{unserved} need is $\sum_i w_i \mathbb{E}[B_i + X_i] - J$, so the same bound applies to the surrogate of the violation objective: the loss from a miscalibrated forecast grows at most linearly in the calibration error. Section~\ref{sec:robust} tests this empirically.
+The expected weighted unserved need is $\sum_i w_i \mathbb{E}[B_i + X_i] - J$, so the bound also holds for this surrogate of the violation objective; Sec.~\ref{sec:robust} tests it empirically.
 
-\subsection{Online calibration variant}
-As a fallback under distribution shift we also evaluate a variant in which, after each horizon is observed, a per-cell level offset $\delta_i$ is updated as in adaptive conformal inference \cite{gibbs2021}, $\delta_i \leftarrow \mathrm{clip}(\delta_i + \gamma(\mathbf{1}[y_i > q_i(0.9)] - 0.1), -0.3, 0.3)$, and the rule uses $F_i^{-1}(p + \delta_i)$. We report it as an ablation; it did not help.
+\textbf{Online calibration variant.} We also evaluate per-cell level offsets $\delta_i \leftarrow \mathrm{clip}(\delta_i + \gamma(\mathbf{1}[y_i > q_i(0.9)] - 0.1), -0.3, 0.3)$ updated after each horizon as in adaptive conformal inference \cite{gibbs2021}, the rule using $F_i^{-1}(p + \delta_i)$.
 
-\subsection{Complexity}
-Building the inverse CDFs costs $O(NK)$ and the bisection $O(N n_{\rm iter})$, a few tens of microseconds for $N = 8$. The measured decision time, \dtproposed{}~ms per 10-ms epoch in pure Python on a 4-core CPU, is dominated by feature construction and the evaluation of 1800 trees; the deadline-aware reactive baseline needs \dtqueueaware{}~ms. A compiled implementation would be required in a production O-DU.
+\textbf{Complexity.} Building the inverse CDFs costs $O(NK)$ and the bisection $O(N n_{\rm iter})$. The Python prototype needs \dtproposed{}~ms per 10-ms epoch on a 4-core CPU (\dtqueueaware{}~ms for the deadline-aware reactive baseline), about 2~ms of it in a vectorised NumPy traversal of the 1800 trees for 8 rows; the same work, roughly $2 \times 10^5$ node visits and 480 interpolations, is well under 1~ms when compiled.
 
 \section{Evaluation Methodology}
 \label{sec:eval}
+\textbf{Traffic families.} We know of no public per-slot, per-cell PRB or fronthaul traces (public O-RAN KPI datasets are 250~ms or coarser \cite{colo_ran}), so traffic is simulated, with two independent families so that no result rests on one generator.
+\emph{Family S (synthetic, bursty).} Per cell, user bits are a Gamma-distributed smooth component plus heavy-tailed ON/OFF bursts with Pareto sojourn times \cite{willinger1997}, modulated by piecewise-constant load regimes (mean 1~s) and converted to fronthaul bits by \eqref{eq:demand} with a slowly drifting spectral efficiency; ON-state rates stay below each cell's air-interface peak so that violations are caused by the shared link. Five test scenarios: \emph{low} (0.50), \emph{moderate} (0.65), \emph{high} (0.80), \emph{flash crowds} (0.80 with load $\times 1.8$ about 15\,\% of the time, exceeding capacity) and \emph{shift} (0.80, bursts 1.5 times stronger and longer with a heavier tail than anything used in training or tuning). Loads are mean offered fronthaul load relative to $C$.
+\emph{Family G (standards-based).} Nothing is hand-designed: users are dropped in a 3GPP TR~38.901 urban-macro cell (ISD 500~m, 3.5~GHz, 100~MHz, 49~dBm, LOS probability, LOS/NLOS path loss and shadow fading per the specification), attach to the strongest of seven fully loaded sites and see the other six as interference \cite{tr38901}; per-slot Rayleigh fading with Jakes correlation at 3~km/h is mapped to spectral efficiency through the TR~36.942 attenuated Shannon bound quantised to the TS~38.214 CQI table \cite{tr36942,ts38214}. eMBB cells carry FTP Model~3 traffic (Poisson 0.5-MByte files, 20 UEs) \cite{tr36814}; LL cells carry XR video streams (60~fps, 30~Mbit/s, truncated-Gaussian frame size and jitter) \cite{tr38838}. A per-cell round-robin PRB scheduler serves the UEs, and the fronthaul demand of a cell in a slot is the number of PRB-layers it schedules times $\beta$. The only calibrated quantities are the number of XR UEs per LL cell and the FTP arrival rate, set so that the mean offered load matches the scenario target (0.65 and 0.80) within 1\,\%. 
 
-\subsection{Traffic}
-No public PRB-level fronthaul traces exist, so traffic is synthetic and labelled as such. Per cell, user-bit arrivals are a Gamma-distributed smooth component plus heavy-tailed ON/OFF bursts with Pareto sojourn times \cite{willinger1997}, modulated by piecewise-constant load regimes (mean duration 1~s, log-normal multipliers) and converted to fronthaul bits by \eqref{eq:demand} with a slowly drifting spectral efficiency. Parameters keep every cell's ON-state rate below its own air-interface peak, so violations are caused by the shared link, not by the radio. The nominal family is used for training; five test scenarios are listed in Table~\ref{tab:scenarios}. The \emph{shift} scenario uses bursts 1.5 times stronger and longer with a heavier tail than anything in training or tuning. Flash crowds multiply the load by 1.8 for about 15\,\% of the time, exceeding link capacity.
+\textbf{Protocol.} Training seeds (1000--1015, loads 0.5--0.95), validation seeds (2000--2003) and test seeds (3000--3019) are disjoint; seeds of one family are draws from one generator, so they measure variability within the family, and the second family measures variability across generators. One forecaster per family is trained once and frozen (Family S: \nTrainRows{} rows, validation coverage \covFive{}/\covFifty{}/\covNinetyFive{}\,\% at the 5/50/95\,\% quantiles, median relative error \maeGBM{}\,\% against \maePersist{}\,\% for persistence; Family G: \nTrainRowsTgpp{} rows, \covFiveTgpp{}/\covFiftyTgpp{}/\covNinetyFiveTgpp{}\,\%, \maeGBMTgpp{}\,\% against \maePersistTgpp{}\,\%; the 5\,\% figure of Family G reflects a point mass at zero, since in a third of the horizons no file or frame arrives). Every tunable parameter of every controller is chosen on the validation seeds of the moderate and high scenarios of its own family. Each test run simulates 20\,000 slots (10~s) after a 1000-slot warm-up; every controller sees the identical trace and identical stale observations for a seed. We report means over \nSeeds{} seeds and, for paired comparisons, the mean relative reduction with a 95\,\% percentile-bootstrap interval, seeds won, and a two-sided Wilcoxon signed-rank test Holm-corrected across the baselines of a scenario.
 
-\begin{table}[t]
-\caption{Test scenarios (mean offered fronthaul load relative to $C$)}
-\label{tab:scenarios}
-\centering
-\begin{tabular}{llll}
-\hline
-Scenario & Load & Traffic & Tuning? \\
-\hline
-low & 0.50 & nominal & no \\
-moderate & 0.65 & nominal & validation \\
-high & 0.80 & nominal & validation \\
-flash crowds & 0.80 & nominal + overload bursts & no \\
-shift & 0.80 & held-out burstier family & no \\
-\hline
-\end{tabular}
-\end{table}
-
-\subsection{Protocol}
-Training seeds (1000--1015, loads 0.5--0.95), validation seeds (2000--2003) and test seeds (3000--3019) are disjoint. The forecaster is trained once on \nTrainRows{} rows from the training seeds and frozen; its validation coverage at the 5\,\%, 50\,\% and 95\,\% quantiles is \covFive{}\,\%, \covFifty{}\,\% and \covNinetyFive{}\,\%, and its median relative absolute error is \maeGBM{}\,\% against \maePersist{}\,\% for persistence. Every tunable parameter of every controller is chosen on the validation seeds of the moderate and high scenarios only. Each test run simulates 20\,000 slots (10~s) after a 1000-slot warm-up; every controller sees the identical trace and identical stale observations for a given seed, enabling paired comparisons. With \nSeeds{} seeds we report the mean paired relative reduction with a 95\,\% percentile-bootstrap confidence interval, the number of seeds won, and a two-sided Wilcoxon signed-rank test with Holm correction across the baselines of a scenario.
-
-\subsection{Controllers}
-Table~\ref{tab:controllers} lists the compared controllers. Every controller redistributes unused capacity as headroom. \emph{Water-fill} (WF) means: each cell receives its need up to its cap if the total fits; otherwise the shortage is shared in proportion to weighted need. The MaxWeight controller solves $\max \sum_i w_i^{\rm p} Q_i r_i$ subject to \eqref{eq:feasible} and $r_i \le$ an EWMA-based usable-rate estimate, with an optional head-of-line-age urgency factor (selected on validation: \maxweightParams). The fixed-quantile controller reserves the same forecast quantile for every cell; validation selected level \fixedQuantileLevel. The oracle knows the true $r^\ast$ of the coming horizon; it removes forecast error from the water-fill family and is a reference for a perfect point forecast, not a bound on other allocation rules.
+\textbf{Controllers} (Table~\ref{tab:controllers}). Every controller redistributes unused capacity as headroom. \emph{Water-fill} (WF): each cell receives its need up to its cap if the total fits, otherwise the shortage is shared in proportion to weighted need. MaxWeight solves $\max \sum_i w_i^{\rm p} Q_i r_i$ subject to \eqref{eq:feasible} and an EWMA usable-rate cap, with a tuned head-of-line-age factor. The fixed-quantile controller reserves one tuned forecast quantile for every cell (validation chose level \fixedQuantileLevel{} in Family S, \fixedQuantileLevelTgpp{} in Family G). Two references use the true $r^\ast$ of the coming horizon: the \emph{oracle water-fill}, a perfect point forecast under the baseline rule, and the \emph{oracle + KKT rule}, the proposed rule with a perfect (degenerate) forecast, i.e.\ the priority-ordered fill of Proposition~2; the gap between the proposed rule and the latter is the cost of forecast error. \emph{Proposed, transferred} uses the forecaster trained on the \emph{other} family, a test of transfer to traffic the model has never seen.
 
 \begin{table}[t]
 \caption{Compared controllers (all tuned on validation seeds only)}
@@ -684,8 +1342,10 @@ Point forecast + WF & $B_i$ + forecast median; WF, $w_i$ & + model \\
 Fixed quantile + WF & $B_i + F_i^{-1}(q)$, one tuned $q$; WF & + model \\
 Proposed, window q. & KKT rule, empirical quantiles & history \\
 Proposed (GBM + KKT) & KKT rule, forecast quantiles & + model \\
-Proposed + ACI & KKT rule with per-cell level offsets & + model \\
+Proposed + ACI & KKT rule, per-cell level offsets & + model \\
+Proposed, transferred & KKT rule, other family's model & + model \\
 Oracle water-fill & $B_i$ + true $r^\ast$; WF, $w_i$ & future \\
+Oracle + KKT rule & $B_i$ + true $r^\ast$; priority fill & future \\
 \hline
 \end{tabular}
 \end{table}
@@ -693,133 +1353,140 @@ Oracle water-fill & $B_i$ + true $r^\ast$; WF, $w_i$ & future \\
 \section{Results}
 \label{sec:results}
 
-\subsection{Main comparison}
-Table~\ref{tab:main} and Fig.~\ref{fig:primary} report the primary metric per scenario; Table~\ref{tab:paired} the paired comparison against the proposed rule. The proposed rule is the best implementable controller in every scenario. Against the point-forecast controller, which uses the same model, the same weights and the same information and differs only in using the median instead of the distribution, the reduction ranges from \redPFmin{}\,\% to \redPFmax{}\,\% and is significant after Holm correction in every scenario including the held-out shift; this is the direct test of the value of representing uncertainty. Against the tuned deadline-aware reactive controller the reduction is \redQAmin{}--\redQAmax{}\,\%. The tuned fixed-quantile controller, which also uses the full forecast, is beaten in every scenario: reserving one global percentile over-reserves for confident cells and under-reserves for uncertain ones, whereas the KKT rule selects the level per cell. The MaxWeight controller performs like the other deadline-unaware controllers; large queues are not the same as urgent queues.
+\subsection{Family S: main comparison}
+Table~\ref{tab:main} reports $V_w$ per scenario; the paired per-seed statistics are in the repository (\texttt{main\_paired.csv}). The proposed rule is the best implementable controller in every scenario, and every paired reduction against a baseline is significant after Holm correction ($p < 0.01$), with the proposed rule winning \nSeeds{}/\nSeeds{} seeds against every baseline in every scenario except reactive proportional under flash crowds (\redoverloadburstsreactiveprop{}\,\% \redoverloadburstsreactivepropCI{}, \redoverloadburstsreactivepropWins{} seeds, $p < 0.05$). Against the point-forecast controller, which uses the same model, weights and information and differs only in using the median instead of the distribution, the reduction is \redPFmin{}--\redPFmax{}\,\% (95\,\% bootstrap intervals \redlowpointforecastCI{} at low load to \redshiftpointforecastCI{} under shift); this is the direct test of the value of representing uncertainty. Against the tuned deadline-aware reactive controller it is \redQAmin{}--\redQAmax{}\,\%. The tuned fixed-quantile controller, which also uses the full forecast, is beaten everywhere: one global percentile over-reserves for confident cells and under-reserves for uncertain ones. The oracle + KKT reference shows what a perfect forecast would add to the same rule: \gapKKThigh{}\,\% of the proposed rule's $V_w$ at high load and \gapKKTshift{}\,\% under shift is attributable to forecast error, the remainder to committing budgets for 10~ms.
 
-\begin{table*}[t]
-\caption{Priority-weighted deadline-violation ratio $V_w$ (\%, mean $\pm$ std over \nSeeds{} test seeds; lower is better; bold = best implementable controller)}
+\begin{table}[t]
+\caption{Family S: priority-weighted deadline-violation ratio $V_w$ (\%, mean $\pm$ std over \nSeeds{} test seeds; lower is better; bold = best implementable controller)}
 \label{tab:main}
 \centering
-\resizebox{\textwidth}{!}{% ---- inlined from generated/tab_main ----
+\scriptsize
+\setlength{\tabcolsep}{1.2pt}
+% ---- inlined from generated/tab_main ----
 \begin{tabular}{lccccc}
 \hline
 Controller & Low 0.50 & Mod. 0.65 & High 0.80 & Flash & Shift \\
 \hline
-Static equal share & 4.45 $\pm$ 1.05 & 9.65 $\pm$ 1.36 & 15.46 $\pm$ 1.51 & 19.15 $\pm$ 2.34 & 22.31 $\pm$ 2.99 \\
-Reactive proportional & 0.83 $\pm$ 0.27 & 4.11 $\pm$ 0.69 & 9.20 $\pm$ 0.99 & 12.27 $\pm$ 2.23 & 11.70 $\pm$ 2.24 \\
-MaxWeight (drift) & 0.90 $\pm$ 0.28 & 4.85 $\pm$ 0.79 & 11.54 $\pm$ 1.27 & 15.24 $\pm$ 3.02 & 12.31 $\pm$ 2.44 \\
-Deadline-aware reactive & 0.52 $\pm$ 0.21 & 4.24 $\pm$ 0.78 & 11.03 $\pm$ 1.33 & 14.51 $\pm$ 3.06 & 12.56 $\pm$ 2.81 \\
-Point forecast + WF & 0.27 $\pm$ 0.17 & 3.23 $\pm$ 0.73 & 9.70 $\pm$ 1.34 & 13.33 $\pm$ 3.09 & 11.30 $\pm$ 2.81 \\
-Fixed quantile + WF & 0.34 $\pm$ 0.23 & 4.35 $\pm$ 1.02 & 11.76 $\pm$ 1.44 & 15.09 $\pm$ 3.17 & 12.85 $\pm$ 3.32 \\
-Proposed, window quantiles & 0.25 $\pm$ 0.13 & 2.57 $\pm$ 0.64 & 8.72 $\pm$ 1.34 & 12.67 $\pm$ 3.19 & 10.22 $\pm$ 2.88 \\
-Proposed (GBM + KKT) & \textbf{0.15 $\pm$ 0.13} & \textbf{2.15 $\pm$ 0.60} & \textbf{8.00 $\pm$ 1.27} & \textbf{11.76 $\pm$ 3.08} & \textbf{10.04 $\pm$ 2.71} \\
-Proposed + ACI & 0.17 $\pm$ 0.13 & 2.17 $\pm$ 0.61 & 8.14 $\pm$ 1.30 & 12.27 $\pm$ 3.26 & 11.12 $\pm$ 3.22 \\
+Static equal share & 4.45$\pm$1.05 & 9.65$\pm$1.36 & 15.46$\pm$1.51 & 19.15$\pm$2.34 & 22.31$\pm$2.99 \\
+Reactive proportional & 0.83$\pm$0.27 & 4.11$\pm$0.69 & 9.20$\pm$0.99 & 12.27$\pm$2.23 & 11.70$\pm$2.24 \\
+MaxWeight (drift) & 0.90$\pm$0.28 & 4.85$\pm$0.79 & 11.54$\pm$1.27 & 15.24$\pm$3.02 & 12.31$\pm$2.44 \\
+Deadline-aware react. & 0.52$\pm$0.21 & 4.24$\pm$0.78 & 11.03$\pm$1.33 & 14.51$\pm$3.06 & 12.56$\pm$2.81 \\
+Point forecast + WF & 0.27$\pm$0.17 & 3.23$\pm$0.73 & 9.70$\pm$1.34 & 13.33$\pm$3.09 & 11.30$\pm$2.81 \\
+Fixed quantile + WF & 0.34$\pm$0.23 & 4.35$\pm$1.02 & 11.76$\pm$1.44 & 15.09$\pm$3.17 & 12.85$\pm$3.32 \\
+Proposed, window q. & 0.25$\pm$0.13 & 2.57$\pm$0.64 & 8.72$\pm$1.34 & 12.67$\pm$3.19 & 10.22$\pm$2.88 \\
+Proposed (GBM + KKT) & \textbf{0.15$\pm$0.13} & \textbf{2.15$\pm$0.60} & \textbf{8.00$\pm$1.27} & \textbf{11.76$\pm$3.08} & \textbf{10.04$\pm$2.71} \\
+Proposed + ACI & 0.17$\pm$0.13 & 2.17$\pm$0.61 & 8.14$\pm$1.30 & 12.27$\pm$3.26 & 11.12$\pm$3.22 \\
 \hline
-Oracle water-fill & 0.07 $\pm$ 0.10 & 1.62 $\pm$ 0.56 & 6.89 $\pm$ 1.28 & 10.16 $\pm$ 2.96 & 6.69 $\pm$ 2.60 \\
+Oracle water-fill & 0.07$\pm$0.10 & 1.62$\pm$0.56 & 6.89$\pm$1.28 & 10.16$\pm$2.96 & 6.69$\pm$2.60 \\
+Oracle + KKT rule & 0.05$\pm$0.09 & 0.88$\pm$0.42 & 4.77$\pm$1.12 & 8.10$\pm$2.77 & 5.84$\pm$2.37 \\
 \hline
 \end{tabular}
 % ---- end generated/tab_main ----
-}
-\end{table*}
 
-\begin{table*}[t]
-\caption{Paired per-seed comparison on identical traces: relative reduction of $V_w$ by the proposed rule in \% [95\,\% bootstrap CI], seeds won / $n$; $^{\ast}$ Holm-corrected Wilcoxon $p<0.05$, $^{\ast\ast}$ $p<0.01$}
-\label{tab:paired}
-\centering
-\footnotesize
-\resizebox{\textwidth}{!}{% ---- inlined from generated/tab_paired ----
-\begin{tabular}{lccccc}
-\hline
-Proposed vs. & Low 0.50 & Mod. 0.65 & High 0.80 & Flash & Shift \\
-\hline
-Reactive proportional & -81 [-87,-75] 20/20$^{\ast\ast}$ & -48 [-52,-44] 20/20$^{\ast\ast}$ & -13 [-16,-11] 20/20$^{\ast\ast}$ & -4 [-8,-1] 16/20$^{\ast}$ & -14 [-17,-11] 20/20$^{\ast\ast}$ \\
-MaxWeight (drift) & -83 [-88,-77] 20/20$^{\ast\ast}$ & -56 [-59,-52] 20/20$^{\ast\ast}$ & -31 [-33,-29] 20/20$^{\ast\ast}$ & -23 [-25,-20] 20/20$^{\ast\ast}$ & -18 [-21,-16] 20/20$^{\ast\ast}$ \\
-Deadline-aware reactive & -70 [-77,-62] 20/20$^{\ast\ast}$ & -49 [-52,-47] 20/20$^{\ast\ast}$ & -27 [-29,-26] 20/20$^{\ast\ast}$ & -19 [-21,-17] 20/20$^{\ast\ast}$ & -20 [-22,-18] 20/20$^{\ast\ast}$ \\
-Point forecast + WF & -43 [-52,-33] 20/20$^{\ast\ast}$ & -33 [-36,-31] 20/20$^{\ast\ast}$ & -18 [-19,-17] 20/20$^{\ast\ast}$ & -12 [-13,-10] 20/20$^{\ast\ast}$ & -11 [-12,-10] 20/20$^{\ast\ast}$ \\
-Fixed quantile + WF & -54 [-63,-44] 20/20$^{\ast\ast}$ & -50 [-52,-48] 20/20$^{\ast\ast}$ & -32 [-33,-31] 20/20$^{\ast\ast}$ & -22 [-24,-20] 20/20$^{\ast\ast}$ & -22 [-23,-21] 20/20$^{\ast\ast}$ \\
-Proposed, window quantiles & -37 [-47,-29] 20/20$^{\ast\ast}$ & -16 [-18,-15] 20/20$^{\ast\ast}$ & -8 [-9,-8] 20/20$^{\ast\ast}$ & -7 [-8,-7] 20/20$^{\ast\ast}$ & -2 [-3,-1] 16/20$^{\ast\ast}$ \\
-Proposed + ACI & -9 [-15,-5] 18/20$^{\ast\ast}$ & -1 [-1,0] 16/20$^{\ast\ast}$ & -2 [-2,-1] 19/20$^{\ast\ast}$ & -4 [-5,-3] 20/20$^{\ast\ast}$ & -10 [-11,-9] 20/20$^{\ast\ast}$ \\
-\hline
-\end{tabular}
-% ---- end generated/tab_paired ----
-}
-\end{table*}
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=0.95\textwidth]{fig1_primary_by_scenario.pdf}
-\caption{Primary metric per scenario and controller (mean $\pm$ std over \nSeeds{} test seeds). The standard deviation across seeds is dominated by burst timing, which all controllers share seed by seed; Table~\ref{tab:paired} gives the paired reading.}
-\label{fig:primary}
-\end{figure*}
-
-\subsection{Where the gain comes from}
-Fig.~\ref{fig:class} decomposes the high-load scenario by class. The deadline-unaware controllers keep eMBB nearly clean (\meanhighreactivepropEMBB{}\,\% violations for reactive proportional) but let the LL cells lose \meanhighreactivepropLL{}\,\% of their bits. All deadline-aware controllers protect the LL cells (\meanhighproposedLL{}\,\% for the proposed rule) and pay with eMBB; within that group the proposed rule has the lowest eMBB loss (\meanhighproposedEMBB{}\,\% against \meanhighpointforecastEMBB{}\,\% for the point forecast) and the highest utilisation (\meanhighproposedUtil{}\,\%), because it adds margin only where the forecast is uncertain. Even the oracle loses \meanhighoracleEMBB{}\,\% of eMBB bits at 0.80 load: budgets held for 10~ms cannot follow heavy-tailed bursts, which motivates the interval study below. Jain's fairness index of per-cell service ratios exceeds 0.98 for all controllers (0.99 for all but the fixed-quantile controller), so fairness does not separate them.
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=0.95\textwidth]{fig2_class_breakdown_high.pdf}
-\caption{High-load scenario: violation ratio of LL cells, of eMBB cells, and link utilisation (mean $\pm$ std over seeds).}
-\label{fig:class}
-\end{figure*}
-
-\subsection{Ablations}
-\textbf{Distribution versus point.} Replacing the quantile forecast by its median under the same rule family costs \redPFmin{}--\redPFmax{}\,\% (Table~\ref{tab:paired}).
-\textbf{Learned versus empirical quantiles.} The same KKT rule fed with empirical window quantiles is already better than every baseline; the learned model adds a further \redshiftproposedwindow{}\,\% under the held-out shift and up to \redlowproposedwindow{}\,\% in the nominal family. Most of the gain therefore comes from the demand notion and the rule, not from the learning, and the non-learned variant is a credible fallback.
-\textbf{Online conformal calibration} did not help: it is \redhighproposedcal{}\,\% worse at high load and \redshiftproposedcal{}\,\% worse under shift. In a coupled allocation the LL misses are partly caused by the shortage split rather than by forecast bias, so the per-cell correction inflates LL reservations and starves eMBB. Per-stream conformal correction \cite{cohen2023} does not transfer directly to coupled allocation; a correction acting on $\lambda$ or on unconstrained forecast error is future work.
-
-\subsection{Control interval}
-Table~\ref{tab:sweep} varies $T$ with forecasters retrained per interval (\nSeedsSweep{} seeds, scenario high). At $T = 2$~ms the proposed rule reduces $V_w$ by \sweepTfouroracle{}\,\% even relative to the oracle water-fill, which has a perfect point forecast: the allocation rule, not only the forecast, carries the gain, and the oracle is a reference rather than a bound. At $T = 20$~ms, five times the LL deadline, reserving the LL peak rate for the whole interval wastes capacity and the deadline-unaware proportional controller is better (relative reduction by the proposed rule \sweepTfourzeroreactiveprop{}\,\%). The method is thus appropriate for control intervals up to a few times the shortest deadline; the 10-ms default lies inside that range.
-
-\begin{table}[t]
-\caption{Control-interval sweep, scenario high: $V_w$ (\%, mean over \nSeedsSweep{} seeds)}
-\label{tab:sweep}
-\centering
-\footnotesize
-\resizebox{\columnwidth}{!}{% ---- inlined from generated/tab_sweep ----
-\begin{tabular}{lcccc}
-\hline
-Controller $\backslash$ $T$ & 2 ms & 5 ms & 10 ms & 20 ms \\
-\hline
-Reactive proportional & 3.91 & 7.42 & 8.91 & 11.80 \\
-Deadline-aware reactive & 7.89 & 10.20 & 10.78 & 15.84 \\
-Point forecast + WF & 6.57 & 7.53 & 9.46 & 14.08 \\
-\textbf{Proposed (GBM + KKT)} & 3.07 & 5.07 & 7.71 & 13.15 \\
-Oracle water-fill & 6.89 & 6.01 & 6.63 & 10.83 \\
-\hline
-\end{tabular}
-% ---- end generated/tab_sweep ----
-}
 \end{table}
 
-\subsection{Telemetry delay}
-Table~\ref{tab:delay} varies the staleness $\tau$ of the observed state with forecasters retrained per $\tau$ (\nSeedsDelay{} seeds, scenario high). All controllers degrade as information ages and the ordering is preserved at every $\tau$. The margin over the deadline-aware controllers is stable (\delayTauzeroqueueaware{}\,\% at $\tau = 0$ to \delayTauonezeroqueueaware{}\,\% at $\tau = 5$~ms against the deadline-aware reactive controller, \delayTauzeropointforecast{}\,\% to \delayTauonezeropointforecast{}\,\% against the point forecast), but the margin over the deadline-unaware proportional controller shrinks from \delayTauzeroreactiveprop{}\,\% to \delayTauonezeroreactiveprop{}\,\%: with state 5~ms old, more than twice the LL deadline, protecting the LL cells from a forecast costs almost as many weighted eMBB bits as it saves. Timely telemetry is therefore part of the operating regime of the method, as is a short control interval.
+\textbf{Where the gain comes from.} At high load the deadline-unaware controllers keep eMBB nearly clean (\meanhighreactivepropEMBB{}\,\% violations for reactive proportional) but let the LL cells lose \meanhighreactivepropLL{}\,\% of their bits. All deadline-aware controllers protect the LL cells (\meanhighproposedLL{}\,\% for the proposed rule) and pay with eMBB; within that group the proposed rule has the lowest eMBB loss (\meanhighproposedEMBB{}\,\% against \meanhighpointforecastEMBB{}\,\% for the point forecast) and the highest utilisation (\meanhighproposedUtil{}\,\%), because it adds margin only where the forecast is uncertain. Even the oracle water-fill loses \meanhighoracleEMBB{}\,\% of eMBB bits at 0.80 load: budgets held for 10~ms cannot follow heavy-tailed bursts.
+
+\textbf{Ablations.} The KKT rule fed with empirical window quantiles already beats every baseline; the learned model adds \redshiftproposedwindow{}\,\% under shift (\redshiftproposedwindowWins{} seeds) and up to \redlowproposedwindow{}\,\% in the nominal family, so most of the gain comes from the demand notion and the rule, and the non-learned variant is a credible fallback. Online conformal calibration is \redhighproposedcal{}\,\% worse at high load and \redshiftproposedcal{}\,\% worse under shift: in a coupled allocation LL misses are partly caused by the shortage split rather than by forecast bias, so the per-cell correction inflates LL reservations and starves eMBB.
+
+\subsection{Family G: standards-based traffic and transfer}
+\label{sec:tgpp}
+Table~\ref{tab:tgpp} repeats the comparison on the 3GPP-model family with its own forecaster and its own tuning. The main finding is reproduced: the proposed rule is the best implementable controller at both loads, winning \redtgpphighpointforecastWins{} seeds against every baseline at load \loadTgppHigh{}, with a reduction of \redtgpphighpointforecast{}\,\% against the point-forecast controller, \redtgpphighqueueaware{}\,\% against the deadline-aware reactive controller and \redtgpphighreactiveprop{}\,\% against reactive proportional. The traffic is harder than Family S in a different way: XR frames arrive every 16.7~ms and each FTP file is a burst at the full cell rate (a 0.5-MByte file occupies the whole cell for about 13 slots), so the eMBB class loses \meantgpphighoraclekktEMBB{}\,\% of its bits even under the oracle + KKT rule with 10-ms budgets, and the deadline-unaware controllers fall behind even static sharing. Unlike Family S, the proposed rule is here the best implementable controller also under the \emph{unweighted} ratio (\meantgpphighproposedUnw{}\,\% against \meantgpphighreactivepropUnw{}\,\% for reactive proportional), because the LL cells are small and periodic enough to be protected almost for free. The transferred variant, whose forecaster has never seen a 3GPP trace, under-reserves the LL cells (\meantgpphighproposedtransferLL{}\,\% against \meantgpphighproposedLL{}\,\%) and ends \redtgpphighproposedtransfer{}\,\% above the in-family model, between the point-forecast and the deadline-aware reactive controller: a forecaster from unrelated traffic still gives a usable allocation, but not a better one than an in-family point forecast. The gap to the oracle + KKT rule, \gapKKTtgpphigh{}\,\% at high load, is the forecast-error cost in this family.
 
 \begin{table}[t]
-\caption{Telemetry-delay sweep, scenario high: $V_w$ (\%, mean over \nSeedsDelay{} seeds)}
-\label{tab:delay}
+\caption{Family G (3GPP TR~38.901 UMa, FTP-3 / XR traffic): $V_w$ in \% at both loads (mean, $\pm$ std at high, \nSeedsTgpp{} seeds), LL / unweighted ratio at high load, and $\Delta$ = paired relative change of $V_w$ from the row controller to the proposed rule at high load (\%, negative = proposed better; seeds won by the proposed rule of \nSeedsTgpp{}; $^{\ast}$/$^{\ast\ast}$: Holm-corrected Wilcoxon $p<0.05$/$0.01$)}
+\label{tab:tgpp}
 \centering
-\footnotesize
-\resizebox{\columnwidth}{!}{% ---- inlined from generated/tab_delay ----
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+% ---- inlined from generated/tab_tgpp ----
 \begin{tabular}{lcccc}
 \hline
-Controller $\backslash$ $\tau$ & 0 ms & 1 ms & 2.5 ms & 5 ms \\
+Controller & Mod.\ 0.65 & High 0.80 & LL / unw. & $\Delta$ (wins) \\
+\hline
+Static equal share & 10.75 & 13.10$\pm$2.13 & 6.64 / 19.20 & -39 (20)$^{\ast\ast}$ \\
+Reactive proportional & 12.05 & 15.94$\pm$1.93 & 16.96 / 15.01 & -50 (20)$^{\ast\ast}$ \\
+MaxWeight (drift) & 17.51 & 25.79$\pm$2.15 & 32.17 / 19.75 & -69 (20)$^{\ast\ast}$ \\
+Deadline-aware react. & 8.95 & 11.53$\pm$1.67 & 4.24 / 18.47 & -31 (20)$^{\ast\ast}$ \\
+Point forecast + WF & 6.00 & 8.98$\pm$1.09 & 0.98 / 16.59 & -11 (20)$^{\ast\ast}$ \\
+Fixed quantile + WF & 6.80 & 9.88$\pm$1.24 & 0.60 / 18.70 & -19 (20)$^{\ast\ast}$ \\
+Proposed, window q. & 6.18 & 9.01$\pm$1.04 & 1.61 / 16.04 & -11 (20)$^{\ast\ast}$ \\
+Proposed (GBM + KKT) & \textbf{5.08} & \textbf{8.01$\pm$0.99} & 1.28 / 14.40 & -- \\
+Proposed + ACI & 5.41 & 8.27$\pm$0.98 & 1.12 / 15.06 & -3 (19)$^{\ast\ast}$ \\
+Proposed, transferred & 6.99 & 9.89$\pm$1.18 & 5.29 / 14.27 & -19 (20)$^{\ast\ast}$ \\
+\hline
+Oracle water-fill & 4.82 & 7.85$\pm$1.06 & 0.23 / 15.09 & +2 (5)$^{\ast}$ \\
+Oracle + KKT rule & 3.47 & 6.06$\pm$0.83 & 0.72 / 11.14 & +32 (0)$^{\ast\ast}$ \\
+\hline
+\end{tabular}
+% ---- end generated/tab_tgpp ----
+
+\end{table}
+
+\subsection{The objective matters: unweighted ratio and priority weight}
+\label{sec:weights}
+The gain of every deadline-aware controller is a priority trade: fewer LL bits lost, more eMBB bits lost. Under the \emph{unweighted} violation ratio the proposed rule remains the best implementable controller in only \unwBestCount{} of the five Family S scenarios (low load): at high load the reactive proportional controller loses fewer total bits (\meanhighreactivepropUnw{}\,\% against \meanhighproposedUnw{}\,\%) because it sacrifices the LL cells (\meanhighreactivepropLL{}\,\% of their bits) to serve eMBB volume. The weight sweep in Table~\ref{tab:sens} (last block; every controller is told the new $w^{\rm p}$ and keeps the parameters tuned at $w_{\rm LL} = 3$) locates the crossover. In Family S at high load the proposed rule, given $w_{\rm LL} = 1$, matches proportional sharing (\wthighWoneproposed{} against \wthighWonereactiveprop{}\,\%) and beats it by \wthighWthreereactivepropRed{}\,\% at $w_{\rm LL} = 3$ and \wthighWfivereactivepropRed{}\,\% at 5; with a perfect forecast (oracle + KKT) the rule would win at every weight, so the loss at low weights is forecast error. In Family G the picture at $w_{\rm LL} = 1$ is worse and instructive: the rule reaches \wttgpphighWoneproposed{}\,\% against \wttgpphighWonepointforecast{}\,\% for the point-forecast water-fill, because XR and FTP demand is zero-inflated (often no frame or no file falls into a horizon) and at a low common critical fractile the newsvendor solution reserves nothing beyond backlog for many cells, an all-or-nothing allocation that a median water-fill avoids; the LL cells then lose \wttgpphighWoneproposedLL{}\,\% of their bits against \wttgpphighWonepointforecastLL{}\,\%. At $w_{\rm LL} = 2$ the two tie and from 3 on the proposed rule leads (\wttgpphighWthreepointforecastRed{}\,\% and \wttgpphighWfivepointforecastRed{}\,\% against the point forecast). The method is therefore for operators who value a low-latency bit at least two to three times an eMBB bit; without that premise the simpler controllers are at least as good.
+
+\subsection{Operating regime: interval, delay, compression}
+\label{sec:regime}
+Table~\ref{tab:sens} varies, on the high-load scenario of Family S and with forecasters retrained per setting, the control interval $T$, the telemetry delay $\tau$ and, on the moderate scenario, the BFP mantissa width. \emph{Interval.} At $T = 2$~ms the proposed rule reduces $V_w$ by \sweepTfouroracle{}\,\% relative to even the oracle water-fill, which has a perfect point forecast: the allocation rule, not only the forecast, carries the gain, and the oracle + KKT reference reaches \sweepTfouroraclekktAbs{}\,\% against \sweepTfouroracleAbs{}\,\% for the oracle water-fill with the same information. At $T = 20$~ms, five times the LL deadline, reserving the LL peak rate for the whole interval wastes capacity and proportional sharing is better (\sweepTfourzeroreactiveprop{}\,\%); the method suits intervals up to a few times the shortest deadline. \emph{Delay.} All controllers degrade as state ages and the ordering is preserved, but the margin over proportional sharing shrinks from \delayTauzeroreactiveprop{}\,\% at $\tau = 0$ to \delayTauonezeroreactiveprop{}\,\% at $\tau = 5$~ms, more than twice the LL deadline. \emph{Compression.} Mantissa widths of 6, 9, 12 and 14 bits rescale $\beta$ in \eqref{eq:beta} and move the offered load from 0.44 to 0.99 with the same user traffic. At 0.44 nothing is lost whatever the rule, at 0.65 the proposed rule loses about half as much as the reactive controllers, at 0.86 proportional sharing is already slightly better on $V_w$, and at 0.99 no rule helps and protecting LL costs more eMBB bits than the weight repays. Compression selects the load regime; deadline-aware allocation matters between about 0.5 and 0.8 and should hand over to proportional sharing, or to stronger compression, above that (the signal-quality cost of narrower mantissas is not modelled).
+
+\begin{table}[t]
+\caption{Sensitivity on Family S: $V_w$ (\%, means over \nSeedsSweep{}/\nSeedsDelay{}/\nSeedsComp{}/\nSeedsWeights{} seeds; bold = best implementable)}
+\label{tab:sens}
+\centering
+\scriptsize
+% ---- inlined from generated/tab_sensitivity ----
+\begin{tabular}{lcccc}
+\hline
+\multicolumn{5}{l}{\textit{Control interval $T$ (high)}} \\
+Controller & 2 ms & 5 ms & 10 ms & 20 ms \\
+\hline
+Reactive proportional & 3.91 & 7.42 & 8.91 & \textbf{11.80} \\
+Deadline-aware reactive & 7.89 & 10.20 & 10.78 & 15.84 \\
+Point forecast + WF & 6.57 & 7.53 & 9.46 & 14.08 \\
+\textbf{Proposed (GBM + KKT)} & \textbf{3.07} & \textbf{5.07} & \textbf{7.71} & 13.15 \\
+Oracle water-fill & 6.89 & 6.01 & 6.63 & 10.83 \\
+Oracle + KKT rule & 1.91 & 2.74 & 4.52 & 8.14 \\
+\hline
+\multicolumn{5}{l}{\textit{Telemetry delay $\tau$ (high)}} \\
+Controller & 0 ms & 1 ms & 2.5 ms & 5 ms \\
 \hline
 Reactive proportional & 8.16 & 8.91 & 9.86 & 11.30 \\
 Deadline-aware reactive & 9.89 & 10.78 & 11.90 & 13.93 \\
 Point forecast + WF & 8.45 & 9.46 & 10.51 & 12.45 \\
-\textbf{Proposed (GBM + KKT)} & 6.85 & 7.71 & 8.77 & 11.07 \\
+\textbf{Proposed (GBM + KKT)} & \textbf{6.85} & \textbf{7.71} & \textbf{8.77} & \textbf{11.07} \\
+\hline
+\multicolumn{5}{l}{\textit{BFP width / load (moderate)}} \\
+Controller & 6b/0.44 & 9b/0.65 & 12b/0.86 & 14b/0.99 \\
+\hline
+Reactive proportional & 0.22 & 3.90 & \textbf{11.37} & \textbf{17.29} \\
+Deadline-aware reactive & 0.18 & 4.02 & 13.84 & 20.38 \\
+Point forecast + WF & 0.15 & 3.00 & 12.50 & 19.16 \\
+\textbf{Proposed (GBM + KKT)} & \textbf{0.11} & \textbf{1.96} & 12.01 & 20.81 \\
+\hline
+\multicolumn{5}{l}{\textit{LL priority weight $w_{\mathrm{LL}}$ (high)}} \\
+Controller & 1 & 2 & 3 & 5 \\
+\hline
+Reactive proportional & \textbf{6.55} & \textbf{8.13} & 9.20 & 10.56 \\
+MaxWeight (drift) & 7.38 & 9.96 & 11.54 & 13.38 \\
+Deadline-aware reactive & 7.75 & 10.08 & 11.03 & 11.69 \\
+Point forecast + WF & 6.77 & 8.90 & 9.70 & 10.57 \\
+\textbf{Proposed (GBM + KKT)} & 6.58 & 8.35 & \textbf{8.00} & \textbf{6.93} \\
+Oracle water-fill & 4.86 & 5.97 & 6.89 & 8.29 \\
+Oracle + KKT rule & 4.86 & 5.68 & 4.77 & 3.63 \\
 \hline
 \end{tabular}
-% ---- end generated/tab_delay ----
-}
+% ---- end generated/tab_sensitivity ----
+
 \end{table}
 
 \subsection{Robustness to miscalibration}
 \label{sec:robust}
-To test Proposition~\ref{prop:robust}, every forecast quantile level is shifted by $\epsilon \in [-0.3, 0.3]$ before allocation, which moves the reported distribution by a Kolmogorov distance of $|\epsilon|$ (Table~\ref{tab:misc}, Fig.~\ref{fig:misc}). The response is asymmetric. Under-reserving ($\epsilon < 0$) is almost harmless (\mischighUnder{}\,\% at $\epsilon = -0.3$ against \mischighBase{}\,\% at $\epsilon = 0$ in the high scenario): when the link constraint binds, a common shift of all probability levels is largely absorbed by the multiplier $\lambda^\ast$, since the rule equalises weighted levels rather than using them absolutely. Over-reserving degrades gradually, to \mischighWorst{}\,\% at $\epsilon = +0.3$ (\mischighWorstRel{}\,\% relative; \miscshiftWorstRel{}\,\% under shift), because the upper quantiles saturate at the last knot and the rule loses the tail resolution that distinguishes cells. Even at the extreme the proposed rule matches the point-forecast controller (\mischighpointforecast{}\,\% at high load, \miscshiftpointforecast{}\,\% under shift) and stays below the deadline-aware reactive controller (\mischighqueueaware{}\,\%, \miscshiftqueueaware{}\,\%). The degradation is bounded and roughly linear in $\epsilon$ on the over-reserving side, consistent with Proposition~\ref{prop:robust}.
+To test Proposition~\ref{prop:robust} every forecast quantile level is shifted by $\epsilon \in [-0.3, 0.3]$ before allocation, a Kolmogorov distance of $|\epsilon|$ (Table~\ref{tab:misc}, \nSeedsMisc{} seeds). Under-reserving ($\epsilon < 0$) is almost harmless (\mischighUnder{}\,\% at $\epsilon = -0.3$ against \mischighBase{}\,\% at $\epsilon = 0$ at high load): when the link constraint binds, a common shift of all levels is largely absorbed by $\lambda^\ast$, since the rule equalises weighted levels rather than using them absolutely. Over-reserving degrades gradually, to \mischighWorst{}\,\% at $\epsilon = +0.3$ (\mischighWorstRel{}\,\% relative), because the upper quantiles saturate at the last knot and the rule loses the tail resolution that distinguishes cells. Even then the proposed rule matches the point-forecast controller (\mischighpointforecast{}\,\%) and stays below the deadline-aware reactive controller (\mischighqueueaware{}\,\%); the degradation is bounded and roughly linear in $\epsilon$, as the proposition predicts.
 
 \begin{table}[t]
-\caption{Forecast miscalibration: $V_w$ (\%) of the proposed rule when all quantile levels are shifted by $\epsilon$ (\nSeedsMisc{} seeds)}
+\caption{Forecast miscalibration (Family S): $V_w$ (\%) of the proposed rule with all quantile levels shifted by $\epsilon$}
 \label{tab:misc}
 \centering
 \footnotesize
@@ -836,59 +1503,20 @@ Shift & 10.96 & 10.94 & 11.10 & 11.13 & 11.53 & 12.27 & 12.50 \\
 }
 \end{table}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{fig10_miscalibration.pdf}
-\caption{Robustness to forecast miscalibration. Dashed and dotted lines: point-forecast and deadline-aware reactive controllers on the same traces.}
-\label{fig:misc}
-\end{figure}
-
-\subsection{Compression as a load lever}
-\label{sec:compression}
-Table~\ref{tab:compression} runs the same user traffic (moderate scenario, \nSeedsComp{} seeds) with BFP mantissa widths of 6, 9, 12 and 14 bits, which rescale $\beta$ in \eqref{eq:beta} and move the offered load from 0.44 to 0.99. At load 0.44 almost nothing is lost whatever the rule; at the default 0.65 the proposed rule loses about half as much as the reactive controllers; at 0.86 the deadline-unaware proportional controller is already slightly better on the weighted metric; at 0.99 the link is saturated and no allocation rule helps, the proposed rule being the worst because protecting the LL cells costs more eMBB bits than the priority weight repays. Compression selects the load regime; deadline-aware allocation matters most between about 0.5 and 0.8 and should hand over to pure proportional sharing, or to stronger compression, above that. The signal-quality cost of narrower mantissas is not modelled here and must be weighed against this gain in a joint design.
-
-\begin{table}[t]
-\caption{Compression width versus allocation rule, moderate scenario: $V_w$ (\%, mean over \nSeedsComp{} seeds)}
-\label{tab:compression}
-\centering
-\footnotesize
-\resizebox{\columnwidth}{!}{% ---- inlined from generated/tab_compression ----
-\begin{tabular}{lcccc}
-\hline
-BFP mantissa bits & 6 & 9 & 12 & 14 \\
-Offered load & 0.44 & 0.65 & 0.86 & 0.99 \\
-\hline
-Reactive proportional & 0.22 & 3.90 & 11.37 & 17.29 \\
-Deadline-aware reactive & 0.18 & 4.02 & 13.84 & 20.38 \\
-Point forecast + WF & 0.15 & 3.00 & 12.50 & 19.16 \\
-\textbf{Proposed (GBM + KKT)} & 0.11 & 1.96 & 12.01 & 20.81 \\
-\hline
-\end{tabular}
-% ---- end generated/tab_compression ----
-}
-\end{table}
-
-\section{Discussion and Limitations}
+\section{Discussion, Limitations and Conclusion}
 \label{sec:limits}
-The results support the hypothesis that, when budgets must be committed before the traffic is known, turning a forecast \emph{distribution} of deadline-feasible demand into per-cell budgets through the KKT rule reduces priority-weighted deadline violations compared with point forecasts, tuned global quantiles, queue-based and deadline-aware reactive controllers, including under a traffic family not seen in training. Four findings qualify the claim. First, the rule depends on the control interval being at most a few times the shortest deadline; at longer intervals interval-level reservation of a peak rate stops making sense. Second, the same holds for telemetry age: at $\tau$ beyond the LL deadline the advantage over proportional sharing nearly vanishes. Third, under sustained overload (load above about 0.85) no allocation rule helps and the problem must be solved by compression or capacity. Fourth, per-stream conformal calibration harms the coupled allocation.
-
-Limitations: traffic is synthetic; the link is a budget-enforced pipe without a switch queue or receive-window model; each cell carries one traffic class; HARQ and uplink are not modelled; the oracle is interval-level; decision time is measured in Python; and the propositions cover feasibility, equal risk, backlog priority and miscalibration robustness, not closed-loop stability or optimality. Validation on measured per-cell PRB traces and a joint compression--allocation controller that trades signal quality for load per cell are the natural next steps.
-
-\section{Conclusion}
-We formulated budget allocation on a shared O-RAN 7-2x fronthaul link as a constrained newsvendor problem on the deadline-feasible rate of each cell, derived a closed-form KKT allocation that cuts every cell at the same priority-weighted risk, proved feasibility, equal-risk, backlog-first and miscalibration-robustness properties, and evaluated it against nine comparators on identical traces over \nSeeds{} held-out seeds with paired statistics. The rule is the best implementable controller in all five scenarios, with gains that are significant after correction and that persist under distribution shift and forecast miscalibration, and its failure regimes are identified. Code, data and scripts reproduce every number in this paper.
+When budgets must be committed before the traffic is known, turning a forecast \emph{distribution} of deadline-feasible demand into per-cell budgets through the KKT rule reduces priority-weighted deadline violations compared with point forecasts, tuned global quantiles, queue-based and deadline-aware reactive controllers, on two unrelated traffic families, under a held-out shift, under cross-family transfer and under forecast miscalibration. The claim holds in a stated regime: the objective must value the low-latency class (at $w_{\rm LL} \le 2$ the simpler controllers are as good or better); control interval and telemetry age must stay within a few times the shortest deadline; above a load of about 0.85 no allocation rule helps and compression or capacity must; and per-stream conformal calibration harms the coupled allocation. Limitations: both families are simulated, and Family G uses a round-robin scheduler and single-layer link adaptation; the link is a budget-enforced pipe without switch-queue or receive-window model; each cell carries one class; HARQ and uplink are not modelled; the oracles are interval-level; decision time is measured in Python; and the propositions do not cover closed-loop stability. Validation on measured per-cell PRB traces and a joint compression--allocation controller are the natural next steps.
 
 \begin{thebibliography}{00}
 \bibitem{oran_cus} O-RAN Alliance WG4, ``Control, user and synchronization plane specification,'' O-RAN.WG4.CUS.0, 2024.
-\bibitem{tr38801} 3GPP, ``Study on new radio access technology: Radio access architecture and interfaces,'' TR 38.801 V14.0.0, 2017.
+\bibitem{polese2023} M. Polese, L. Bonati, S. D'Oro, S. Basagni, and T. Melodia, ``Understanding O-RAN: Architecture, interfaces, algorithms, security, and research challenges,'' \emph{IEEE Commun. Surveys Tuts.}, vol. 25, no. 2, pp. 1376--1411, 2023.
 \bibitem{larsen2019} L. M. P. Larsen, A. Checko, and H. L. Christiansen, ``A survey of the functional splits proposed for 5G mobile crosshaul networks,'' \emph{IEEE Commun. Surveys Tuts.}, vol. 21, no. 1, pp. 146--172, 2019.
 \bibitem{perez2018} G. O. P\'erez, J. A. Hern\'andez, and D. Larrabeiti, ``Fronthaul network modeling and dimensioning meeting ultra-low latency requirements for 5G,'' \emph{J. Opt. Commun. Netw.}, vol. 10, no. 6, pp. 573--581, 2018.
-\bibitem{perez2019} G. O. P\'erez, D. Larrabeiti, and J. A. Hern\'andez, ``5G new radio fronthaul network design for eCPRI-IEEE 802.1CM and extreme latency percentiles,'' \emph{IEEE Access}, vol. 7, pp. 82218--82230, 2019.
 \bibitem{wang2017} L. Wang and S. Zhou, ``On the fronthaul statistical multiplexing gain,'' \emph{IEEE Commun. Lett.}, vol. 21, no. 5, pp. 1099--1102, 2017.
 \bibitem{lagen2022} S. Lag\'en, X. Gelabert, A. Hansson, M. Requena, and L. Giupponi, ``Fronthaul compression control for shared fronthaul access networks,'' \emph{IEEE Commun. Mag.}, vol. 60, no. 4, pp. 70--76, 2022.
 \bibitem{bega2019} D. Bega, M. Gramaglia, M. Fiore, A. Banchs, and X. Costa-P\'erez, ``DeepCog: Cognitive network management in sliced 5G networks with deep learning,'' in \emph{Proc. IEEE INFOCOM}, 2019.
 \bibitem{bega2020} D. Bega, M. Gramaglia, M. Fiore, A. Banchs, and X. Costa-P\'erez, ``AZTEC: Anticipatory capacity allocation for zero-touch network slicing,'' in \emph{Proc. IEEE INFOCOM}, 2020.
 \bibitem{sciancalepore2017} V. Sciancalepore, K. Samdanis, X. Costa-P\'erez, D. Bega, M. Gramaglia, and A. Banchs, ``Mobile traffic forecasting for maximizing 5G network slicing resource utilization,'' in \emph{Proc. IEEE INFOCOM}, 2017.
-\bibitem{mikaeil2018} A. M. Mikaeil, W. Hu, and S. B. Hussain, ``Traffic-estimation-based low-latency XGS-PON mobile front-haul for small-cell C-RAN based on an adaptive learning neural network,'' \emph{Applied Sciences}, vol. 8, no. 7, p. 1097, 2018.
 \bibitem{kavehmadavani2023} F. Kavehmadavani, V.-D. Nguyen, T. X. Vu, and S. Chatzinotas, ``Intelligent traffic steering in beyond 5G open RAN based on LSTM traffic prediction,'' \emph{IEEE Trans. Wireless Commun.}, vol. 22, no. 11, pp. 7727--7742, 2023.
 \bibitem{kasuluru2024} V. Kasuluru, L. Blanco, C. J. Vaca-Rubio, and E. Zeydan, ``On the impact of PRB load uncertainty forecasting for sustainable open RAN,'' arXiv:2407.14400, 2024.
 \bibitem{cohen2023} K. M. Cohen, S. Park, O. Simeone, P. Popovski, and S. Shamai, ``Guaranteed dynamic scheduling of ultra-reliable low-latency traffic via conformal prediction,'' \emph{IEEE Wireless Commun. Lett.}, vol. 12, no. 2, pp. 296--300, 2023.
@@ -897,8 +1525,12 @@ We formulated budget allocation on a shared O-RAN 7-2x fronthaul link as a const
 \bibitem{hadley1963} G. Hadley and T. M. Whitin, \emph{Analysis of Inventory Systems}. Englewood Cliffs, NJ: Prentice-Hall, 1963.
 \bibitem{leboudec2001} J.-Y. Le Boudec and P. Thiran, \emph{Network Calculus: A Theory of Deterministic Queuing Systems for the Internet}. Springer, 2001.
 \bibitem{willinger1997} W. Willinger, M. S. Taqqu, R. Sherman, and D. V. Wilson, ``Self-similarity through high-variability: Statistical analysis of Ethernet LAN traffic at the source level,'' \emph{IEEE/ACM Trans. Netw.}, vol. 5, no. 1, pp. 71--86, 1997.
-\bibitem{eckart1936} C. Eckart and G. Young, ``The approximation of one matrix by another of lower rank,'' \emph{Psychometrika}, vol. 1, no. 3, pp. 211--218, 1936.
-\bibitem{halko2011} N. Halko, P.-G. Martinsson, and J. A. Tropp, ``Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions,'' \emph{SIAM Review}, vol. 53, no. 2, pp. 217--288, 2011.
+\bibitem{colo_ran} M. Polese, L. Bonati, S. D'Oro, S. Basagni, and T. Melodia, ``ColO-RAN: Developing machine learning-based xApps for open RAN closed-loop control on programmable experimental platforms,'' \emph{IEEE Trans. Mobile Comput.}, vol. 22, no. 10, pp. 5787--5800, 2023.
+\bibitem{tr38901} 3GPP, ``Study on channel model for frequencies from 0.5 to 100 GHz,'' TR 38.901 V17.0.0, 2022.
+\bibitem{tr36942} 3GPP, ``Evolved Universal Terrestrial Radio Access (E-UTRA); Radio Frequency (RF) system scenarios,'' TR 36.942 V17.0.0, 2022.
+\bibitem{ts38214} 3GPP, ``NR; Physical layer procedures for data,'' TS 38.214 V17.0.0, 2022.
+\bibitem{tr36814} 3GPP, ``Further advancements for E-UTRA physical layer aspects,'' TR 36.814 V9.2.0, 2017.
+\bibitem{tr38838} 3GPP, ``Study on XR (Extended Reality) evaluations for NR,'' TR 38.838 V17.0.0, 2021.
 \end{thebibliography}
 
 \end{document}

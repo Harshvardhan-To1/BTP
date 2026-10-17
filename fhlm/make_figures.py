@@ -26,14 +26,18 @@ SCENARIO_LABELS = {"low": "Low\n(0.50)", "moderate": "Moderate\n(0.65)", "high":
 COLORS = {
     "static_equal": "#9e9e9e", "reactive_prop": "#607d8b", "maxweight": "#795548", "queue_aware": "#1f77b4",
     "point_forecast": "#ff7f0e", "fixed_quantile": "#e6b800", "proposed_window": "#8bc34a", "proposed": "#d62728",
-    "proposed_cal": "#9c27b0", "oracle": "#212121", "proposed_miscal": "#d62728",
+    "proposed_cal": "#9c27b0", "oracle": "#212121", "proposed_miscal": "#d62728", "oracle_kkt": "#616161",
+    "proposed_transfer": "#e91e63",
 }
 SHORT = {
     "static_equal": "Static equal", "reactive_prop": "Reactive prop.", "maxweight": "MaxWeight",
     "queue_aware": "Deadline-aware reactive", "point_forecast": "Point forecast", "fixed_quantile": "Fixed quantile",
     "proposed_window": "Proposed (window q.)", "proposed": "Proposed (GBM q.)", "proposed_cal": "Proposed + ACI cal.",
-    "oracle": "Oracle water-fill", "proposed_miscal": "Proposed (miscalibrated)",
+    "oracle": "Oracle water-fill", "proposed_miscal": "Proposed (miscalibrated)", "oracle_kkt": "Oracle + KKT rule",
+    "proposed_transfer": "Proposed (transferred forecaster)",
 }
+TGPP_ORDER = ["tgpp_moderate", "tgpp_high"]
+TGPP_LABELS = {"tgpp_moderate": "3GPP traffic, moderate\n(0.65)", "tgpp_high": "3GPP traffic, high\n(0.80)"}
 
 plt.rcParams.update({"font.size": 10, "axes.titlesize": 11, "axes.labelsize": 10, "legend.fontsize": 8.5,
                      "figure.dpi": 150, "savefig.dpi": 200})
@@ -66,6 +70,32 @@ def fig_primary_by_scenario(df: pd.DataFrame):
     ax.grid(axis="y", alpha=0.3)
     ax.legend(ncol=5, loc="upper left", fontsize=7.5)
     _save(fig, "fig1_primary_by_scenario")
+
+
+def fig_tgpp(df: pd.DataFrame):
+    """Standards-based (3GPP) traffic family: primary metric and LL ratio per controller."""
+    d = df[df.scenario.isin(TGPP_ORDER)]
+    if d.empty:
+        return
+    methods = [m for m in METHOD_ORDER if m in d.method.unique()]
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3.9))
+    for ax, metric, title in zip(axes, [PRIMARY_METRIC, "violation_ratio_ll"],
+                                 ["Priority-weighted violation ratio [%]", "Low-latency (XR) violation ratio [%]"]):
+        x = np.arange(len(TGPP_ORDER))
+        width = 0.8 / len(methods)
+        for k, m in enumerate(methods):
+            g = d[d.method == m].groupby("scenario")[metric]
+            ax.bar(x + (k - len(methods) / 2 + 0.5) * width, g.mean().reindex(TGPP_ORDER).values * 100, width,
+                   yerr=g.std().reindex(TGPP_ORDER).fillna(0).values * 100, capsize=2, color=COLORS[m],
+                   label=SHORT[m], edgecolor="black", linewidth=0.3)
+        ax.set_xticks(x)
+        ax.set_xticklabels([TGPP_LABELS[s] for s in TGPP_ORDER])
+        ax.set_ylabel(title)
+        ax.grid(axis="y", alpha=0.3)
+    axes[0].legend(ncol=2, fontsize=7, loc="upper left")
+    fig.suptitle(f"3GPP TR 38.901 UMa + FTP-3 / XR traffic (mean ± std over {d.seed.nunique()} test seeds; lower is better)",
+                 y=1.02)
+    _save(fig, "fig12_tgpp")
 
 
 def fig_class_breakdown(df: pd.DataFrame, scenario: str = "high"):
@@ -323,6 +353,9 @@ def main():
     main_path = os.path.join(RESULTS_DIR, "main_runs.csv")
     if os.path.exists(main_path):
         df = pd.read_csv(main_path)
+        fig_tgpp(df)
+        # the synthetic-family figures exclude the two reference-only controllers added for the paper
+        df = df[~df.method.isin(["oracle_kkt", "proposed_transfer"])]
         fig_primary_by_scenario(df)
         for s in ["high", "shift", "moderate"]:
             if s in df.scenario.unique():

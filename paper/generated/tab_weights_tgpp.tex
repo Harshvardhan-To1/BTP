@@ -1,0 +1,14 @@
+\begin{tabular}{lcccc}
+\hline
+Controller $\backslash$ $w_{\mathrm{LL}}$ & 1 & 2 & 3 & 5 \\
+\hline
+Reactive proportional & 15.01 & 15.62 & 15.94 & 16.27 \\
+MaxWeight (drift) & 19.77 & 23.92 & 25.79 & 27.29 \\
+Deadline-aware reactive & 13.19 & 12.50 & 11.53 & 9.99 \\
+Point forecast + WF & \textbf{10.43} & 9.74 & 8.98 & 7.61 \\
+\textbf{Proposed (GBM + KKT)} & 15.92 & \textbf{9.74} & \textbf{8.01} & \textbf{5.90} \\
+\hline
+Oracle water-fill & 8.78 & 8.31 & 7.85 & 6.76 \\
+Oracle + KKT rule & 8.78 & 7.78 & 6.06 & 4.31 \\
+\hline
+\end{tabular}
