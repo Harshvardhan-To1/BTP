@@ -439,10 +439,13 @@ def copy_figures():
     if names:
         os.makedirs(dst, exist_ok=True)
     for name in names:
-        src = os.path.join(FIG_SRC, name)
-        if os.path.exists(src):
-            shutil.copyfile(src, os.path.join(dst, name))
-            print("copied", src, "->", dst)
+        # extension-less names: ship both the PDF (pdflatex) and the PNG (Overleaf uploads, previews)
+        candidates = [name] if os.path.splitext(name)[1] else [name + ".pdf", name + ".png"]
+        for cand in candidates:
+            src = os.path.join(FIG_SRC, cand)
+            if os.path.exists(src):
+                shutil.copyfile(src, os.path.join(dst, cand))
+                print("copied", src, "->", dst)
 
 
 def flatten():
