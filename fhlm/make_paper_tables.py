@@ -77,6 +77,12 @@ def tab_main(df: pd.DataFrame) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _sgn(x: float) -> str:
+    """Signed integer string without a negative zero."""
+    v = int(round(x))
+    return f"{v:+d}" if v != 0 else "0"
+
+
 def tab_paired(paired: pd.DataFrame, baselines) -> str:
     lines = ["\\begin{tabular}{l" + "c" * len(SC) + "}", "\\hline",
              "Proposed vs. & " + " & ".join(SC_HEAD[s] for s in SC) + " \\\\", "\\hline"]
@@ -90,7 +96,7 @@ def tab_paired(paired: pd.DataFrame, baselines) -> str:
             r = r.iloc[0]
             p = r["wilcoxon_p_holm"]
             star = "$^{\\ast\\ast}$" if p < 0.01 else ("$^{\\ast}$" if p < 0.05 else "")
-            cells.append(f"{-r.rel_reduction_pct:+.0f} [{-r.rel_ci_hi_pct:+.0f},{-r.rel_ci_lo_pct:+.0f}] "
+            cells.append(f"{_sgn(-r.rel_reduction_pct)} [{_sgn(-r.rel_ci_hi_pct)},{_sgn(-r.rel_ci_lo_pct)}] "
                          f"{int(r.reference_wins)}/{int(r.n_seeds)}{star}")
         lines.append(f"{TEX[b]} & " + " & ".join(cells) + " \\\\")
     lines += ["\\hline", "\\end{tabular}"]
