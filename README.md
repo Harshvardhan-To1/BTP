@@ -64,10 +64,18 @@ the two ways to manage that load:
   helps. Compression sets the regime; allocation helps most between ~0.5 and
   ~0.8 load.
 
-Details: `docs/fhlm/results_summary.md`. Paper draft (IEEE conference format,
+Details: `docs/fhlm/results_summary.md`. Paper (IEEE conference format,
 every number generated from the CSVs): `paper/main.tex`, `paper/main.pdf`;
 reviewer-style assessment of what was missing and what was added:
 `docs/fhlm/review_and_response.md`.
+
+Submission target: NCC 2027 (IISc Bengaluru, 17-20 Feb 2027), Networks track.
+Rules checked against the CFP on 17 Oct 2026: six double-column IEEE pages
+including references, double-blind (no author names, affiliations or
+identifying links in the PDF), CMT submission, deadline 31 Oct 2026 23:59 IST
+(firm), notification 24 Dec 2026, camera-ready 8 Jan 2027. The PDF in `paper/`
+is anonymised; the author block and the repository link go back in at
+camera-ready.
 
 ## Repository layout
 
@@ -85,7 +93,7 @@ reviewer-style assessment of what was missing and what was added:
 | `fhlm/train.py` | B | Trains the forecaster on training seeds, reports validation quality |
 | `fhlm/run_experiments.py` | B, A+B | `tune`, `main`, `sweep`, `delay`, `miscalibration`, `weights`, `compression`, `demo` commands (`--family 3gpp` selects the standards-based traffic family); raw JSON + CSV summaries; paired bootstrap / Wilcoxon / Holm statistics |
 | `fhlm/make_figures.py`, `fhlm/make_slides.py`, `fhlm/make_paper_tables.py` | B | All figures, the editable `.pptx` deck (with speaker notes) and the paper's LaTeX tables/macros, from the saved results |
-| `paper/` | B | IEEE conference paper (6 pages incl. references, tables only). `generated/` (tables, number macros) and `main_standalone.tex` are produced by `make_paper_tables`. For Overleaf upload either the whole `paper/` folder or just `main_standalone.tex` (all inputs inlined) |
+| `paper/` | B | IEEE conference paper, anonymised for double-blind review (NCC 2027 format: 6 pages incl. references, 2 figures, 4 tables). `generated/` (tables, number macros), `figures/` and `main_standalone.tex` are produced by `make_paper_tables`. For Overleaf upload either the whole `paper/` folder or `main_standalone.tex` + the `figures/` folder |
 | `tests/test_fhlm.py` | B | 14 tests (link constraint, queues, accounting, zero load, overload, reproducibility, r*, KKT properties, no future leakage, fast tree evaluation, compression bridge) |
 | `docs/fhlm/` | B | `method.md`, `literature_review.md`, `results_summary.md`, `review_and_response.md`, `study_guide.md`, `presentation_notes.md`, the deck (`.pptx`, `.pdf`) |
 | `results/fhlm/` | B | Raw per-run metrics, CSV summaries, forecast reports, `figures/` |
