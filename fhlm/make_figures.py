@@ -349,10 +349,88 @@ def fig_delay(dl: pd.DataFrame):
     _save(fig, "fig11_delay")
 
 
+PAPER_RC = {"font.size": 7, "axes.labelsize": 7, "legend.fontsize": 6, "xtick.labelsize": 6.5,
+            "ytick.labelsize": 6.5, "axes.linewidth": 0.6, "lines.linewidth": 1.0, "savefig.dpi": 300,
+            "font.family": "serif", "mathtext.fontset": "cm"}
+PAPER_SHORT = dict(SHORT, **{"queue_aware": "Deadline-aware react.", "proposed_window": "Proposed, window q.",
+                             "proposed": "Proposed (GBM + KKT)", "proposed_cal": "Proposed + ACI",
+                             "proposed_transfer": "Proposed, transferred", "oracle_kkt": "Oracle + KKT"})
+PAPER_SCEN = {"low": "Low\n0.50", "moderate": "Moderate\n0.65", "high": "High\n0.80",
+              "overload_bursts": "Flash\n0.80+", "shift": "Shift\n(held-out)"}
+PAPER_TGPP = {"tgpp_moderate": "0.65", "tgpp_high": "0.80"}
+
+
+def _grouped_bars(ax, d, scen, labels, methods, metric):
+    width = 0.84 / len(methods)
+    x = np.arange(len(scen))
+    for k, m in enumerate(methods):
+        g = d[d.method == m].groupby("scenario")[metric]
+        mean = g.mean().reindex(scen).values * 100
+        std = g.std().reindex(scen).fillna(0).values * 100
+        ax.bar(x + (k - len(methods) / 2 + 0.5) * width, mean, width, yerr=std, capsize=1, color=COLORS[m],
+               label=PAPER_SHORT[m], edgecolor="black", linewidth=0.25,
+               error_kw={"lw": 0.5}, hatch="///" if m == "proposed" else None)
+    ax.set_xticks(x)
+    ax.set_xticklabels([labels[s] for s in scen])
+    ax.grid(axis="y", alpha=0.3, lw=0.5)
+    ax.set_axisbelow(True)
+    ax.tick_params(length=2, pad=1.5)
+
+
+def paper_fig_overview(df: pd.DataFrame):
+    """Camera-ready figure for the paper: both traffic families side by side, no in-figure title."""
+    with plt.rc_context(PAPER_RC):
+        fig, axes = plt.subplots(1, 2, figsize=(7.1, 1.85), gridspec_kw={"width_ratios": [5.0, 2.3], "wspace": 0.22})
+        s = df[df.scenario.isin(SCENARIO_ORDER)]
+        methods_s = [m for m in METHOD_ORDER if m in s.method.unique()]
+        _grouped_bars(axes[0], s, [x for x in SCENARIO_ORDER if x in s.scenario.unique()], PAPER_SCEN, methods_s,
+                      PRIMARY_METRIC)
+        axes[0].set_ylabel("$V_w$ [%]")
+        axes[0].set_xlabel("(a) Family S: scenario (offered load)", labelpad=2)
+        g = df[df.scenario.isin(TGPP_ORDER)]
+        methods_g = [m for m in METHOD_ORDER if m in g.method.unique()]
+        _grouped_bars(axes[1], g, TGPP_ORDER, PAPER_TGPP, methods_g, PRIMARY_METRIC)
+        axes[1].set_xlabel("(b) Family G: offered load", labelpad=2)
+        handles, labels = axes[1].get_legend_handles_labels()
+        fig.legend(handles, labels, loc="upper center", ncol=6, bbox_to_anchor=(0.5, 1.13), frameon=False,
+                   handlelength=1.2, columnspacing=1.0, handletextpad=0.4)
+        _save(fig, "paper_fig_overview")
+
+
+def paper_fig_demo(npz_path: str, cell: int = 0, start: int = 6000, length: int = 600):
+    if not os.path.exists(npz_path):
+        return
+    d = np.load(npz_path)
+    sl = slice(start, start + length)
+    t_ms = np.arange(length) * 0.5
+    with plt.rc_context(PAPER_RC):
+        fig, axes = plt.subplots(2, 1, figsize=(3.45, 2.15), sharex=True, gridspec_kw={"hspace": 0.1,
+                                                                                      "height_ratios": [1.3, 1]})
+        ax = axes[0]
+        ax.fill_between(t_ms, 0, d["fh_demand"][cell, sl] / 1e6, color="lightgray", lw=0, label="arrivals")
+        for m in ("queue_aware", "point_forecast", "proposed"):
+            ax.step(t_ms, d[f"{m}_budget"][cell, sl] / 1e6, where="post", color=COLORS[m], lw=0.9,
+                    label=PAPER_SHORT[m])
+        ax.set_ylabel("Mbit / slot")
+        ax.set_ylim(0, 1.45 * max(float(d[f"{m}_budget"][cell, sl].max()) for m in ("queue_aware", "proposed")) / 1e6)
+        ax.legend(ncol=2, loc="upper left", frameon=False, handlelength=1.4)
+        ax.grid(alpha=0.3, lw=0.5)
+        ax.tick_params(length=2, pad=1.5)
+        ax = axes[1]
+        for m in ("queue_aware", "point_forecast", "proposed"):
+            ax.plot(t_ms, np.cumsum(d[f"{m}_violated"][cell, sl]) / 1e6, color=COLORS[m], lw=0.9)
+        ax.set_ylabel("Violated [Mbit]")
+        ax.set_xlabel("time [ms]", labelpad=1)
+        ax.grid(alpha=0.3, lw=0.5)
+        ax.tick_params(length=2, pad=1.5)
+        _save(fig, "paper_fig_demo")
+
+
 def main():
     main_path = os.path.join(RESULTS_DIR, "main_runs.csv")
     if os.path.exists(main_path):
         df = pd.read_csv(main_path)
+        paper_fig_overview(df)
         fig_tgpp(df)
         # the synthetic-family figures exclude the two reference-only controllers added for the paper
         df = df[~df.method.isin(["oracle_kkt", "proposed_transfer"])]
@@ -375,6 +453,7 @@ def main():
             fn(pd.read_csv(pth))
     fig_forecast_quality(os.path.join(RESULTS_DIR, "forecast_training_T20_d2.json"))
     fig_demo(os.path.join(RESULTS_DIR, "demo_timeseries.npz"))
+    paper_fig_demo(os.path.join(RESULTS_DIR, "demo_timeseries.npz"))
 
 
 if __name__ == "__main__":
