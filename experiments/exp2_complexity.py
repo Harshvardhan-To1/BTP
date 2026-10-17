@@ -1,7 +1,7 @@
 """
 Experiment 2: Computational Complexity Comparison
 ==================================================
-Paper Figure 2 — Runtime vs matrix size (M × N).
+Paper Figure 2: runtime vs matrix size (M × N).
 
 Sweeps M from 8 to 128 (fixed N=1200) and measures wall-clock time
 per encode operation for all 4 methods.
@@ -10,7 +10,7 @@ Also plots the theoretical complexity curves:
   BFP:     O(MN)
   SVD:     O(MN·min(M,N))
   CSEE:    O(MN log N)
-  RAS-BFP: O(MN log r + Nr²)  — SRHT + QR
+  RAS-BFP: O(MN log r + Nr²)  (SRHT + QR)
 
 Usage:
   python experiments/exp2_complexity.py

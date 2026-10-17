@@ -2,13 +2,13 @@
 
 Two architectures are provided:
 
-* ``InverseNetMLP`` — the classic "InverseNet" formulation: flatten the
+* ``InverseNetMLP``: the classic "InverseNet" formulation: flatten the
   matrix and regress the flattened inverse with a fully connected network.
   This is only practical for small dimensions; at n=500 the input/output
   layers alone would need >2B parameters, so the MLP is trained for
   n=10 and n=100 only.
 
-* ``InverseNetNS`` — a learned Newton–Schulz iteration. The classic
+* ``InverseNetNS``: a learned Newton–Schulz iteration. The classic
   iteration ``X_{k+1} = X_k (2I - A X_k)`` is unrolled for a fixed number
   of steps and the scalar coefficients of every step (plus the scale of
   the initial guess ``X_0 = alpha * A^T / (||A||_1 ||A||_inf)``) are

@@ -5,3 +5,21 @@ data/
 models/inversenet_mlp_dim100.pt
 terminals/
 .ipynb_checkpoints/
+
+# large per-interval forecasters for the sweep are retrained automatically by `run_experiments sweep`
+models/fhlm_quantile_gbm_T4_d2.pkl
+models/fhlm_quantile_gbm_T10_d2.pkl
+models/fhlm_quantile_gbm_T40_d2.pkl
+models/fhlm_quantile_gbm_T20_d0.pkl
+models/fhlm_quantile_gbm_T20_d5.pkl
+models/fhlm_quantile_gbm_T20_d10.pkl
+
+# LaTeX build files
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.bbl
+paper/*.blg
+results/fhlm/chain.status
+results/fhlm/trace_cache/
+models/fhlm_quantile_gbm_T20_d2_3gpp.pkl

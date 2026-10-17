@@ -1,7 +1,7 @@
 """
 Experiment 3: ACAFS Fronthaul Load Reduction
 =============================================
-Paper Figure 3 — Expected BW reduction of ACAFS vs fixed split.
+Paper Figure 3: expected BW reduction of ACAFS vs fixed split.
 
 Sweeps SNR and channel rank distributions.
 Plots:

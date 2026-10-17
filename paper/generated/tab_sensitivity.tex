@@ -1,0 +1,40 @@
+\begin{tabular}{lcccc}
+\hline
+\multicolumn{5}{l}{\textit{Control interval $T$ (high)}} \\
+Controller & 2 ms & 5 ms & 10 ms & 20 ms \\
+\hline
+Reactive proportional & 3.91 & 7.42 & 8.91 & \textbf{11.80} \\
+Deadline-aware reactive & 7.89 & 10.20 & 10.78 & 15.84 \\
+Point forecast + WF & 6.57 & 7.53 & 9.46 & 14.08 \\
+\textbf{Proposed (GBM + KKT)} & \textbf{3.07} & \textbf{5.07} & \textbf{7.71} & 13.15 \\
+Oracle water-fill & 6.89 & 6.01 & 6.63 & 10.83 \\
+Oracle + KKT rule & 1.91 & 2.74 & 4.52 & 8.14 \\
+\hline
+\multicolumn{5}{l}{\textit{Telemetry delay $\tau$ (high)}} \\
+Controller & 0 ms & 1 ms & 2.5 ms & 5 ms \\
+\hline
+Reactive proportional & 8.16 & 8.91 & 9.86 & 11.30 \\
+Deadline-aware reactive & 9.89 & 10.78 & 11.90 & 13.93 \\
+Point forecast + WF & 8.45 & 9.46 & 10.51 & 12.45 \\
+\textbf{Proposed (GBM + KKT)} & \textbf{6.85} & \textbf{7.71} & \textbf{8.77} & \textbf{11.07} \\
+\hline
+\multicolumn{5}{l}{\textit{BFP width / load (moderate)}} \\
+Controller & 6b/0.44 & 9b/0.65 & 12b/0.86 & 14b/0.99 \\
+\hline
+Reactive proportional & 0.22 & 3.90 & \textbf{11.37} & \textbf{17.29} \\
+Deadline-aware reactive & 0.18 & 4.02 & 13.84 & 20.38 \\
+Point forecast + WF & 0.15 & 3.00 & 12.50 & 19.16 \\
+\textbf{Proposed (GBM + KKT)} & \textbf{0.11} & \textbf{1.96} & 12.01 & 20.81 \\
+\hline
+\multicolumn{5}{l}{\textit{LL priority weight $w_{\mathrm{LL}}$ (high)}} \\
+Controller & 1 & 2 & 3 & 5 \\
+\hline
+Reactive proportional & \textbf{6.55} & \textbf{8.13} & 9.20 & 10.56 \\
+MaxWeight (drift) & 7.38 & 9.96 & 11.54 & 13.38 \\
+Deadline-aware reactive & 7.75 & 10.08 & 11.03 & 11.69 \\
+Point forecast + WF & 6.77 & 8.90 & 9.70 & 10.57 \\
+\textbf{Proposed (GBM + KKT)} & 6.58 & 8.35 & \textbf{8.00} & \textbf{6.93} \\
+Oracle water-fill & 4.86 & 5.97 & 6.89 & 8.29 \\
+Oracle + KKT rule & 4.86 & 5.68 & 4.77 & 3.63 \\
+\hline
+\end{tabular}
