@@ -5,12 +5,12 @@ processing unit (O-DU). In the O-RAN 7-2x split it carries raw radio samples,
 so it is one of the most loaded links in a mobile network. This project looks at
 the two ways to manage that load:
 
-* **Part A — make the data smaller.** Compress the per-slot IQ matrix using its
+* **Part A: make the data smaller.** Compress the per-slot IQ matrix using its
   structure (matrix decomposition: truncated SVD, a randomised sketch + QR
   low-rank encoder, delay-domain sparsity), and measure how fast the matrix
   operations behind it (LU, QR, SVD, Newton-Schulz, learned inverters) run on a
   CPU. This part was done earlier in the project.
-* **Part B — share one link well.** Several cells share a link that is smaller
+* **Part B: share one link well.** Several cells share a link that is smaller
   than their total peak. Every 10 ms a controller decides how many bits per
   slot each cell may send. We built a simulator, seven reference controllers and
   a new rule that uses a *forecast range* of each cell's need. This is the main

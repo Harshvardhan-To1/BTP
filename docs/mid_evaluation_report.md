@@ -17,9 +17,9 @@ Massive MIMO Cloud-RAN / O-RAN deployments push fronthaul I/Q rates to multi-Gbp
 |---|---|---|
 | 1 | 3GPP TDL-A channel model (`src/channel/tdl_a.py`) | Done |
 | 2 | Baselines: O-RAN BFP + Truncated SVD | Done |
-| 3 | **CSEE** — Circulant / delay-domain encoder + Theorem 1 | Done |
-| 4 | **RAS-BFP** — SRHT + QR sketched BFP + Theorems 2–4 | Done |
-| 5 | **ACAFS** — Rank-adaptive split controller + Theorem 5 | Done |
+| 3 | **CSEE**: Circulant / delay-domain encoder + Theorem 1 | Done |
+| 4 | **RAS-BFP**: SRHT + QR sketched BFP + Theorems 2–4 | Done |
+| 5 | **ACAFS**: Rank-adaptive split controller + Theorem 5 | Done |
 | 6 | Experiments Exp1–Exp4 → `results/figures/` | Done |
 | 7 | Live demo notebook `notebooks/mid_evaluation_demo.ipynb` | Done |
 | 8 | Mid-eval report + 15-slide deck | Done |
@@ -50,13 +50,13 @@ $$R_{\mathrm{raw}} = 2\,M\,N_{\mathrm{sc}}\,N_{\mathrm{sym}}\,b\,R_{\mathrm{slot
 | **RAS-BFP** | Proposed 2 | $\mathcal{O}(rMN)$ | **Theorems 2–4** |
 | **ACAFS** | System wrapper | $\mathcal{O}(M)$ / UE | **Theorem 5** |
 
-### 3.1 CSEE — Theorem 1
+### 3.1 CSEE: Theorem 1
 
 TDL-A channels are sparse in **delay domain**. CSEE applies an IFFT along subcarriers, keeps the top-$K$ taps, quantizes with per-antenna BFP, and recovers via FFT.
 
 $$\mathrm{NMSE}_{\mathrm{CSEE}} \le \frac{\sigma_{\mathrm{tail}}^2}{\sigma_Y^2} + \frac{\Delta^2}{12}\frac{K}{MN\sigma_Y^2}$$
 
-### 3.2 RAS-BFP — Theorems 2–4
+### 3.2 RAS-BFP: Theorems 2–4
 
 Spatial correlation ⇒ low numerical rank $r\ll\min(M,N)$.
 
@@ -67,7 +67,7 @@ Spatial correlation ⇒ low numerical rank $r\ll\min(M,N)$.
 **Thm 2:** $\|Y-LQ^H\|_F^2 \le (1+\varepsilon_r)\|Y-Y_r\|_F^2$ w.p. $\ge 1-\delta$  
 **Thm 4:** $r^\star=\left\lfloor\sqrt{B_{\mathrm{total}}/(b(M+N))}\right\rceil$
 
-### 3.3 ACAFS — Theorem 5
+### 3.3 ACAFS: Theorem 5
 
 Per-UE rank fraction $r_k/M$ selects Split **7.2x / 7.1 / 6**. Relative BW cut vs fixed Split 6:
 
@@ -88,7 +88,7 @@ Uniform-rank closed form ≈ **33.3%** ($\tau_{\mathrm{low}}=0.15$, $\tau_{\math
 | **CSEE** ($K=300$, $b=10$) | ≈ −21 dB | ≈ **12.7×** | ≈ **5.2 ms** | **~4–6× faster** |
 | **RAS-BFP** ($r=12$, $b=10$) | ≈ −18 dB | ≈ 16.2× | ≈ **7.2 ms** | **~3–4× faster** |
 
-CSEE at smaller $K$ (e.g. $K=60$) reaches **~63×** CR at NMSE ≈ −19 dB — the Pareto knee for delay-domain sparsification.
+CSEE at smaller $K$ (e.g. $K=60$) reaches **~63×** CR at NMSE ≈ −19 dB, the Pareto knee for delay-domain sparsification.
 
 ### 4.2 Figure suite
 
@@ -101,7 +101,7 @@ CSEE at smaller $K$ (e.g. $K=60$) reaches **~63×** CR at NMSE ≈ −19 dB — 
 
 ---
 
-## 5. Roadmap — Remaining 50%
+## 5. Roadmap: Remaining 50%
 
 ```
 Phase 1 (Done · 50%)              Phase 2 (Planned · 50%)
@@ -136,5 +136,5 @@ Phase 1 (Done · 50%)              Phase 2 (Planned · 50%)
 
 ## 7. Committee Sign-Off
 
-**Project status:** On schedule — **50% milestone complete**  
+**Project status:** On schedule, **50% milestone complete**  
 **Artifacts:** Theory (Thm 1–5) · Working simulator · 4 figure suites · Live notebook · Report · Slides

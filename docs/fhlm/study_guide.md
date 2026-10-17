@@ -90,7 +90,7 @@ Lessons:
 * A neural network that tries to output the inverse directly **does not
   work** (50 % error). A learned method that keeps the Newton-Schulz
   iteration and only learns the step sizes does work and has a **fixed,
-  predictable cost** — that matters when you have a hard slot deadline.
+  predictable cost**, which matters when you have a hard slot deadline.
 * A 0.5 ms slot fits an n ≈ 100 inversion on a CPU; n ≈ 500 does not, so
   such matrices must be done less often, updated incrementally, or offloaded.
 
@@ -134,7 +134,7 @@ hence more fronthaul, for the same user data.
 Because a budget is a **reservation** held for 10 ms, and the information is
 already 2 slots old. The traffic of the next 10 ms is unknown when you decide.
 If you could decide every slot with perfect information there would be nothing
-to predict — but that is not how a scheduler/policer works.
+to predict, but that is not how a scheduler/policer works.
 
 ### 3.4 What we measure
 
@@ -174,7 +174,7 @@ the arrivals not seen yet.
 | **Proposed** | forecast **range** of r\* + KKT rule | yes | full range |
 | Proposed, simple quantiles (no ML) | same rule, quantiles from the last 30 intervals | yes | range, no learning |
 | Proposed + online calibration (ACI) | shifts a cell's quantile level after misses | yes | range |
-| Oracle water-fill | knows the true next r\* — not implementable | yes | perfect number |
+| Oracle water-fill | knows the true next r\*; not implementable | yes | perfect number |
 
 Every knob (safety margins, windows) was tuned on **validation seeds**, never
 on test seeds. The best margin was **0 for every baseline**: adding a margin to
@@ -187,13 +187,13 @@ link is full; then split any shortage proportionally.
 
 ## 5. The proposed method, step by step
 
-**Step 1 — Forecast a range.** Six gradient-boosted tree models, one per
+**Step 1: forecast a range.** Six gradient-boosted tree models, one per
 quantile (5, 25, 50, 75, 90, 95 %), predict each cell's r\* for the next
 interval. Inputs: 28 features from past slots only (recent demand, lags,
 running averages, queue, spectral efficiency, cell identity). Trained on
 training seeds only; training takes about 12 s on a laptop.
 
-**Step 2 — Split the link.** We want to maximise the priority-weighted amount
+**Step 2: split the link.** We want to maximise the priority-weighted amount
 of demand that gets served, in expectation under the forecast, subject to the
 link limit:
 
@@ -218,7 +218,7 @@ optimum every cell has the same weighted risk; backlog is funded before any
 uncertain demand; and if the forecast CDF is off by at most ε everywhere, the
 loss in expected weighted served demand is at most 2·ε·w_max·link (linear in
 ε, so a somewhat wrong forecast degrades gently). If the forecast were a single number, the rule collapses to
-the point-forecast water-fill — which is why that is the fair comparison.
+the point-forecast water-fill, which is why that is the fair comparison.
 
 **Cost:** the rule itself takes microseconds. The whole decision, including
 evaluating 1,800 trees for 8 cells, takes about 3.5 ms in Python per 10-ms
@@ -282,7 +282,7 @@ marked, which has p = 0.03.
 ### 6.4 Where the gain comes from
 
 At high load the proportional controller keeps eMBB nearly clean but lets the
-low-latency cells lose ~15 % of their bits — it does not know about deadlines.
+low-latency cells lose ~15 % of their bits because it does not know about deadlines.
 All deadline-aware controllers protect the low-latency cells (~3 %) and pay
 with eMBB. Among them, the proposed rule loses the least eMBB (12.3 % vs
 15.9 % for point forecast) and has the highest utilisation (72 %), because it
@@ -336,7 +336,7 @@ eMBB bits: budgets fixed for 10 ms cannot follow heavy bursts.
 ### 6.6 Forecast quality
 
 On validation data the 5 / 50 / 95 % quantiles are exceeded 5.6 / 50.7 /
-94.9 % of the time — well calibrated. Median error 37 % vs 52 % for "assume
+94.9 % of the time, so it is well calibrated. Median error 37 % vs 52 % for "assume
 the last value" (persistence).
 
 ---
@@ -348,14 +348,14 @@ changes the fronthaul bits per resource block and therefore the load:
 
 | BFP width | load on link | best real controller | proposed vs reactive proportional |
 |---|---|---|---|
-| 6 bits | 0.44 | proposed | 0.11 % vs 0.22 % — almost nothing lost either way |
-| 9 bits (default) | 0.65 | proposed | 2.0 % vs 3.9 % — allocation matters most here |
+| 6 bits | 0.44 | proposed | 0.11 % vs 0.22 %; almost nothing lost either way |
+| 9 bits (default) | 0.65 | proposed | 2.0 % vs 3.9 %; allocation matters most here |
 | 12 bits | 0.86 | reactive proportional (slightly) | 12.0 % vs 11.4 % |
-| 14 bits | 0.99 | reactive proportional | 20.8 % vs 17.3 % — **proposed loses** |
+| 14 bits | 0.99 | reactive proportional | 20.8 % vs 17.3 %; **proposed loses** |
 
 **Message:** compression decides which load regime you are in; allocation
 decides how much is lost in that regime. Allocation helps most between ~0.5
-and ~0.8 load. At ~1.0 load no allocation rule helps — you need more
+and ~0.8 load. At ~1.0 load no allocation rule helps; you need more
 compression or more capacity. Not modelled: the signal-quality cost of fewer
 bits (that is what Part A's NMSE curves are for).
 
@@ -388,7 +388,7 @@ bits (that is what Part A's NMSE curves are for).
   send, before knowing the next 10 ms of traffic.
 * **What is new?** Not the ingredients. The combination: forecast the
   deadline-feasible rate r\* as a *range*, and cut every cell at the same
-  weighted risk under the shared-link constraint — plus a fair evaluation that
+  weighted risk under the shared-link constraint, plus a fair evaluation that
   also shows where it fails.
 * **Why forecast r\* and not traffic?** Because the deadline is what matters;
   for a 2 ms class r\* is the peak burst rate, which the average hides.
@@ -397,7 +397,7 @@ bits (that is what Part A's NMSE curves are for).
   on validation).
 * **Why ML?** Useful, not necessary. The simple-quantile version already beats
   every baseline; the model adds 7-37 % on normal traffic, ~2 % under shift.
-* **Is the oracle an upper bound?** No — it is a perfect *single-number*
+* **Is the oracle an upper bound?** No. It is a perfect *single-number*
   forecast fed to the water-fill rule. Our rule beats it at short intervals.
 * **Where does it fail?** Flash crowds (only 4 % gain), long intervals
   (loses), stale telemetry (nearly ties), ≥ 0.86 load (loses), calibration
@@ -411,7 +411,7 @@ bits (that is what Part A's NMSE curves are for).
 * **Any leakage?** No: separate seed ranges, forecaster frozen before testing,
   features from past slots only (unit-tested), tuning on validation only.
 * **What next?** Restore Part A's `src/` and re-run; make compression width a
-  per-cell knob inside the allocation rule (joint compression + allocation —
+  per-cell knob inside the allocation rule (joint compression + allocation,
   the paper direction); real traces; a coupled calibration; a compiled
   decision.
 
@@ -419,30 +419,30 @@ bits (that is what Part A's NMSE curves are for).
 
 ## 10. Glossary
 
-* **O-RU / O-DU** — radio unit on the tower / processing unit nearby.
-* **Fronthaul** — the link between them. **7-2x** — the O-RAN split where the
+* **O-RU / O-DU**: radio unit on the tower / processing unit nearby.
+* **Fronthaul**: the link between them. **7-2x**: the O-RAN split where the
   O-RU does very little and sends IQ samples.
-* **IQ data** — complex radio samples (in-phase and quadrature).
-* **BFP** — block floating point compression; shared exponent, short mantissa.
-* **PRB / resource block** — the smallest unit the scheduler assigns (12
+* **IQ data**: complex radio samples (in-phase and quadrature).
+* **BFP**: block floating point compression; shared exponent, short mantissa.
+* **PRB / resource block**: the smallest unit the scheduler assigns (12
   subcarriers). Fronthaul cost is per scheduled PRB-layer.
-* **Spectral efficiency** — user bits per resource block; depends on radio
+* **Spectral efficiency**: user bits per resource block; depends on radio
   quality.
-* **Statistical multiplexing** — buying a link smaller than the total peak
+* **Statistical multiplexing**: buying a link smaller than the total peak
   because peaks rarely coincide.
-* **Slot** — 0.5 ms. **Control interval T** — 20 slots = 10 ms.
-* **Deadline-feasible rate r\*** — smallest constant rate that serves the next
+* **Slot**: 0.5 ms. **Control interval T**: 20 slots = 10 ms.
+* **Deadline-feasible rate r\***: smallest constant rate that serves the next
   arrivals with no bit late.
-* **Quantile** — the value below which X % of outcomes fall. Six quantiles =
+* **Quantile**: the value below which X % of outcomes fall. Six quantiles =
   a picture of the range.
-* **Newsvendor problem** — how much to stock when demand is uncertain and both
+* **Newsvendor problem**: how much to stock when demand is uncertain and both
   too little and too much cost something.
-* **KKT conditions** — the equations that characterise the optimum of a
+* **KKT conditions**: the equations that characterise the optimum of a
   constrained optimisation problem.
-* **Water-fill** — fill highest-priority needs first until the link is full.
-* **ACI** — adaptive conformal inference; an online rule that widens or
+* **Water-fill**: fill highest-priority needs first until the link is full.
+* **ACI**: adaptive conformal inference; an online rule that widens or
   narrows prediction intervals after misses.
-* **NMSE** — normalised mean squared error (dB). **CR** — compression ratio.
-* **SVD / QR / LU** — matrix factorisations; SVD gives the best low-rank
+* **NMSE**: normalised mean squared error (dB). **CR**: compression ratio.
+* **SVD / QR / LU**: matrix factorisations; SVD gives the best low-rank
   approximation, QR an orthonormal basis, LU the fastest exact inverse.
-* **Newton-Schulz** — an inversion method using only matrix multiplications.
+* **Newton-Schulz**: an inversion method using only matrix multiplications.

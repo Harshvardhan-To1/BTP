@@ -120,7 +120,7 @@ little. ACI calibration does not help (see below).
    gain over the baselines comes from the *rule* (deadline-feasible target +
    KKT split), not from the learned model. The window-quantile variant is the
    natural robust fallback.
-4. **Online ACI calibration:** no gain — the calibrated variant is 1-9 %
+4. **Online ACI calibration:** no gain; the calibrated variant is 1-9 %
    worse in the nominal family and 10 % worse under the held-out shift.
    Mechanism: the per-cell level offsets raise the LL quantile levels after
    the LL misses that the *coupled* shortage split necessarily produces, so

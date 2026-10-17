@@ -2,7 +2,7 @@
 
 Deck: `docs/fhlm/BTP_midterm_fronthaul_load_management.pptx` (18 main slides +
 6 backup, speaker notes on every slide; PDF alongside). Rebuild with
-`python -m fhlm.make_slides` after re-running experiments — every Part B
+`python -m fhlm.make_slides` after re-running experiments; every Part B
 number on the slides is read from `results/fhlm/`, the Part A inversion table
 from `results/benchmark_results.csv`.
 
@@ -14,16 +14,16 @@ the link between the radio unit on the tower and the processing unit. In the
 in the network. There are two ways to manage that load.
 
 The first is to make the data smaller. In the first part of my project I
-studied compression methods that use the structure of the IQ matrix — truncated
-SVD, a randomised sketch plus QR, and delay-domain sparsity — and compared them
+studied compression methods that use the structure of the IQ matrix (truncated
+SVD, a randomised sketch plus QR, and delay-domain sparsity) and compared them
 with the standard O-RAN block-floating-point compression. Because all of these
 depend on matrix decompositions and inversions running inside a half-millisecond
 slot, I also benchmarked how fast LU, QR, SVD, Newton-Schulz and learned
 inverters actually run on a CPU.
 
 The second way is to share one link well between several cells. Operators
-over-subscribe the link on purpose — in my scenario eight cells' peak traffic
-is 2.4 times the link — because cells rarely burst together. When they do, the
+over-subscribe the link on purpose (in my scenario eight cells' peak traffic
+is 2.4 times the link) because cells rarely burst together. When they do, the
 processing unit must decide how much each cell may send, and it must decide in
 advance: budgets are held for about 10 milliseconds, telemetry is late, and
 low-latency cells can only wait about 2 milliseconds. I built a simulator of
@@ -38,7 +38,7 @@ controller, a queue-based MaxWeight scheduler and a tuned fixed-quantile
 reservation on every seed, with corrected p-values below 0.01. It is only
 four percent better than the simplest controller under flash crowds, loses to
 it when budgets are held for 20 ms or telemetry is 5 ms old, and the
-machine-learning model adds little under a traffic shift — I will show those
+machine-learning model adds little under a traffic shift. I will show those
 too. Finally, one experiment runs both levers on the
 same traffic: compression decides how much load reaches the link, allocation
 decides who loses data when it is full. Everything in the deck is generated
@@ -101,8 +101,8 @@ fronthaul setting*:
 2. The **allocation rule turns the forecast range into budgets under the
    shared-link constraint by cutting every cell at the same priority-weighted
    risk** of needing one more bit. The safety margin of each cell is therefore
-   *derived* — a wide forecast or a high priority gives more margin, a
-   confident forecast gives none — instead of being one tuned constant. Tuning
+   *derived*, not tuned: a wide forecast or a high priority gives more margin, a
+   confident forecast gives none. Tuning
    showed that one constant does not work here (every positive margin was
    worse on validation).
 3. The **evaluation** is fair by construction (same traffic, same delayed
@@ -124,8 +124,8 @@ Honest answer: ML is *useful*, not *necessary*.
 
 * The same rule with simple empirical quantiles (last 30 intervals) already
   beats every baseline. The trained model adds a further 7-51 % on normal
-  traffic — it uses lags, running averages, the last slots, spectral
-  efficiency and the cell identity to sharpen the range — but only about 2 %
+  traffic, because it uses lags, running averages, the last slots, spectral
+  efficiency and the cell identity to sharpen the range, but only about 2 %
   under the held-out shift, where it is out of its training range.
 * So most of the gain comes from (a) forecasting the right quantity (r\*) and
   (b) the allocation rule, not from learning. That is why the rule is the
@@ -159,7 +159,7 @@ Honest answer: ML is *useful*, not *necessary*.
 3. **Why benchmark inversion at all?** Equalisation, precoding and the
    encoders all need decompositions or inverses every slot (0.5 ms). The
    benchmark shows what fits: LU via LAPACK at n = 100 takes 0.17 ms, at
-   n = 500 it takes 18 ms — so large matrices must be inverted less often,
+   n = 500 it takes 18 ms, so large matrices must be inverted less often,
    tracked incrementally, or offloaded. It also shows that predictable cost
    (fixed-step iterations) matters as much as average speed.
 4. **Why did the direct neural inverter fail?** The map from a matrix to its
@@ -178,7 +178,7 @@ Honest answer: ML is *useful*, not *necessary*.
    moves the system along the load axis (0.43 → 0.97), allocation decides how
    much is lost at a given load. Allocation helps most between 0.5 and 0.8;
    at ~1.0 load only more compression or more capacity helps. The
-   signal-quality cost of fewer bits is not modelled in Part B — that is what
+   signal-quality cost of fewer bits is not modelled in Part B; that is what
    Part A's NMSE curves are for.
 
 ### Part B (sharing the link)
@@ -259,7 +259,7 @@ Honest answer: ML is *useful*, not *necessary*.
 21. **Could the DU simply export its schedule instead of forecasting?** Yes,
     where such an interface exists (e.g. CTI for PON fronthaul) it removes
     the need to forecast. Our setting is the case where budgets must be
-    committed before the schedule is known — shared switch policers, delayed
+    committed before the schedule is known: shared switch policers, delayed
     telemetry, or multi-DU aggregation.
 22. **What exactly is a "deadline violation" here?** Bits that wait in the DU
     queue longer than the class deadline (2 ms low-latency, 10 ms eMBB) are

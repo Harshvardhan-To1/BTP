@@ -166,9 +166,9 @@ and matrix-inversion benchmark; see `REPORT.md`, `docs/mid_evaluation_report.md`
 Note on learned inverters: the "InverseNet" models in `matinv_bench` are our
 own constructions (a direct matrix-to-inverse regression network and a
 Newton-Schulz iteration with learned step coefficients), not reproductions
-of a specific paper. The benchmark finding — direct regression does not
+of a specific paper. The benchmark finding (direct regression does not
 generalise (0.36-0.53 relative error) while the structure-preserving learned
-iteration does — should be cited as our measurement, not as prior work.
+iteration does) should be cited as our measurement, not as prior work.
 
 ## What the review implies for the contribution
 
