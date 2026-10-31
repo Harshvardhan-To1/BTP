@@ -197,7 +197,7 @@ Fig.~\ref{fig:overview}(a) and Table~\ref{tab:main} report $V_w$ per scenario. T
 \end{figure}
 
 \begin{table}[t]
-\caption{Family S: $V_w$ (\%, mean $\pm$ std over \nSeeds{} test seeds; lower is better; bold = best implementable controller)}
+\caption{Family S: $V_w$ (\%, mean $\pm$ std over \nSeeds{} test seeds; lower is better)}
 \label{tab:main}
 \centering
 \scriptsize
@@ -231,7 +231,7 @@ The gain of every deadline-aware controller is a priority trade: fewer LL bits l
 Table~\ref{tab:sens} varies the control interval $T$ and the telemetry delay $\tau$ on the high-load scenario of Family S, with forecasters retrained per setting, and the BFP mantissa width on the moderate scenario. At $T = 2$~ms the proposed rule reduces $V_w$ by \sweepTfouroracle{}\,\% relative to even the oracle water-fill, which has a perfect point forecast, so the allocation rule and not only the forecast carries the gain (oracle + KKT reaches \sweepTfouroraclekktAbs{}\,\% against \sweepTfouroracleAbs{}\,\%). At $T = 20$~ms, five times the LL deadline, reserving the LL peak rate for the whole interval wastes capacity and proportional sharing is better (\sweepTfourzeroreactiveprop{}\,\%). With delay, all controllers degrade as the state ages and the ordering is preserved, but the margin over proportional sharing shrinks from \delayTauzeroreactiveprop{}\,\% at $\tau = 0$ to \delayTauonezeroreactiveprop{}\,\% at $\tau = 5$~ms. Finally, mantissa widths of 6, 9, 12 and 14 bits rescale $\beta$ in \eqref{eq:beta} and move the offered load from 0.44 to 0.99 with the same user traffic. At 0.44 nothing is lost whatever the rule, at 0.65 the proposed rule loses about half as much as the reactive controllers, at 0.86 proportional sharing is slightly better on $V_w$, and at 0.99 no rule helps. Compression thus selects the load regime; deadline-aware allocation matters between about 0.5 and 0.8 and should hand over to proportional sharing or stronger compression above that.
 
 \begin{table}[t]
-\caption{Sensitivity on Family S: $V_w$ (\%, means over \nSeedsSweep{}/\nSeedsDelay{}/\nSeedsComp{}/\nSeedsWeights{} seeds; bold = best implementable)}
+\caption{Sensitivity on Family S: $V_w$ (\%, means over \nSeedsSweep{}/\nSeedsDelay{}/\nSeedsComp{}/\nSeedsWeights{} seeds)}
 \label{tab:sens}
 \centering
 \scriptsize

@@ -34,7 +34,14 @@ TEX = {
 }
 SHORT_TEX = {"proposed": "Proposed (GBM + KKT)", "proposed_transfer": "Proposed, transferred",
              "proposed_window": "Proposed, window q.", "queue_aware": "Deadline-aware react."}
-REFERENCE_ONLY = ("oracle", "oracle_kkt", "proposed_transfer")   # never bolded as "best implementable"
+REFERENCE_ONLY = ("oracle", "oracle_kkt", "proposed_transfer")   # never counted as "best implementable"
+# NCC/IEEE Trans. style tables carry no typographic highlighting; keep the best-value bookkeeping but render it plain.
+BOLD_BEST = False
+
+
+def _mark(txt: str, is_best: bool) -> str:
+    return f"\\textbf{{{txt}}}" if (is_best and BOLD_BEST) else txt
+
 TGPP = ["tgpp_moderate", "tgpp_high"]
 TGPP_HEAD = {"tgpp_moderate": "Mod. 0.65", "tgpp_high": "High 0.80"}
 
@@ -74,9 +81,7 @@ def tab_main(df: pd.DataFrame, scen=SC, head=SC_HEAD, metric=PRIMARY_METRIC) -> 
         for s in scen:
             mu, sd = g.loc[(s, m), "mean"] * 100, g.loc[(s, m), "std"] * 100
             txt = f"{mu:.2f}$\\pm${sd:.2f}"
-            if best[s] == m:
-                txt = f"\\textbf{{{txt}}}"
-            cells.append(txt)
+            cells.append(_mark(txt, best[s] == m))
         name = SHORT_TEX.get(m, TEX[m])
         if m == "oracle":
             lines.append("\\hline")
@@ -101,7 +106,7 @@ def tab_tgpp(df: pd.DataFrame, paired: pd.DataFrame) -> str:
             txt = f"{mean.loc[(s, m), 'mean'] * 100:.2f}"
             if s == "tgpp_high":
                 txt += f"$\\pm${mean.loc[(s, m), 'std'] * 100:.2f}"
-            cells.append(f"\\textbf{{{txt}}}" if best[s] == m else txt)
+            cells.append(_mark(txt, best[s] == m))
         ll = g["violation_ratio_ll"].mean().loc[("tgpp_high", m)] * 100
         unw = g["violation_ratio"].mean().loc[("tgpp_high", m)] * 100
         cells.append(f"{ll:.2f} / {unw:.2f}")
@@ -222,7 +227,7 @@ def tab_sensitivity(sw, dl, comp, wt=None) -> str:
         best = {k: min(impl, key=lambda m: g.loc[(k, m)]) for k in keys}
         for m in methods:
             cells = [f"{g.loc[(k, m)] * 100:.2f}" for k in keys]
-            cells = [f"\\textbf{{{c}}}" if best[k] == m else c for k, c in zip(keys, cells)]
+            cells = [_mark(c, best[k] == m) for k, c in zip(keys, cells)]
             lines.append(f"{TEX[m]} & " + " & ".join(cells) + " \\\\")
         lines.append("\\hline")
     lines.append("\\end{tabular}")
@@ -240,7 +245,7 @@ def tab_weights(wt: pd.DataFrame, scenario: str = "high") -> str:
     best = {w: min(impl, key=lambda m: g.loc[(w, m)]) for w in ws}
     for m in methods:
         cells = [f"{g.loc[(w, m)] * 100:.2f}" for w in ws]
-        cells = [f"\\textbf{{{c}}}" if best[w] == m else c for w, c in zip(ws, cells)]
+        cells = [_mark(c, best[w] == m) for w, c in zip(ws, cells)]
         if m == "oracle":
             lines.append("\\hline")
         lines.append(f"{TEX[m]} & " + " & ".join(cells) + " \\\\")
