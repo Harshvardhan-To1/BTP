@@ -26,7 +26,7 @@ TEX = {
     "point_forecast": "Point forecast + WF",
     "fixed_quantile": "Fixed quantile + WF",
     "proposed_window": "Proposed, window quantiles",
-    "proposed": "\\textbf{Proposed (GBM + KKT)}",
+    "proposed": "Proposed (GBM + KKT)",
     "proposed_cal": "Proposed + ACI",
     "proposed_transfer": "Proposed, transferred forecaster",
     "oracle": "Oracle water-fill",
