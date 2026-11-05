@@ -1,0 +1,134 @@
+# Complex matrix inversion for split-RAN precoding: novelty, simulations, results
+
+Everything below is reproduced by `python experiments_v2/run_all.py` (about 1 minute, CPU only, needs only numpy,
+scipy, matplotlib). Raw numbers: `results/v2/*.json`, figures: `results/v2/*.png|pdf`, tests: `pytest tests`.
+
+## 1. Gaps found in the existing project
+
+1. The inversion benchmark used **real**, i.i.d., well-conditioned matrices `A = G/sqrt(n) + 2I`. Massive-MIMO
+   precoding needs **complex Hermitian** Gram matrices `G = HH^H + alpha I` of **correlated, near-far** channels.
+2. "InverseNet-Ultra beats LAPACK" is a mean-time statement. In its own table the median at n=100 is 0.46 ms vs
+   0.17 ms for LAPACK, and it is a learned-coefficient Newton-Schulz run on a model the benchmark data does not
+   resemble. It should not be a headline claim.
+3. The slot-to-slot warm start proposed in `REPORT.md` section 6 was never implemented or measured.
+4. `experiments/exp1..4` import a `src/` package that is not in the repo, so Part A cannot be re-run.
+5. Nothing connected the inversion work to the fronthaul topic of the project (where precoding runs, how often
+   weights change, what that costs on the link).
+
+## 2. What was added (`cmatinv/`, `experiments_v2/`)
+
+| Module | Content |
+|---|---|
+| `channel.py` | 3GPP TR 38.901 UMa NLOS path loss + shadowing (near-far), TDL-A 23-tap profile (frequency selective over 100 MHz), per-user angular-spread spatial correlation, optional Rician LoS, Clarke/Jakes AR(1) aging `rho = J0(2 pi f_D T)` |
+| `inverters.py` | complex Neumann, Newton-Schulz, Chebyshev (Clenshaw), prior-art Joint Newton-Neumann, GEMM counter, low-precision GEMM emulation, direct Gauss-Jordan at b bits |
+| `tracker.py` | the proposed **RMT-WS** tracker |
+| `precoding.py` | RZF weights, sum-rate |
+| `fronthaul.py` | O-RAN 7.2x DL fronthaul model: DU-side (M streams) vs RU-side (K layers + weights) precoding |
+
+### Proposed method, "RMT-WS" (random-matrix-theory-guided warm-start inversion)
+
+1. **Equilibrate** `Gh = D^-1/2 G D^-1/2` (unit diagonal; removes the near-far spread, which otherwise wrecks every
+   series method).
+2. **Zero-eigensolve spectral interval** from the Marchenko-Pastur law and a moment match: `Gh` has spectral mean 1
+   and variance `v = ||Gh||_F^2/K - 1`, giving `[a, b] = 1 + v/s_bar -+ 2 sqrt(v)` (K^2 work). Spatial correlation and
+   LoS raise `v` and widen the interval automatically, which the fixed-ratio edge `(1 -+ sqrt(K/M))^2` cannot do.
+3. **Cold start**: degree-d Chebyshev polynomial on `[a, b]` as the initial guess, then Newton-Schulz (quadratic).
+4. **Tracking**: next slot starts Newton-Schulz from the previous inverse (rescaled by the new diagonal).
+5. **Randomised residual certificate**: `||(I - Gh X) z|| / ||z||` with 2 Gaussian probes costs `4K^2` MACs
+   (about `4/K` of a GEMM) and *predicts* how many Newton steps are needed (`r^(2^n) <= tol`) or that the warm start
+   is no longer contractive (`r > 0.3`), in which case the cold start runs. This makes it safe at any speed.
+
+Related work this builds on and differs from (citations from memory plus one search, check before submission):
+Neumann-series inversion for massive MIMO (Wu et al. 2013; Prabhu et al. 2013), polynomial-expansion precoding with
+RMT-optimal coefficients (Kammoun, Muller, Sikaz, Debbah, JSTSP 2014), Joint Newton-Neumann (Shao et al., 2016),
+Gauss-Seidel/Neumann hybrids (CSPA 2025), Taylor-series inversion inside unfolded/GNN precoders (2025), Newton-Schulz
+(Ben-Israel and Cohen 1966; Pan and Schreiber 1991), Hutchinson trace estimation, Marchenko-Pastur 1967.
+Kammoun et al. already use RMT for polynomial coefficients, so **"RMT-based coefficients" alone is not the novelty**.
+What is new here is the combination: moment-matched interval for correlated/near-far channels, Chebyshev-then-Newton
+hybrid, certificate-driven warm start with a safe fallback, and the evaluation inside an O-RAN fronthaul model.
+
+## 3. Results (M=64 antennas, K=16 layers unless stated, 10 dB cell-edge SNR, RZF, 30 kHz slots, 3.5 GHz)
+
+**Exp5, spectrum and probability (`exp5_*`).** Gram spectrum matches Marchenko-Pastur. Coverage of `[a, b]` over
+24 subcarriers x 30 drops: i.i.d. 100%, correlated (12 deg) 100% / 100%, strongly correlated (3 deg) lower edge 90%,
+upper 100%, Rician 6 dB lower edge 88%, upper 99.9%. The fixed-ratio MP+Weyl bound covers the lower edge only 52% /
+28% of the time in the last two cases. Lower-edge misses are the known weak spot (near-singular, LoS-dominated
+Grams).
+
+**Exp6, cold-start inversion (`exp6_*`), GEMMs (K^3 complex MACs) needed for <= 1% sum-rate loss vs exact:**
+
+| | M=64,K=16 | M=128,K=16 | M=64,K=32 |
+|---|---|---|---|
+| Neumann w=1 (Prabhu/Wu) | >8 | >8 | >8 |
+| Joint Newton-Neumann (Shao) | >10 | >10 | >10 |
+| Newton-Schulz, classical init | >10 | >10 | >10 |
+| Newton-Schulz, MP-scalar init (ours) | 8 | 8 | >10 |
+| **Chebyshev-MP init + Newton-Schulz (ours)** | **6** | **5** | **9** |
+
+The config per budget is chosen on validation drops, then reported on disjoint test drops.
+
+**Exp7, tracking under aging (`exp7_*`), loss vs exact / GEMMs per slot per PRB:**
+
+| speed | exact every 2 slots | cold start (6 GEMM) | warm x1 | warm x2 | **RMT-WS** |
+|---|---|---|---|---|---|
+| 3 km/h | 1.2% / 0.5 | 0.12% / 6 | 0.006% / 2 | 0.000% / 4 | **0.006% / 2.25** |
+| 30 km/h | 16% / 0.5 | 0.14% / 6 | 10.9% / 2 | 0.99% / 4 | **0.41% / 5.2** |
+| 120 km/h | 38% / 0.5 | 0.13% / 6 | diverges | diverges | **0.13% / 6.25** (falls back to cold start) |
+
+No fixed warm-start depth is right at every speed; the certificate picks it per PRB and never diverges. The saving
+is real at low and medium mobility (2.7x fewer GEMMs than a cold start at 3 km/h); at 120 km/h the method simply
+becomes a cold start and gives no saving.
+
+**Exp8, low precision (`exp8_*`).** GEMM operands/results rounded to b mantissa bits, wide accumulate (tensor-core /
+NPU style). Sum-rate loss vs fp64 exact, direct Gauss-Jordan (every op rounded) vs Chebyshev+3 Newton (9 GEMMs):
+8 bits 0.88% vs 0.15%; 6 bits 5.1% vs 1.4%; ill-conditioned (3 deg spread, 25 dB) at 10 bits 1.2% vs 0.49%. The
+tracker at 8 mantissa bits loses 0.67% vs 0.51% at full precision at 30 km/h. The advantage depends on the
+wide-accumulate GEMM assumption, which a rank-1-update direct method cannot use.
+
+**Exp9, cost and latency (`exp9_*`), 273 PRBs per slot, complex64, this 4-core CPU:**
+
+| K | LAPACK `inv` | cold start (6 GEMM, numpy) | warm x1 (2 GEMM) | `W = H^H G^-1` product |
+|---|---|---|---|---|
+| 8 | 0.35 ms | 0.72 ms | 0.09 ms | 0.18 ms |
+| 16 | 1.60 ms | 3.09 ms | 0.29 ms | 0.42 ms |
+| 32 | 7.82 ms | 16.6 ms | 1.43 ms | 1.05 ms |
+
+Honest reading: in complex MACs a direct inverse (K^3) is *cheaper* than a single Newton step (2 K^3), and the
+cold-start path is slower than LAPACK here. The win is the **tracking** step: batched GEMM runs about 5.5x faster than
+batched LAPACK inversion on this CPU, so one warm step fits in a 0.5 ms slot at K=16 and K=32 (inverse only) where
+LAPACK does not. The inversion is also only 20 to 25% of RZF MACs (the Gram and `W` formation dominate), and the
+sequential critical path drops from about 3K steps to a few GEMMs, which matters for FPGA/ASIC/GPU. A tuned
+Cholesky-based inverse would narrow the CPU gap; this was not measured.
+
+**Exp10, where precoding runs (`exp10_*`), 100 MHz, BFP-9 IQ, 3-PRB weight groups.**
+DU-side precoding sends M=64 streams: 118.4 Gbit/s. RU-side precoding sends K=16 layers (29.6 Gbit/s) plus
+beamforming weights. With weights refreshed every slot at 8-bit BFP: **32.8 Gbit/s (-72%) at 99.7% of the exact RZF
+sum-rate**; 6-bit weights 32.0 Gbit/s at 96.7%. Refreshing less often saves only a few Gbit/s but is costly in rate
+at mobility (Tu=4 slots: 97% at 3 km/h, 70% at 30 km/h, 39% at 120 km/h). So RU-side precoding needs a per-slot
+weight refresh at mobility, which is exactly the workload the cheap warm-start step makes affordable.
+
+## 4. Claims we can defend, and ones we cannot
+
+Defensible: (i) a moment-matched MP interval is a probabilistic, eigensolve-free spectral model that works for
+correlated and near-far channels; (ii) Chebyshev-then-Newton beats published approximate-inversion schemes at equal
+GEMM budget; (iii) certificate-driven warm start cuts tracking cost 2.7x at low mobility and is safe at high
+mobility; (iv) RU-side precoding with per-slot refreshed 8-bit weights saves 72% fronthaul at 0.3% rate loss.
+
+Not defensible: that it needs fewer arithmetic operations than a direct Cholesky/LU inverse (it does not at K <= 32);
+that it beats LAPACK in cold-start wall-clock; any "real-world measured" claim. **No measured channel data is
+used**; channels are 3GPP TR 38.901 / ITU-R M.2412-style simulations with standard parameters. The next step for
+real-world evidence is a public measured massive-MIMO set (for example the KU Leuven or Lund measurements) fed
+through `MassiveMIMOChannel`'s interface (H of shape [S, K, M]).
+
+## 5. Other limitations
+
+Fixed user set (no scheduling changes between slots), perfect CSI (no estimation error), per-PRB-group weights
+without frequency interpolation, single seed family with 3 to 12 drops per point (no confidence intervals yet),
+CPU-only timing, the lower spectral edge is not always covered, and the fronthaul model ignores C-plane signalling
+and weight compression beyond BFP.
+
+## 6. Suggested next steps for the paper
+
+Add confidence intervals (more drops), a Cholesky-inverse timing baseline, channel-estimation error, user
+scheduling changes (certificate-triggered refresh), measured channels, a fixed-point FPGA cost estimate, and
+close the loop with Part B by letting the weight-refresh rate be a per-cell knob in the fronthaul allocation rule.

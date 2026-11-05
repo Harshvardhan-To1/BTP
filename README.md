@@ -96,3 +96,16 @@ median 4.2 ms vs mean 25 ms).
   the algorithmic structure, but at 115 ms per dim-500 matrix on CPU it does
   not beat LU. Being pure batched matmuls, it is the one method whose relative
   standing would improve dramatically on a GPU with batched inference.
+
+
+## v2: complex-matrix inversion for split-RAN precoding
+
+New package `cmatinv/` and `experiments_v2/` study **complex Hermitian Gram inversion for RZF precoding** under
+3GPP TR 38.901 channels, with a proposed random-matrix-theory-guided warm-start inverter ("RMT-WS") and an O-RAN
+fronthaul model. Start with [`docs/NOVELTY_AND_RESULTS.md`](docs/NOVELTY_AND_RESULTS.md).
+
+```bash
+pip install numpy scipy matplotlib pandas tqdm pytest
+python experiments_v2/run_all.py     # ~1 min, writes results/v2/
+pytest tests
+```

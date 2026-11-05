@@ -1,0 +1,60 @@
+{
+ "host": "x86_64",
+ "numpy": "2.5.4",
+ "rows": [
+  {
+   "K": 8,
+   "M": 64,
+   "S": 273,
+   "gram": 0.182,
+   "exact": 0.417,
+   "chol": 0.102,
+   "cold6": 0.85,
+   "warm1": 0.111,
+   "warm2": 0.213,
+   "wform": 0.213,
+   "macs_exact_inv": 512,
+   "macs_w_formation": 4096,
+   "macs_gram": 4096,
+   "depth_exact": 24,
+   "depth_cold6": 24,
+   "depth_warm1": 8
+  },
+  {
+   "K": 16,
+   "M": 64,
+   "S": 273,
+   "gram": 0.502,
+   "exact": 1.773,
+   "chol": 0.379,
+   "cold6": 3.446,
+   "warm1": 0.335,
+   "warm2": 0.685,
+   "wform": 0.468,
+   "macs_exact_inv": 4096,
+   "macs_w_formation": 16384,
+   "macs_gram": 16384,
+   "depth_exact": 48,
+   "depth_cold6": 30,
+   "depth_warm1": 10
+  },
+  {
+   "K": 32,
+   "M": 64,
+   "S": 273,
+   "gram": 1.924,
+   "exact": 8.965,
+   "chol": 1.862,
+   "cold6": 18.363,
+   "warm1": 1.632,
+   "warm2": 3.168,
+   "wform": 1.059,
+   "macs_exact_inv": 32768,
+   "macs_w_formation": 65536,
+   "macs_gram": 65536,
+   "depth_exact": 96,
+   "depth_cold6": 36,
+   "depth_warm1": 12
+  }
+ ]
+}
