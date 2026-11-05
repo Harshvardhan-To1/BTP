@@ -64,6 +64,29 @@ the two ways to manage that load:
   helps. Compression sets the regime; allocation helps most between ~0.5 and
   ~0.8 load.
 
+* Extended study (after the NCC submission; journal-length manuscript in
+  `paper/extended/`, 11 pages): the control problem is written as a
+  finite-horizon MDP on deadline-constrained queues; for Markov-modulated
+  fluid traffic a Chernoff-union tail bound on the deadline-feasible rate, its
+  effective-bandwidth decay rate and a pathwise "shortfall sandwich" are
+  proved and validated (bounds valid but 25-100x conservative at 2-10 ms
+  deadlines); a third traffic family (Markov-modulated Gamma sources with a
+  semi-Markov held-out shift) and seven controllers are added. Result, stated
+  plainly: within the NCC comparison set the KKT rule still wins all 10
+  scenarios and is the best controller with nothing to tune, but two
+  controllers that use the same forecaster beat it: a three-parameter policy
+  learned from reward (cross-entropy method) is best in 6/10 scenarios
+  (e.g. 7.17 % vs 8.01 % on 3GPP high load, 3.93 % vs 4.94 % on Markov high
+  load), predictive MaxWeight (forecast median + queues, no deadline model) in
+  3/10, all on the bursty synthetic family (6.15 % vs 8.00 % at high load),
+  and the KKT rule with one tuned weight in 1/10. Re-tuning the LL weight
+  inside the KKT rule gains only 1-4 %, because at high load the KKT
+  multiplier saturates at the eMBB weight in half of the intervals; the gap
+  is structural. A Markov chain fitted online, with no training data, is
+  within 3-9 % of the learned rule. Short control interval (<= 5 ms) ->
+  reservation; 10-20 ms with short bursts -> back-pressure; long bursts ->
+  reservation at every interval. Details: `docs/fhlm/extended_study.md`.
+
 Details: `docs/fhlm/results_summary.md`. Paper (IEEE conference format,
 every number generated from the CSVs): `paper/main.tex`, `paper/main.pdf`;
 reviewer-style assessment of what was missing and what was added:
@@ -95,6 +118,9 @@ camera-ready.
 | `fhlm/make_figures.py`, `fhlm/make_slides.py`, `fhlm/make_paper_tables.py` | B | All figures, the editable `.pptx` deck (with speaker notes) and the paper's LaTeX tables/macros, from the saved results |
 | `paper/` | B | IEEE conference paper, anonymised for double-blind review (NCC 2027 format: 6 pages incl. references, 2 figures, 4 tables). `generated/` (tables, number macros), `figures/` and `main_standalone.tex` are produced by `make_paper_tables`. For Overleaf upload either the whole `paper/` folder or `main_standalone.tex` + the `figures/` folder |
 | `tests/test_fhlm.py` | B | 14 tests (link constraint, queues, accounting, zero load, overload, reproducibility, r*, KKT properties, no future leakage, fast tree evaluation, compression bridge) |
+| `fhlm/traffic_markov.py`, `fhlm/theory.py`, `fhlm/theory_validation.py`, `fhlm/markov.py`, `fhlm/controllers_ext.py`, `fhlm/lambda_diagnostic.py`, `fhlm/make_extended_tables.py`, `tests/test_fhlm_extended.py` | B ext. | Extended study: Markov-modulated traffic family, Markov-fluid theory (effective bandwidth, Chernoff-union bound, shortfall sandwich) and its numerical validation, fitted-chain / bound / true-model forecasters, predictive MaxWeight and CEM policy search, KKT-multiplier diagnostic, tables and macros of `paper/extended/` (14 tests). See `docs/fhlm/extended_study.md` |
+| `paper/extended/` | B ext. | Journal-length manuscript (IEEE journal format, 11 pages); `generated/` and `figures/` produced by `make_extended_tables` and `make_figures` |
+| `experiments/run_extended.sh`, `experiments/run_extended_2.sh` | B ext. | The whole extended pipeline (tuning, CEM training, main runs on three families, sweeps, theory validation), append-only |
 | `docs/fhlm/` | B | `method.md`, `literature_review.md`, `results_summary.md`, `review_and_response.md`, `study_guide.md`, `presentation_notes.md`, the deck (`.pptx`, `.pdf`) |
 | `results/fhlm/` | B | Raw per-run metrics, CSV summaries, forecast reports, `figures/` |
 | `models/fhlm_quantile_gbm_T20_d2.pkl` | B | Trained forecaster for the default 10 ms interval (the sweeps retrain their own per T / tau; those files are git-ignored) |
@@ -149,6 +175,12 @@ python -m fhlm.run_experiments compression --scenario moderate --num-seeds 10  #
 python -m fhlm.make_figures                                             # 10. all figures
 python -m fhlm.make_slides                                              # 11. deck; PDF: soffice --headless --convert-to pdf docs/fhlm/*.pptx
 python -m fhlm.make_paper_tables && (cd paper && pdflatex main && pdflatex main)  # 12. paper tables/macros + PDF
+
+# extended study (third family, theory, new controllers, journal manuscript)
+python -m fhlm.train --family markov --out models/fhlm_quantile_gbm_T20_d2_markov.pkl --report results/fhlm/forecast_training_T20_d2_markov.json
+bash experiments/run_extended.sh && bash experiments/run_extended_2.sh    # about 3 h on 4 cores
+python -m fhlm.lambda_diagnostic
+python -m fhlm.make_figures && python -m fhlm.make_extended_tables && (cd paper/extended && pdflatex main && pdflatex main)
 
 # Part A (matrix-inversion benchmark; needs torch)
 python -m matinv_bench.generate_dataset --dims 10 100 500 --num-samples 1000
