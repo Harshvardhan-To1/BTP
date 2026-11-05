@@ -1,0 +1,415 @@
+\documentclass[journal]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{multirow}
+\graphicspath{{figures/}}
+\input{generated/macros_ext}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{lemma}{Lemma}
+\newtheorem{remark}{Remark}
+\newcommand{\rstar}{r^{\ast}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Prob}{\mathbb{P}}
+\begin{document}
+
+\title{Deadline-Feasible Budget Allocation for Shared Open RAN Fronthaul under Uncertainty:\\ Markov-Fluid Bounds, Learned Predictive Distributions and Predictive Back-Pressure}
+
+% Extended (journal-length) version of the NCC 2027 submission. Author block withheld for review.
+\author{Anonymous Authors%
+\thanks{Manuscript prepared November 2026. This article extends a conference submission (NCC 2027) by the Markov-fluid analysis of Sec.~\ref{sec:theory}, the Markov-modulated traffic family, the model-based, predictive back-pressure and policy-search controllers of Sec.~\ref{sec:controllers} and the regime analysis of Sec.~\ref{sec:regime}. Code, traces and every number in this article are reproducible from the accompanying repository.}}
+
+\markboth{Preprint}{Deadline-feasible fronthaul budget allocation under uncertainty}
+\maketitle
+
+\begin{abstract}
+In the O-RAN 7-2x functional split several radio units share a packet-switched fronthaul link that is smaller than the sum of their peak rates, and the distributed unit must decide, once per control interval and before the traffic of that interval is known, how much of the link each cell may use. We formulate this as a finite-horizon Markov decision process on deadline-constrained queues, explain why its exact solution is out of reach, and compare the three families of approximations that are tractable: one-step stochastic programs on a forecast distribution (point, quantile, newsvendor/KKT rules, with learned or model-based distributions), Lyapunov-drift controllers (MaxWeight with and without a forecast), and direct policy search. For the first family we develop the theory of the \emph{deadline-feasible rate} $\rstar$, the smallest constant rate at which no bit of a horizon misses its deadline, when the demand is a Markov-modulated fluid: a Chernoff-union tail bound built from the Markov-additive log-moment generating function and the effective bandwidth, its large-deadline decay rate, and a pathwise sandwich that places the deadline-violated volume of an interval between $(l^\ast{+}D)$ times the newsvendor shortfall and the slot-wise overflow, which is what relates the newsvendor objective to deadline violations and also reveals that the plain rule weights short-deadline cells too heavily. The bounds are tight in the decay rate but, at the 2--10-ms deadlines of fronthaul, 25--100 times conservative at the tail probabilities that matter, which is the quantitative case for learning the predictive distribution rather than bounding it. We compare nineteen controllers on three independent traffic families (bursty synthetic, 3GPP standards-based, and Markov-modulated with a semi-Markov held-out shift), \xnSeedsS{} seeds per scenario, identical traces and stale telemetry, Holm-corrected paired statistics. The closed-form learned-quantile KKT rule of the conference version is the best \emph{parameter-free} controller and beats every controller of the original comparison in all ten scenarios, but two controllers that use the same forecaster beat it: a three-parameter policy whose per-class quantile levels and low-latency weight are learned from reward by the cross-entropy method is the best implementable controller in \xwinscempolicy{} of ten scenarios, and a predictive MaxWeight controller that uses only the forecast median wins \xwinspredmaxweight{} on the bursty family (the KKT rule with one tuned weight wins the last one). The sandwich predicts the direction of the correction (protect the 2-ms class less than the operator weight says, because a peak-rate reservation held for 10~ms idles), but re-tuning the weight inside the closed-form rule recovers only 1--4\,\% of its cost: at high load the KKT multiplier sits at or above the eMBB weight in half of the intervals, so the eMBB cells are already at their lowest quantile and the weight has nothing left to move. The gain of the learned policy is structural, decoupled per-class levels and a shortage shared by the learned weight rather than by a common multiplier, and the control interval relative to the deadline and to the burst length decides between reservation and back-pressure. We state this regime map, report the negative results, and release the code.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Open RAN, fronthaul, functional split 7-2x, Markov-modulated fluid, effective bandwidth, newsvendor, MaxWeight, predictive scheduling, quantile regression, policy search
+\end{IEEEkeywords}
+
+\section{Introduction}
+\label{sec:intro}
+In the O-RAN 7-2x split \cite{oran_cus,polese2023} a radio unit (O-RU) sends frequency-domain IQ samples to a distributed unit (O-DU) for every scheduled physical resource block (PRB). The rate follows the scheduled load \cite{larsen2019}, so operators multiplex several O-RUs on one Ethernet link smaller than the sum of the cell peaks \cite{perez2018,wang2017}. When bursts coincide some cells have to wait, and low-latency services tolerate only a few milliseconds of waiting. Besides block floating point (BFP) compression \cite{oran_cus,lagen2022}, the operator's lever is to decide, every few milliseconds, how much of the link each cell may use. The decision is made in advance: a budget is a reservation held for a whole control interval by the O-DU scheduler or a switch policer, the telemetry behind it is a few slots old, and the arrivals of the coming interval are unknown.
+
+The conference version of this work \cite{ncc2027} cast the per-interval decision as a constrained multi-item newsvendor problem whose random demand is the deadline-feasible rate of each cell, forecast as a distribution by a gradient-boosted quantile model, and solved in closed form by the KKT conditions. On two traffic families it was the best implementable controller in every scenario. This article asks the harder questions that a reviewer of that paper should ask.
+\begin{enumerate}
+\item \emph{What is the actual control problem, and where does the newsvendor rule sit in the space of approximations?} We write the finite-horizon Markov decision process (MDP) on deadline-constrained queues (Sec.~\ref{sec:mdp}), explain why its exact solution is intractable, and place three tractable families side by side: one-step stochastic programs on a predictive distribution, Lyapunov-drift (back-pressure) controllers with and without forecasts, and direct policy search.
+\item \emph{What can be said analytically about the deadline-feasible rate?} For Markov-modulated fluid demand (Sec.~\ref{sec:theory}) we derive a Chernoff-union tail bound on $\rstar$ from the Markov-additive log-moment generating function, its large-deadline decay rate in terms of the effective bandwidth \cite{kesidis1993,chang1994,kelly1996}, a supermartingale (Doob) alternative \cite{duffield1994}, and a sandwich that confines the deadline-violated volume of an interval between the newsvendor shortfall and the slot-wise overflow. The sandwich is the missing link between the newsvendor objective and the deadline-violation objective; the bounds are validated numerically and found to be loose by one to two orders of magnitude at millisecond deadlines, which is the quantitative reason to learn the distribution instead of bounding it.
+\item \emph{Does a model-based or a model-free alternative beat the learned rule?} We add a third traffic family built so that the theory applies exactly (Markov-modulated Gamma sources with a semi-Markov held-out shift), and seven controllers: a KKT rule driven by a Markov chain fitted online, one driven by the Chernoff bound, one driven by the true Markov model with a hidden-Markov forward filter (a reference), a predictive MaxWeight controller in the sense of Huang et al.\ \cite{huang2016}, a cross-entropy policy search over per-class quantile levels and a learned priority weight \cite{rubinstein1999}, the KKT rule with a tuned internal weight, and two variants of the proposed rule suggested by the theory that turned out to be negative results.
+\item \emph{When does each approach win?} The honest answer (Secs.~\ref{sec:results}--\ref{sec:regime}) is that the closed-form rule is the best parameter-free controller but not the best controller. A three-parameter policy learned from reward with the same forecaster beats it in \xwinscempolicy{} of ten scenarios, predictive MaxWeight in \xwinspredmaxweight{}, and the closed-form rule with one tuned weight in the last one. Both winners protect the 2-ms class less than the operator weight says, which is the direction the shortfall sandwich predicts, but the same correction applied inside the KKT rule buys little: the common multiplier of the rule saturates at the eMBB weight in half of the high-load intervals, and the gap is structural rather than a wrong constant. The control interval relative to the deadline and to the burst length decides between reservation and back-pressure, and we give this regime map with the numbers that support it.
+\end{enumerate}
+
+\section{Related Work}
+\label{sec:related}
+\textbf{Shared fronthaul.} Larsen et al.\ \cite{larsen2019} establish that the 7-2 bit rate follows user load; P\'erez et al.\ \cite{perez2018} dimension packet-switched eCPRI aggregation by delay percentiles; Wang and Zhou \cite{wang2017} quantify the multiplexing gain; Lag\'en et al.\ \cite{lagen2022} control compression reactively, slot by slot, for several 7-2x cells behind an L2 switch; recent work provisions eCPRI flows over FlexE by integer programming \cite{flexe2023}. We keep the deployment of \cite{lagen2022} and study a control loop slower than a slot.
+
+\textbf{Forecast-driven allocation and learning in O-RAN.} DeepCog and AZTEC \cite{bega2019,bega2020} forecast slice demand with asymmetric losses; \cite{sciancalepore2017,kavehmadavani2023} feed point forecasts to admission or fronthaul-constrained allocation; Kasuluru et al.\ \cite{kasuluru2024} forecast PRB load probabilistically with one global percentile; Cohen et al.\ \cite{cohen2023} apply adaptive conformal inference \cite{gibbs2021} to one URLLC stream. Deep reinforcement learning xApps allocate PRBs or slice resources on the near-real-time RIC \cite{dai2025,sever2025,dora2025}, and reinforcement learning has been applied to slice resources on the O-RAN midhaul \cite{cheng2023}; they act on radio resources at 10--100-ms granularity, learn from reward, and need no demand model. Our cross-entropy policy search is the small-parameter analogue of these agents under identical observations; we use it to ask whether reward-driven tuning of a parametric policy recovers or beats the model-derived rule.
+
+\textbf{Queueing theory.} The effective bandwidth of Markov fluids \cite{anick1982,kesidis1993,chang1994,kelly1996} and the exponential bounds of Duffield \cite{duffield1994} describe the tail of a queue fed by a Markov-modulated source; Loynes \cite{loynes1962} gives the stability condition. We transfer these tools from the buffer-overflow problem to the deadline-feasible rate of a finite horizon, which is the quantity a budget has to cover. MaxWeight \cite{tassiulas1992} and drift-plus-penalty \cite{neely2010} are throughput-optimal without a forecast; Huang et al.\ \cite{huang2016} show that back-pressure with predicted future arrivals in the queue weight (predictive scheduling) reduces delay, and this is the comparator we implement. Rollout and certainty-equivalent control \cite{bertsekas2020} explain why a one-step stochastic program is a reasonable approximation of the MDP. The deadline-feasible rate itself comes from network-calculus service curves \cite{leboudec2001}, and the allocation rule is a constrained multi-item newsvendor \cite{hadley1963}.
+
+\section{System Model and Control Problem}
+\label{sec:model}
+\subsection{Fronthaul, cells and budgets}
+We consider the downlink of $N$ 7-2x cells connected through a fronthaul switch to co-located O-DUs over one Ethernet link of capacity $C_{\rm link}$. Time is slotted with $\Delta = 0.5$~ms (numerology~1). A fraction $\rho_c$ of the link is reserved for control and management, so the user-plane capacity is $C = (1-\rho_c)C_{\rm link}\Delta$ bits per slot; by default $N = 8$, $C_{\rm link} = 25$~Gbit/s, $\rho_c = 3\,\%$, $C = 12.125$~Mbit per slot. With BFP compression of $b$ mantissa bits one PRB-layer for one slot costs $\beta(b) = (24b + 8)\cdot 14\cdot\kappa$ bits (3387 bits for $b = 9$, $\kappa = 1.08$); a 273-PRB, four-layer cell peaks at $\mathrm{cap}_i = 1092\,\beta$ bits per slot (7.4~Gbit/s), and eight such cells peak at $2.44\,C$. If cell $i$ must deliver $a_i(t)$ user bits in slot $t$ at $\eta_i(t)$ user bits per PRB-layer, carrying them immediately needs $d_i(t) = \lceil a_i(t)/\eta_i(t)\rceil\beta$ fronthaul bits.
+
+Each cell keeps a FIFO queue of user bits in the O-DU and belongs to a class with deadline $D_i$ slots and operator priority $w_i^{\rm p}$: by default three low-latency (LL) cells with $D = 4$ (2~ms), $w^{\rm p} = 3$, and five eMBB cells with $D = 20$ (10~ms), $w^{\rm p} = 1$. Bits that have waited $D_i$ slots are discarded and counted as deadline violations. Given a budget of $r_i$ bits per slot the cell schedules $\lfloor r_i/\beta\rfloor$ PRB-layers, bounded by its air-interface capacity, oldest bits first. Every $T$ slots (20, i.e.\ 10~ms, by default) the controller sets budgets $r$ with
+\begin{equation}
+\textstyle\sum_i r_i \le C, \qquad 0 \le r_i \le \mathrm{cap}_i,
+\label{eq:feasible}
+\end{equation}
+and holds them for the interval. It sees queue lengths, head-of-line ages, spectral efficiencies and the demand history up to slot $t - \tau$ ($\tau = 2$ by default), never the future, so a decision has to cover $H = T + \tau$ slots. The primary metric, fixed before any tuning, is the priority-weighted deadline-violation ratio $V_w = \sum_i w_i^{\rm p}\,\mathrm{violated}_i / \sum_i w_i^{\rm p}\,\mathrm{arrived}_i$ over post-warm-up slots; per-class ratios, the unweighted ratio, utilisation and decision time are reported as well.
+
+\subsection{The Markov decision process}
+\label{sec:mdp}
+Let $Q_i(t) \in \mathbb{R}_+^{D_i}$ be the age profile of cell $i$'s queue (bits that have waited $0, 1, \dots, D_i - 1$ slots), $Z(t)$ the exogenous traffic state (for the Markov family of Sec.~\ref{sec:families} the hidden phase of every cell; in general the information state of the arrival process), and $s(t) = (Q(t), Z(t), \eta(t))$. At decision epochs $t_k = kT$ the controller picks $r(t_k)$ in the polytope \eqref{eq:feasible} on the basis of $s(t_k - \tau)$ and the arrival history. Within the interval the queues evolve deterministically given the arrivals: in slot $t$, $\min(r_i, \text{queue}_i)$ bits leave oldest first, arrivals $d_i(t)$ enter at age 0, and bits reaching age $D_i$ are dropped, producing the stage cost $c(t) = \sum_i w_i^{\rm p}\,\mathrm{dropped}_i(t)$. The control problem is
+\begin{equation}
+\min_{\pi}\ \E_\pi\Big[\sum_{k} \sum_{t = t_k}^{t_k + T - 1} c(t)\Big],\quad r(t_k) = \pi\big(s(t_k - \tau), \text{history}\big),
+\label{eq:mdp}
+\end{equation}
+a partially observed MDP with a continuous action in an $N$-dimensional polytope, a state of dimension $\sum_i D_i$ plus the traffic state, and transitions defined by the deadline-queue recursion. Three obstacles make \eqref{eq:mdp} intractable as stated: the state space is continuous and of dimension in the hundreds, the traffic process is not known (in Families S and G it is not even Markov in any finite statistic), and the action is committed for $T$ slots during which the state changes $T$ times. Every controller in this article is therefore an approximation, and they can be grouped by what they approximate.
+
+\textbf{(i) One-step stochastic programs.} Replace the value-to-go by a terminal cost evaluated under a predictive distribution of the coming interval's demand and optimise the current action only. This is the certainty-equivalent or one-step rollout approximation \cite{bertsekas2020}; the newsvendor rule of Sec.~\ref{sec:kkt} is the instance in which the terminal cost is the weighted expected unserved need and the predictive distribution is learned or model-based.
+
+\textbf{(ii) Lyapunov drift.} Ignore the forecast and the deadlines, and choose the action that minimises the drift of a quadratic Lyapunov function of the queues; MaxWeight \cite{tassiulas1992,neely2010} is throughput-optimal and needs no model. Predictive MaxWeight \cite{huang2016} keeps the drift structure but replaces the queue length by the queue length the cell will have once the predicted arrivals of the horizon have entered.
+
+\textbf{(iii) Direct policy search.} Parametrise $\pi$, evaluate it on the simulator, and improve the parameters from the observed cost; this is what a DRL xApp does with a neural policy \cite{dai2025,dora2025}, and what the cross-entropy method does with a small parametric policy \cite{rubinstein1999}.
+
+\section{Deadline-Feasible Demand}
+\label{sec:demand}
+For arrivals $a = (a_1, \dots, a_H)$ in the $H$ slots of a horizon and a deadline $D$, the deadline-feasible rate is the smallest constant rate at which no bit waits longer than $D$ slots,
+\begin{equation}
+\rstar(a, D) = \max_{1 \le s \le e \le H} \frac{A(s, e)}{e - s + 1 + D}, \qquad A(s, e) = \sum_{t = s}^{e} a_t .
+\label{eq:rstar}
+\end{equation}
+This is the network-calculus condition for a rate-latency server to meet the arrival curve \cite{leboudec2001}; it is tight. Three properties are used below. (a) $\rstar \ge \max_{s \le e} A(s, e)/(e - s + 1 + D) \ge A(1, H)/(H + D)$, and $\rstar \to$ mean rate for $D \gg H$ while $\rstar \to$ peak $(D{+}1)$-window rate for $D \ll H$; with $D = 4$, $H = 22$ the LL value is set by the strongest 2-ms burst and is strongly right-skewed, whereas the eMBB value with $D = 20$ stays close to the interval mean. (b) The window $[s^\ast, e^\ast]$ attaining the maximum is the \emph{critical window}; its length $l^\ast$ is the time during which a budget of exactly $\rstar$ is fully used, and it is short (a few slots) for LL cells and long (most of the horizon) for eMBB cells. (c) A budget $r \ge \rstar$ that is held for the whole horizon from an empty queue leaves the queue empty at its end only if $r$ also exceeds the mean rate of the horizon; the \emph{sustainable rate} $\max(\rstar, \bar a)$ is the smallest budget that both meets every deadline and leaves no backlog, in the sense of Loynes' stability condition \cite{loynes1962} applied to one horizon. The budget a cell needs for the coming horizon is
+\begin{equation}
+\text{need}_i = B_i + \rstar_i ,
+\label{eq:need}
+\end{equation}
+where the backlog rate $B_i$ clears the observed backlog within the slack left before its oldest bits expire. All deadline-aware controllers below use \eqref{eq:need}; they differ in how the distribution of $\rstar_i$ is obtained and in how a shortage is split.
+
+\section{Markov-Fluid Theory of the Deadline-Feasible Rate}
+\label{sec:theory}
+This section treats one cell whose fronthaul demand is a discrete-time Markov-modulated process: a phase chain $X_t$ on $\{0, \dots, K-1\}$ with irreducible transition matrix $P$ and stationary law $\pi$, and, given $X_t = k$, an increment $d_t$ with log-moment generating function (log-MGF) $\psi_k(\theta) = \log\E[e^{\theta d_t} \mid X_t = k]$, finite for $\theta < \theta_{\max}$. Gamma increments with phase-dependent mean $\mu_k$ and coefficient of variation $c_k$ give $\psi_k(\theta) = -c_k^{-2}\log(1 - \theta\mu_k c_k^2)$, but any family with an MGF works. This is the discrete-time version of the Markov fluid source of Anick, Mitra and Sondhi \cite{anick1982}, and it is exactly the generator of Family M (Sec.~\ref{sec:families}).
+
+\subsection{Window log-MGF and effective bandwidth}
+Let $\Phi(\theta) = \mathrm{diag}(e^{\psi_k(\theta)})$. Because $(X_t, A(1, t))$ is a Markov-additive process, the log-MGF of the $l$-slot window sum under a stationary start is
+\begin{equation}
+\Lambda_l(\theta) = \log\E\big[e^{\theta A(1, l)}\big] = \log\big(\pi^{\mathsf T}\,\Phi(\theta)\,(P\Phi(\theta))^{l - 1}\,\mathbf 1\big),
+\label{eq:window_mgf}
+\end{equation}
+and the effective bandwidth is the asymptotic log-MGF per slot per unit $\theta$ \cite{kesidis1993,chang1994},
+\begin{equation}
+\alpha(\theta) = \lim_{l \to \infty} \frac{\Lambda_l(\theta)}{l\theta} = \frac{\log\rho\big(P\Phi(\theta)\big)}{\theta},
+\label{eq:eb}
+\end{equation}
+with $\rho$ the spectral radius. $\alpha$ is non-decreasing from the mean rate $\pi^{\mathsf T}\mu$ ($\theta \to 0$) to the peak phase rate ($\theta \to \theta_{\max}$), and $\Lambda_l(\theta) \le l\theta\alpha(\theta) + c(\theta)$ for a constant $c(\theta)$ independent of $l$ (Perron--Frobenius).
+
+\subsection{Tail bound on the deadline-feasible rate}
+\begin{proposition}[Chernoff-union tail bound]
+\label{prop:union}
+For every $x > 0$,
+\begin{multline}
+\Prob(\rstar > x) \le U(x) \\ := \sum_{l = 1}^{H} (H - l + 1) \min_{0 < \theta < \theta_{\max}} \exp\big(-\theta x (l + D) + \Lambda_l(\theta)\big).
+\label{eq:union}
+\end{multline}
+\end{proposition}
+\begin{proof}
+$\{\rstar > x\} = \bigcup_{s \le e}\{A(s, e) > x(e - s + 1 + D)\}$. A window of length $l$ occurs $H - l + 1$ times and, under a stationary start, has the law of $A(1, l)$. The union bound and the Chernoff inequality $\Prob(A > y) \le \exp(-\theta y + \Lambda_l(\theta))$ for every admissible $\theta$ give the claim.
+\end{proof}
+
+\begin{corollary}[Large-deadline decay]
+\label{cor:decay}
+For $x$ above the mean rate let $\theta^\ast(x) = \sup\{\theta : \alpha(\theta) \le x\}$. Then $U(x) \le H^2\, e^{c(\theta)}\, e^{-\theta x D}$ for every $\theta \le \theta^\ast(x)$, hence
+$\limsup_{D \to \infty} D^{-1}\log\Prob(\rstar > x) \le -x\,\theta^\ast(x)$.
+\end{corollary}
+\begin{proof}
+Insert $\Lambda_l(\theta) \le l\theta\alpha(\theta) + c(\theta) \le l\theta x + c(\theta)$ into \eqref{eq:union}: every summand is at most $e^{c(\theta)}e^{-\theta x D}$ and there are at most $H^2$ of them.
+\end{proof}
+The decay rate $x\theta^\ast(x)$ is the effective-bandwidth decay rate of the fluid queue served at rate $x$, evaluated at buffer level $xD$: a bit that waits $D$ slots at rate $x$ sits behind $xD$ bits. Corollary~\ref{cor:decay} therefore connects the deadline-feasible rate of a finite horizon to the classical buffer-overflow asymptotics, and it says that the \emph{slope} of $\log\Prob(\rstar > x)$ in $D$ is governed by the effective bandwidth. It says nothing useful about the prefactor $H^2 e^{c(\theta)}$, and at $D = 4$ or $20$ the prefactor dominates (Sec.~\ref{sec:theory_num}).
+
+\begin{remark}[Supermartingale bound]
+The exponential supermartingale of the Markov-additive process \cite{duffield1994} gives, through Doob's maximal inequality, $\Prob(\max_{l \le H}[A(1, l) - x(l + D)] > 0) \le \min_\theta h(\theta)\, e^{-\theta x D}$, with $h$ the ratio of the extreme components of the right Perron eigenvector of $P\Phi(\theta)$, after the same union over the $H$ starting slots. It removes the $H$ factor from the window count but pays a prefactor $h(\theta) \ge 1$ that, for the bursty phase matrices of Family M, exceeds $e^{\theta x D}$ at every admissible $\theta$ for $D \le 20$: the bound is vacuous at fronthaul deadlines and we do not use it further.
+\end{remark}
+
+\subsection{From the newsvendor shortfall to deadline violations}
+The KKT rule maximises weighted expected served need, equivalently minimises the weighted expected shortfall $\sum_i w_i \E[(B_i + X_i - r_i)^+]$ with $X_i$ the forecast of $\rstar_i$. The following result, which holds pathwise and for any arrival process, says how this surrogate relates to the violated volume the operator actually pays for.
+
+\begin{proposition}[Shortfall sandwich]
+\label{prop:sandwich}
+Serve arrivals $a_1, \dots, a_H$ FIFO at constant rate $r$ with deadline $D$ from an empty queue and let $V(r)$ be the volume dropped at the deadline. Then
+\begin{equation}
+(D + 1)\,(\rstar - r)^+ \ \le\ V(r)\ \le\ \sum_{t = 1}^{H} (a_t - r)^+ .
+\label{eq:sandwich}
+\end{equation}
+\end{proposition}
+\begin{proof}
+Upper bound: the queue grows by at most $(a_t - r)^+$ in slot $t$, and every dropped bit was once part of that growth. Lower bound: let $[s^\ast, e^\ast]$ attain $\rstar$ with length $l^\ast$. All $A(s^\ast, e^\ast)$ bits arriving in that window must leave by slot $e^\ast + D$, and the server removes at most $r(l^\ast + D)$ bits in $[s^\ast, e^\ast + D]$, so at least $A(s^\ast, e^\ast) - r(l^\ast + D) = (l^\ast + D)(\rstar - r) \ge (D + 1)(\rstar - r)$ bits are dropped when $r < \rstar$.
+\end{proof}
+Taking expectations with the backlog treated as deterministic, the expected weighted violated volume of an interval is at least $\sum_i w_i (l^\ast_i + D_i)\E[(B_i + X_i - r_i)^+]$ and at most the expected slot-wise overflow. Two consequences follow. First, the newsvendor surrogate is a lower bound on the objective, not an upper bound: minimising it does not guarantee few violations, which is why the empirical comparison is indispensable. Second, the lower bound carries the factor $l^\ast_i + D_i$, the critical-window length plus the deadline, and not the operator weight alone: a unit of rate shortfall costs about $l^\ast + D \approx 6$--$8$ slots of volume for an LL cell ($D = 4$, bursts of a few slots) but up to $T = 20$ slots for an eMBB cell whose critical window spans the interval. Measured in lost bits, the plain rule with $w_i = w_i^{\rm p}$ therefore weights the LL class about $3 \times 7/20 \approx 1$ times the eMBB class, not three times, and over-protects it whenever the operator's weight is already in the metric. This is the direction in which every learned or tuned controller of Sec.~\ref{sec:results} moves. The fixed correction $w_i \leftarrow w_i\min(D_i + \hat l^\ast_i, T)$ (Sec.~\ref{sec:variants}) implements it literally and turns out to overshoot on zero-inflated traffic; a single tuned scalar on the LL weight (also Sec.~\ref{sec:variants}) does not.
+
+\subsection{Numerical validation}
+\label{sec:theory_num}
+We validate the bounds on the two cell types of Family M at load 0.80 (Table~\ref{tab:theory}, Fig.~\ref{fig:theory}). The sandwich \eqref{eq:sandwich} is never violated in $2\times 10^4$ horizons, and its two sides bracket the drops within a factor of \xthLLSandLo{}--\xthLLSandHi{} (LL) and \xtheMBBSandLo{}--\xtheMBBSandHi{} (eMBB) on average. The union bound is valid at every level but conservative: at tail probability $10^{-2}$ it over-estimates by \xthLLRatioOne$\times$ (LL, $D = 4$) and \xtheMBBRatioOne$\times$ (eMBB, $D = 20$), and at $10^{-3}$ by \xthLLRatioTenth$\times$ and \xtheMBBRatioTenth$\times$; the Doob bound equals one everywhere. The looseness has two sources that Corollary~\ref{cor:decay} makes explicit, the union over $O(H^2)$ windows and the Perron prefactor, and both are intrinsic to deadlines of a few slots. A controller that reserves the quantile implied by $U$ therefore reserves far too much (this is the effective-bandwidth KKT controller of Sec.~\ref{sec:controllers}, and Sec.~\ref{sec:results} confirms that it over-reserves). The bounds are nevertheless useful: they certify the decay with $D$ and hence that long-deadline classes need no margin beyond the mean, they give an admission test that needs only the phase matrix, and they tell us that the information in a predictive distribution at millisecond deadlines must come from the recent sample path, not from the stationary law, which is what the learned forecaster and the hidden-phase filter exploit.
+
+\begin{table}[t]
+\caption{Markov-fluid bounds on Family M at load 0.80 ($2\times 10^4$ horizons of $H = 22$ slots per cell): empirical tail of $\rstar$, Chernoff-union bound $U$, and the shortfall sandwich (mean ratios; both inequalities hold on every horizon)}
+\label{tab:theory}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{\input{generated/tab_theory}}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{paper_fig_theory}
+\caption{Family M, load 0.80. (a) Empirical tail of $\rstar$ (black) and the Chernoff-union bound (red) for an LL cell ($D = 4$, solid) and an eMBB cell ($D = 20$, dashed). (b) Effective bandwidth $\alpha(\theta)$ relative to the mean rate; grey lines mark the peak phase rate. (c) Distribution of $\rstar$ relative to the mean rate.}
+\label{fig:theory}
+\end{figure}
+
+\section{Controllers}
+\label{sec:controllers}
+\subsection{The learned-quantile KKT rule}
+\label{sec:kkt}
+The proposed rule of \cite{ncc2027} forecasts quantiles $q_i(\alpha_k)$ of $\rstar_i$ at levels $0.05, 0.25, 0.5, 0.75, 0.9, 0.95$ with one histogram gradient-boosted tree per quantile (pinball loss, 300 trees, 28 causal features: demand lags, exponentially weighted means, the last horizon's $\rstar$ and mean, the recent 90th percentile of $\rstar$, queue, head-of-line age, spectral efficiency and trend, cell one-hot; targets normalised by the cell peak). With $X_i \sim F_i$ the forecast and $w_i = w_i^{\rm p}$, it maximises $\sum_i w_i\E[\min(B_i + X_i, r_i)]$ subject to \eqref{eq:feasible}. Since $\partial_{r_i}\E[\min(B_i + X_i, r_i)] = 1 - F_i(r_i - B_i)$, the KKT conditions give
+\begin{equation}
+r_i(\lambda) = \mathrm{clip}\big(B_i + F_i^{-1}(1 - \lambda/w_i),\ 0,\ \mathrm{cap}_i\big),
+\label{eq:kkt}
+\end{equation}
+with $\lambda^\ast$ found by bisection so that $\sum_i r_i = C$ (surplus, if any, is shared as headroom as in every baseline). The rule is feasible, cuts every cell at the same priority-weighted tail probability, funds observed backlog before uncertain demand, and loses at most $2\epsilon w_{\max}C$ of objective under a forecast with Kolmogorov error $\epsilon$ \cite{ncc2027}.
+
+\subsection{Model-based predictive distributions}
+Three controllers keep \eqref{eq:kkt} and replace the learned $F_i$ by a Markov-fluid model.
+\textbf{Markov-chain KKT} (\emph{markov\_kkt}) quantises the last $W$ slots of each cell's demand into $K$ phases at fixed empirical quantiles, estimates $P$ with a Dirichlet prior, the phase means and coefficients of variation, and the current phase, then obtains the quantiles of $\rstar$ over the coming $H$ slots by Monte Carlo (200 paths) from the current phase. It needs no training data and is the natural model-based competitor. \textbf{Bound KKT} (\emph{eb\_kkt}) uses the same fitted chain but takes the quantiles from the Chernoff-union bound $U$ of Proposition~\ref{prop:union} under the stationary law; it is the controller that a reservation based on effective bandwidths would give. \textbf{True-model KKT} (\emph{markov\_oracle\_kkt}, Family M only) uses the generating chain of every cell, a hidden-Markov forward filter with Gamma emissions over the last 300 slots to obtain the posterior of the current phase, and Monte Carlo from that posterior. It is the best any model-based forecaster could do on Family M and is reported as a reference, not as an implementable controller.
+
+\subsection{Predictive MaxWeight}
+Plain MaxWeight allocates in decreasing order of $w_i^{\rm p}Q_i$ (plus a tuned head-of-line-age term) up to an EWMA usable-rate cap. Predictive MaxWeight \cite{huang2016} replaces the queue by the predicted queue $Q_i + \ell H\hat m_i$, where $\hat m_i$ is the forecast median of $\rstar_i$ from the same forecaster the proposed rule uses and $\ell$ a tuned look-ahead weight, and caps each cell's share at $Q_i/T + (1 + \mathrm{margin})\hat m_i$. It uses no deadlines and only one number of the forecast distribution. Tuned values: Family S margin and look-ahead \xpmwParamsS{}; Family G \xpmwParamsG{}; Family M \xpmwParamsM{}.
+
+\subsection{Policy search}
+The \emph{cem\_policy} controller reserves $B_i + F_i^{-1}(p_{\rm class(i)})$ with the learned forecaster and shares a shortage by weighted water-filling with a learned LL weight $w_{\rm LL}$. Its three parameters $(p_{\rm LL}, p_{\rm eMBB}, \log w_{\rm LL})$ are learned by the cross-entropy method \cite{rubinstein1999} on training seeds against the simulator (8 iterations, population 16, elite 4, smoothed mean update), i.e.\ from reward alone, as a DRL xApp would but with a parametrisation small enough to be learned reliably from about a hundred episodes. Learned values: Family S \xcemS{}; Family G \xcemG{}; Family M \xcemM{}.
+
+\subsection{Variants of the proposed rule}
+\label{sec:variants}
+Three variants test the suggestions of Proposition~\ref{prop:sandwich} and property (c) of Sec.~\ref{sec:demand}. \emph{Volume-corrected weights} (\emph{proposed\_vc}) multiply $w_i$ by $\min(D_i + \hat l^\ast_i, T)$ with $\hat l^\ast_i$ the mean critical-window length of the last 30 horizons. \emph{Tuned LL weight} (\emph{proposed\_tw}) keeps \eqref{eq:kkt} unchanged but replaces the operator priority of the 2-ms class inside the rule by one scalar $w_{\rm LL}^{\rm rule} \in \{0.75, 1, 1.5, 2, 3, 4\}$ chosen on validation seeds; the metric still uses the operator priority. It separates the question ``is the KKT structure right'' from ``is the operator weight the right newsvendor weight''. \emph{Sustainable targets} retrain the forecaster on $\max(\rstar, \bar a)$ instead of $\rstar$ so that budgets also drain the interval's volume. Online conformal calibration (ACI \cite{gibbs2021}) and the window-quantile and transferred-forecaster ablations of \cite{ncc2027} are kept. Selected $w_{\rm LL}^{\rm rule}$: Family S \xtwS{}, Family G \xtwG{}, Family M \xtwM{}.
+
+Table~\ref{tab:controllers} lists all controllers. Every one redistributes unused capacity as headroom; every tunable parameter is chosen on the validation seeds of its own family.
+
+\begin{table}[t]
+\caption{Compared controllers. WF: water-filling. The last three use the future or the generator and are references.}
+\label{tab:controllers}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}l@{\hspace{3pt}}l@{\hspace{3pt}}l@{}}
+\hline
+Controller & Need estimate / allocation & Approximation \\
+\hline
+Static equal share & $C/N$ each & none \\
+Reactive proportional & backlog/$T$ + EWMA; WF, unit $w$ & reactive \\
+MaxWeight \cite{neely2010} & fill by $w^{\rm p}_iQ_i$ (+ HOL age) & drift \\
+Predictive MaxWeight \cite{huang2016} & fill by $w^{\rm p}_i(Q_i + \ell H\hat m_i)$ & drift + forecast \\
+Deadline-aware reactive & $B_i$ + last $\rstar$; WF, $w_i$ & reactive \\
+Point forecast + WF & $B_i$ + median; WF, $w_i$ & one-step, point \\
+Fixed quantile + WF & $B_i + F_i^{-1}(q)$, one $q$; WF & one-step, quantile \\
+Policy search (CEM) & $B_i + F_i^{-1}(p_{\rm class})$; WF, learned $w$ & policy search \\
+Bound q. + KKT & \eqref{eq:kkt}, quantiles of $U$ & one-step, bound \\
+Markov MC q. + KKT & \eqref{eq:kkt}, fitted chain, MC & one-step, model \\
+Proposed, window q. & \eqref{eq:kkt}, empirical quantiles & one-step, empirical \\
+Proposed (GBM + KKT) & \eqref{eq:kkt}, learned quantiles & one-step, learned \\
+Proposed, volume w. & \eqref{eq:kkt}, $w_i\min(D_i + \hat l^\ast_i, T)$ & one-step, learned \\
+Proposed, tuned LL w. & \eqref{eq:kkt}, tuned $w^{\rm rule}_{\rm LL}$ & one-step, learned \\
+Proposed + ACI & \eqref{eq:kkt}, per-cell level offsets & one-step, learned \\
+Proposed, transferred & \eqref{eq:kkt}, other family's model & one-step, learned \\
+True Markov model + KKT & \eqref{eq:kkt}, generator + HMM filter & reference (M) \\
+Oracle water-fill & $B_i$ + true $\rstar$; WF, $w_i$ & reference \\
+Oracle + KKT & $B_i$ + true $\rstar$; priority fill & reference \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Evaluation Methodology}
+\label{sec:eval}
+\subsection{Traffic families}
+\label{sec:families}
+No public per-slot, per-cell fronthaul traces exist (ColO-RAN \cite{colo_ran} reports KPIs at 250-ms resolution), so traffic is simulated with three independent families, each with its own forecaster and its own tuning.
+
+\textbf{Family S} (synthetic, bursty): per cell, user bits are a Gamma smooth component plus heavy-tailed ON/OFF bursts with Pareto sojourns \cite{willinger1997}, modulated by piecewise-constant load regimes (mean 1~s) and converted to fronthaul bits with a slowly drifting spectral efficiency. Scenarios: low (0.50), moderate (0.65), high (0.80), flash crowds (0.80 with load multiplied by 1.8 for about 15\,\% of the time) and shift (0.80 with bursts 1.5 times stronger and longer and a heavier tail than anything seen in training or tuning).
+
+\textbf{Family G} (standards-based): users dropped in a 3GPP TR~38.901 urban-macro cell (ISD 500~m, 3.5~GHz, 100~MHz) with six interfering sites, Rayleigh fading at 3~km/h mapped to the TS~38.214 CQI table, FTP Model~3 traffic on eMBB cells and XR video (60~fps, 30~Mbit/s) on LL cells, a round-robin PRB scheduler, and fronthaul demand equal to scheduled PRB-layers times $\beta$ \cite{tr38901,ts38214,tr36814,tr38838}. Loads 0.65 and 0.80.
+
+\textbf{Family M} (Markov-modulated fluid, new): each cell is a three-phase (idle/normal/burst) Markov-modulated Gamma source with the structure of Sec.~\ref{sec:theory}. LL cells have mean sojourns of 40/30/8 slots and relative phase rates 0.15/1.0/3.0 with coefficients of variation 0.5/0.4/0.35; eMBB cells have sojourns 80/60/20 slots, rates 0.3/1.0/1.8 and coefficients 0.4/0.3/0.3; the phase-jump matrix is idle$\to$normal with probability 0.85, normal$\to$idle or burst with probability 0.5 each, burst$\to$normal with probability 0.85. Means are scaled so that the stationary offered load equals the target and the burst phase stays below the cell's air-interface peak. Scenarios: moderate (0.65), high (0.80) and \emph{shift} (0.80), in which the geometric sojourns are replaced by Pareto sojourns with index 1.5 and the same means, so the process is semi-Markov and every Markov model is misspecified. Realised loads: \xloadmmmoderate{}, \xloadmmhigh{}, \xloadmmshift{}.
+
+\subsection{Protocol}
+Training seeds (1000--1015, loads 0.5--0.95), validation seeds (2000--2003) and test seeds (3000--3019) are disjoint. One forecaster per family is trained once and frozen (Family S \xnTrainRowsS{} rows, Family G \xnTrainRowsG{}, Family M \xnTrainRowsM{}). Every tunable parameter of every controller, including the margins and look-ahead of the MaxWeight variants and the phase count and window of the Markov controllers, is chosen on the validation seeds (moderate and high scenarios) of its own family; the CEM policy is learned on training seeds. Each test run simulates 20\,000 slots (10~s) after a 1000-slot warm-up, every controller seeing the identical trace and the identical stale observations. We report means over \xnSeedsS{} seeds per scenario, and for paired comparisons the mean relative change with a 95\,\% percentile-bootstrap interval, the number of seeds won, and a two-sided Wilcoxon signed-rank test Holm-corrected across the comparisons of a scenario. In total the main comparison comprises \xnRunsS{} runs on Family S, \xnRunsG{} on Family G and \xnRunsM{} on Family M.
+
+\section{Results}
+\label{sec:results}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{paper_fig_overview_ext}
+\caption{Priority-weighted deadline-violation ratio $V_w$ (mean $\pm$ std over \xnSeedsS{} test seeds; lower is better) of the main implementable controllers and the references on (a) Family S, (b) Family G and (c) Family M. Hatched: the closed-form learned-quantile KKT rule of the conference version.}
+\label{fig:overview}
+\end{figure*}
+
+\subsection{Forecast quality}
+Table~\ref{tab:forecast} compares the predictive distributions on the validation seeds of every family: the learned GBM, the empirical window quantiles, the fitted Markov chain and, on Family M, the true model with the hidden-phase filter. The learned forecaster has the lowest pinball loss of the implementable forecasters in every family; on Family M the fitted chain comes close and the true model is better still, as it must be. The fitted chain conditions on a quantised phase rather than on the sample path and is therefore less sharp; the window quantiles are the least sharp. This ordering is reproduced in the control results below, with one qualification that runs through the rest of the section: a sharper distribution helps a rule only as much as the rule's objective is aligned with the metric.
+
+\begin{table}[t]
+\caption{Forecast quality on validation seeds (deadline-feasible rate normalised by the cell peak; pinball loss averaged over the six levels)}
+\label{tab:forecast}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{\input{generated/tab_forecast}}
+\end{table}
+
+\subsection{Three families, nineteen controllers}
+\label{sec:res_main}
+Tables~\ref{tab:main_S}--\ref{tab:main_M} and Fig.~\ref{fig:overview} report $V_w$ for every controller on the ten scenarios; Table~\ref{tab:h2h} places the closed-form rule next to its three strongest new competitors on each of them, with paired statistics. Four findings.
+
+\textbf{(1) The conference result holds within its comparison set.} Against the twelve controllers of \cite{ncc2027} the learned-quantile KKT rule is still the best in all ten scenarios, including the two new Family M loads and the semi-Markov shift (\xmeanmmhighproposed{}\,\% against \xmeanmmhighpointforecast{}\,\% for the point forecast and \xmeanmmhighqueueaware{}\,\% for the deadline-aware reactive controller at load 0.80; \xmeanmmshiftproposed{}\,\% under shift). It is also the best controller that has no tuned parameter.
+
+\textbf{(2) A reward-tuned policy with the same forecaster beats it.} The CEM policy, three parameters learned on training seeds, is the best implementable controller in \xwinscempolicy{} of the ten scenarios: both Family G loads (\xmeantgpphighcempolicy{}\,\% against \xmeantgpphighproposed{}\,\% at 0.80, paired change \xredtgpphighcempolicy{}\,\%, \xredtgpphighcempolicyWins{} seeds won by the KKT rule), all three Family M scenarios (\xmeanmmhighcempolicy{}\,\% against \xmeanmmhighproposed{}\,\% at 0.80; \xmeanmmshiftcempolicy{}\,\% against \xmeanmmshiftproposed{}\,\% under shift) and the low-load and shift scenarios of Family S. What it learned is the same in every family: an LL level of \xcemS{} in Family S, \xcemG{} in Family G and \xcemM{} in Family M, i.e.\ the 2-ms class is reserved at about the 80th percentile rather than at the higher percentile the equal-weighted-risk condition assigns it at $w_{\rm LL} = 3$, the eMBB class near its median, and a shortage shared with an LL weight close to one instead of three. The per-class ratios show the trade: at Family G load 0.80 the policy loses \xmeantgpphighcempolicyLL{}\,\% of LL bits against \xmeantgpphighproposedLL{}\,\% for the KKT rule and \xmeantgpphighcempolicyEMBB{}\,\% of eMBB bits against \xmeantgpphighproposedEMBB{}\,\%; weighted by three to one the eMBB saving is larger. This is the correction of Proposition~\ref{prop:sandwich}: a unit of LL rate shortfall costs $l^\ast + D \approx 7$ slots of volume and a unit of eMBB shortfall up to $T = 20$, so the newsvendor weight that minimises lost weighted bits is closer to one than to three.
+
+The obvious test of this diagnosis is to change the weight inside the closed-form rule and nothing else, and it fails in an instructive way. The tuned-weight variant, with a single validation-chosen scalar on the LL weight (\xtwS{}, \xtwG{} and \xtwM{} in the three families), reaches \xmeanhighproposedtw{}\,\% at Family S high load, \xmeantgpphighproposedtw{}\,\% at Family G high load and \xmeanmmhighproposedtw{}\,\% at Family M high load against \xmeanhighproposed{}, \xmeantgpphighproposed{} and \xmeanmmhighproposed{}\,\% for the plain rule: paired changes of \xredhighproposedtw{}, \xredtgpphighproposedtw{} and \xredmmhighproposedtw{}\,\%, significant but one order of magnitude smaller than the distance to the CEM policy (\xmeanhighcempolicy{}, \xmeantgpphighcempolicy{} and \xmeanmmhighcempolicy{}\,\%). Its only win is the moderate load of Family M (\xmeanmmmoderateproposedtw{}\,\% against \xmeanmmmoderatecempolicy{}\,\% for the CEM policy), and the validation surface is flat enough that Family M selects $w^{\rm rule}_{\rm LL} = 4$, the opposite direction. The reason is in the structure of \eqref{eq:kkt}. On the high-load scenarios the capacity constraint binds in practically every interval (\xlamBindS{}, \xlamBindG{} and \xlamBindM{}\,\% in S, G and M, measured over three test seeds), and in \xlamFloorS{}, \xlamFloorG{} and \xlamFloorM{}\,\% of them the common multiplier $\lambda^\ast$ reaches the eMBB weight, so every eMBB cell is already at its lowest quantile plus its proportional share of the slack and the LL cells sit near the \xlamLLlevelS{}th (S), \xlamLLlevelG{}th (G) and \xlamLLlevelM{}th (M) percentile. Lowering the LL weight moves the LL cells along a quantile curve that is flat at these levels and returns the freed rate to the eMBB cells through the same proportional slack rule, which does not know which eMBB cell will burst; the CEM policy instead holds the eMBB level at a fixed median-like quantile for every cell (\xcemS{}, \xcemG{}, \xcemM{}) and shares only the residual shortage, which is a different mapping from forecast to budget and not a different constant in the same mapping. The equal-weighted-risk structure, the feasibility and backlog-first properties and the closed form are intact; what is missing is a per-class level that does not collapse when $\lambda^\ast$ saturates.
+
+\textbf{(3) Predictive back-pressure wins where bursts are short.} Predictive MaxWeight, which uses the forecast median and the queues and no deadline model, is the best implementable controller in the moderate, high and flash-crowd scenarios of Family S (\xmeanhighpredmaxweight{}\,\% against \xmeanhighproposed{}\,\% for the KKT rule and \xmeanhighcempolicy{}\,\% for the CEM policy at high load; paired change \xredhighpredmaxweight{}\,\% against the KKT rule, \xredhighpredmaxweightWins{} seeds), is second in Family M (\xmeanmmhighpredmaxweight{}\,\% at 0.80), and is poor in Family G (\xmeantgpphighpredmaxweight{}\,\%, worse than the point-forecast water-fill), where periodic XR frames queue behind FTP files once the cap is a volume rather than a peak. The LL bursts of Family S last a few slots; a reservation at the 2-ms peak rate, held for 10~ms, idles for most of the interval (\xmeanhighproposedUnused{}\,\% of the allocated capacity goes unused under the KKT rule against \xmeanhighpredmaxweightUnused{}\,\% under predictive MaxWeight), and a queue weight that includes the predicted volume is a better guide to who needs the link than a deadline-feasible peak. Sec.~\ref{sec:regime} shows that this is a property of the interval, not of the family.
+
+\textbf{(4) Model-based distributions are a credible substitute, bounds are not.} The KKT rule driven by a Markov chain fitted online, with no training data at all, is within \xredmmhighmarkovkkt{}\,\% of the learned rule on Family M at load 0.80 (where the model is correct) and \xredtgpphighmarkovkkt{}\,\% on Family G; under the semi-Markov shift, where every Markov model is misspecified, it reaches \xmeanmmshiftmarkovkkt{}\,\% against \xmeanmmshiftproposed{}\,\% for the learned rule, so three phases fitted to the last 0.5--1.5~s carry most of the usable information even when the sojourn law is wrong. The true-model reference with the hidden-phase filter gives \xmeanmmhighmarkovoraclekkt{}\,\% at load 0.80; the distance from the learned rule to it (\xgapMarkovOraclemmhigh{}\,\% of the former) is the price of learning the distribution from features instead of knowing the generator, and the distance from it to the oracle + KKT rule (\xmeanmmhighoraclekkt{}\,\%) is the irreducible uncertainty of the phase process over 22 slots. The rule driven by the Chernoff-union bound is the worst deadline-aware controller everywhere (\xmeanhighebkkt{}\,\% in Family S, \xmeanmmhighebkkt{}\,\% in Family M at high load), because it reserves the quantiles of a bound that Sec.~\ref{sec:theory_num} showed to be 25--100 times conservative and starves the eMBB class (\xmeanmmhighebkktEMBB{}\,\% eMBB loss).
+
+\begin{table*}[t]
+\caption{Family S: $V_w$ (\%, mean $\pm$ std over \xnSeedsS{} test seeds; lower is better). Last column: paired change of $V_w$ relative to the learned-quantile KKT rule at high load (\%; negative means the row is better; seeds won by the KKT rule out of \xnSeedsS{}; $^{\ast}$/$^{\ast\ast}$: Holm-corrected $p < 0.05$/$0.01$).}
+\label{tab:main_S}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\input{generated/tab_main_S}
+\end{table*}
+
+\begin{table*}[t]
+\caption{Family G: $V_w$ (\%, mean $\pm$ std over \xnSeedsG{} test seeds) and paired change relative to the learned-quantile KKT rule at load 0.80.}
+\label{tab:main_G}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\input{generated/tab_main_G}
+\end{table*}
+
+\begin{table*}[t]
+\caption{Family M: $V_w$ (\%, mean $\pm$ std over \xnSeedsM{} test seeds) and paired change relative to the learned-quantile KKT rule at load 0.80. The true-model controller knows the generating chain and is a reference.}
+\label{tab:main_M}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\input{generated/tab_main_M}
+\end{table*}
+
+\begin{table*}[t]
+\caption{The learned-quantile KKT rule against its three strongest new competitors on every scenario ($V_w$ in \%; $\Delta$ = paired change relative to the KKT rule, negative means the competitor is better; wins = seeds won by the KKT rule; $^{\ast}$/$^{\ast\ast}$: Holm-corrected $p<0.05$/$0.01$; last column: best implementable controller of all nineteen)}
+\label{tab:h2h}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\input{generated/tab_head_to_head}
+\end{table*}
+
+\subsection{Reservation versus back-pressure: the operating regime}
+\label{sec:regime}
+Fig.~\ref{fig:regime} and Table~\ref{tab:sweep} vary the control interval $T$ and the telemetry delay $\tau$ on the high-load scenario of Family S with forecasters retrained per setting. The ordering between the reservation rules and predictive MaxWeight flips with $T$. At $T = 2$~ms, the LL deadline, the KKT rule gives \xsweepTfourproposed{}\,\% against \xsweepTfourpredmaxweight{}\,\% for predictive MaxWeight; at $T = 5$~ms \xsweepTonezeroproposed{}\,\% against \xsweepTonezeropredmaxweight{}\,\%; at $T = 10$~ms \xsweepTtwozeroproposed{}\,\% against \xsweepTtwozeropredmaxweight{}\,\%; at $T = 20$~ms, five times the LL deadline, \xsweepTfourzeroproposed{}\,\% against \xsweepTfourzeropredmaxweight{}\,\%. The crossover lies between 5 and 10~ms for Family S, whose LL bursts last a few slots. A deadline-aware reservation is the right structure when the interval is short enough that a reserved peak is used before the interval ends; back-pressure with a volume forecast is the right structure when the interval is long compared with the bursts, because the reservation then idles and the queue is the better guide. Family G sits on the reservation side at $T = 10$~ms because its bursts (FTP files, XR frames) are as long as the interval; Family M at load 0.80, with LL burst sojourns of 8 slots, sits near the crossover. Telemetry delay moves all controllers up together and does not change the ordering at $T = 10$~ms. With a perfect forecast the KKT rule beats predictive MaxWeight at every $T$ (oracle + KKT in Fig.~\ref{fig:regime}), so the loss of the implementable reservation at long intervals is forecast error compounded by commitment: the forecast quantile of a short burst is right about its height and wrong about its timing within the interval, and a reservation pays for the timing error whereas back-pressure does not. The tuned-weight rule and the CEM policy, which reserve the 2-ms class less aggressively, move the crossover to longer intervals but do not remove it.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{paper_fig_regime}
+\caption{Family S, high load: $V_w$ against (a) the control interval $T$ (forecasters retrained per $T$, \xnSeedsSweep{} seeds) and (b) the telemetry delay $\tau$. Reservation rules win at short intervals, predictive MaxWeight at long ones; with a perfect forecast (oracle + KKT, dashed) the reservation wins everywhere.}
+\label{fig:regime}
+\end{figure}
+
+\begin{table}[t]
+\caption{Family S, high load: $V_w$ (\%) against the control interval $T$ (\xnSeedsSweep{} seeds)}
+\label{tab:sweep}
+\centering
+\scriptsize
+\input{generated/tab_sweep}
+\end{table}
+
+\subsection{The objective and the priority weight across families}
+\label{sec:weights}
+Table~\ref{tab:weights} sweeps the operator weight $w^{\rm p}_{\rm LL}$ on the high-load scenario of every family, with all controllers told the new weight and parameters tuned at $w_{\rm LL} = 3$. In Family S predictive MaxWeight leads at every weight and the KKT rule's gap to it is largest at $w_{\rm LL} = 1$, where a deadline-aware reservation has nothing to trade. In Family G the KKT rule leads the conference comparison set from $w_{\rm LL} = 2$ on and the point-forecast water-fill is better at $w_{\rm LL} = 1$, as in \cite{ncc2027}; the CEM policy, whose learned LL weight is close to one, leads at every weight, and predictive MaxWeight does not catch up at any. In Family M the CEM policy leads, predictive MaxWeight and the KKT rule follow within a few percent of each other. The practical reading: a deadline-aware reservation is for operators who value a low-latency bit at least two to three times an eMBB bit \emph{and} whose control interval is short relative to their bursts; and whatever the operator weight, the newsvendor weight inside the rule should be tuned, not copied.
+
+\begin{table*}[t]
+\caption{Operator LL weight sweep at high load in the three families: $V_w$ (\%, \xnSeedsWeights{} seeds; parameters tuned at $w_{\rm LL} = 3$)}
+\label{tab:weights}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\input{generated/tab_weights}
+\end{table*}
+
+\subsection{Negative results}
+\label{sec:negative}
+Four ideas suggested by the theory did not improve the closed-form rule, and we report them because they are the obvious next things a reader would try. \emph{Volume-corrected weights}, the literal implementation of the $l^\ast + D$ factor, give \xmeanhighproposedvc{}\,\% against \xmeanhighproposed{}\,\% at high load in Family S, a small gain, but \xmeantgpphighproposedvc{}\,\% in Family G: with zero-inflated XR and FTP demand the estimated critical windows of the LL cells are short and the correction removes nearly all of their protection (\xmeantgpphighproposedvcLL{}\,\% LL loss). A \emph{tuned scalar} on the LL weight (Sec.~\ref{sec:variants}) is safe but small, 1--2\,\% at high load, for the saturation reason given in Sec.~\ref{sec:res_main}; it is kept in the tables as the best the rule can do without changing its form. Two backlog-floor variants that give a cell with $p_i \le 0$ at least its backlog $B_i$ or $Q_i/T$ before the slack is shared were also tried: the $B_i$ floor starves the LL class (18\,\% LL loss in Family G) and the $Q_i/T$ floor is mixed, so neither is reported in the tables. \emph{Sustainable targets}, which forecast $\max(\rstar, \bar a)$ so that budgets also drain the volume, raise every LL reservation and degrade $V_w$ in both original families. \emph{Drift-weighted} KKT, which multiplies $w_i$ by a queue-dependent factor to blend the newsvendor rule with back-pressure, degrades as well: the newsvendor rule already funds backlog first, so a queue weight double-counts it. \emph{Bound quantiles} over-reserve by the factors of Table~\ref{tab:theory}, and \emph{per-stream conformal correction} (ACI) inflates LL reservations and starves eMBB, as in \cite{ncc2027}. Each of these is a one-line change in the released code.
+
+\subsection{Compression, miscalibration and cost}
+The BFP mantissa width (6, 9, 12, 14 bits) rescales $\beta$ and moves the offered load from 0.44 to 0.99 with the same user traffic; the conclusion of \cite{ncc2027} that deadline-aware allocation matters between loads of about 0.5 and 0.8 and that no rule helps above 0.9 holds for the new controllers as well (at 9 bits, load 0.65: \xcompBnineproposed{}\,\% for the KKT rule, \xcompBninepredmaxweight{}\,\% for predictive MaxWeight, \xcompBninecempolicy{}\,\% for the CEM policy; at 14 bits, load 0.99: \xcompBonefourproposed{}, \xcompBonefourpredmaxweight{} and \xcompBonefourcempolicy{}\,\%). The miscalibration sweep of \cite{ncc2027} (quantile levels shifted by $\epsilon \in [-0.3, 0.3]$) is unchanged. Decision times of the Python prototype per 10-ms epoch on a 4-core CPU: KKT rule \xdtproposed{}~ms (1800 trees), CEM policy \xdtcempolicy{}~ms, predictive MaxWeight \xdtpredmaxweight{}~ms, Markov-chain KKT \xdtmarkovkkt{}~ms (chain fit and 200 Monte Carlo paths per cell), true-model KKT \xdtmarkovoraclekkt{}~ms; compiled implementations of all but the last fit comfortably in a 10-ms loop.
+
+\section{Discussion and Conclusion}
+\label{sec:conclusion}
+This article set out to double-check a result that looked too clean. The conference version showed that a learned predictive distribution of deadline-feasible demand, turned into budgets by a closed-form KKT rule, beats point forecasts, tuned global quantiles and reactive controllers. That remains true in all ten scenarios of three unrelated traffic families. But when the comparison set is widened to the other tractable approximations of the control problem, two controllers that use the same forecaster are better: a three-parameter policy whose levels and weight are learned from reward, in \xwinscempolicy{} scenarios, and a predictive back-pressure controller that uses only the forecast median, in \xwinspredmaxweight{}. The theory explains the direction of both and the measurements explain why the closed-form rule cannot follow. The newsvendor surrogate is a lower bound on the violated volume whose per-cell factor is the critical-window length plus the deadline (Proposition~\ref{prop:sandwich}), so a rule that uses the operator's weight as its newsvendor weight over-protects the short-deadline class; the learned policies correct this, but the same correction inside the KKT rule is worth only 1--4\,\% because the common multiplier saturates at the eMBB weight in half of the loaded intervals and the rule then has no per-class level left to move. And the tail of the deadline-feasible rate at millisecond deadlines is governed by the recent sample path, not by the stationary law (Sec.~\ref{sec:theory_num}), so a forecast can be right about the height of a burst and wrong about its timing; a reservation held for an interval longer than the burst pays for the timing error and back-pressure does not.
+
+Design guidance follows. Use the closed-form rule with a learned or online-fitted distribution when no reward signal or digital twin is available; it is the best controller with nothing to tune and is never far from the best. When a twin exists, learn the per-class quantile levels and the sharing weight from reward with the same forecaster; three parameters and a few hundred episodes are enough, and a tuned weight alone is not. If the control interval can be set to the shortest deadline or a small multiple of it, the reservation is the best structure at every weight; if the interval is fixed at several times the shortest deadline, as in a 10-ms loop over 2-ms traffic, and the bursts are shorter than the interval, predictive MaxWeight is better; if the bursts are as long as the interval (file transfers, periodic frames), the reservation is. The Markov-fluid bounds are admission and dimensioning tools, not reservation rules, at these deadlines. A Markov chain fitted online is a usable substitute for the learned forecaster when no training data exist, even under semi-Markov sojourns.
+
+Limitations remain those of the conference version: all three families are simulated; Family G uses a round-robin scheduler and a fixed rank; the link is a budget-enforced pipe without a switch-queue model; each cell carries one class; HARQ, uplink and the signal-quality cost of compression are not modelled. Three are specific to this article: the MDP of Sec.~\ref{sec:mdp} is approximated, not solved; the CEM policy is learned on the same training seeds as the forecaster, so its search saw slightly optimistic forecasts; and a stronger policy-search baseline (a neural policy trained for far more episodes) may widen the gap that the three-parameter policy opened. The natural next steps are a controller that switches between reservation and back-pressure from the estimated burst length relative to the interval, and validation on measured per-cell PRB traces.
+
+\begin{thebibliography}{00}
+\bibitem{ncc2027} Anonymous, ``Deadline-feasible, uncertainty-aware budget allocation for shared Open RAN fronthaul links,'' submitted to \emph{Proc. Nat. Conf. Commun. (NCC)}, 2027.
+\bibitem{oran_cus} O-RAN Alliance WG4, ``Control, user and synchronization plane specification,'' O-RAN.WG4.CUS.0, 2024.
+\bibitem{polese2023} M. Polese, L. Bonati, S. D'Oro, S. Basagni, and T. Melodia, ``Understanding O-RAN: Architecture, interfaces, algorithms, security, and research challenges,'' \emph{IEEE Commun. Surveys Tuts.}, vol. 25, no. 2, pp. 1376--1411, 2023.
+\bibitem{larsen2019} L. M. P. Larsen, A. Checko, and H. L. Christiansen, ``A survey of the functional splits proposed for 5G mobile crosshaul networks,'' \emph{IEEE Commun. Surveys Tuts.}, vol. 21, no. 1, pp. 146--172, 2019.
+\bibitem{perez2018} G. O. P\'erez, J. A. Hern\'andez, and D. Larrabeiti, ``Fronthaul network modeling and dimensioning meeting ultra-low latency requirements for 5G,'' \emph{J. Opt. Commun. Netw.}, vol. 10, no. 6, pp. 573--581, 2018.
+\bibitem{wang2017} L. Wang and S. Zhou, ``On the fronthaul statistical multiplexing gain,'' \emph{IEEE Commun. Lett.}, vol. 21, no. 5, pp. 1099--1102, 2017.
+\bibitem{lagen2022} S. Lag\'en, X. Gelabert, A. Hansson, M. Requena, and L. Giupponi, ``Fronthaul compression control for shared fronthaul access networks,'' \emph{IEEE Commun. Mag.}, vol. 60, no. 4, pp. 70--76, 2022.
+\bibitem{flexe2023} D. Koulougli, K. K. Nguyen, and M. Cheriet, ``eCPRI supports in 5G O-RAN fronthaul with FlexEthernet,'' in \emph{Proc. IEEE GLOBECOM}, 2023, pp. 1968--1973.
+\bibitem{bega2019} D. Bega, M. Gramaglia, M. Fiore, A. Banchs, and X. Costa-P\'erez, ``DeepCog: Cognitive network management in sliced 5G networks with deep learning,'' in \emph{Proc. IEEE INFOCOM}, 2019.
+\bibitem{bega2020} D. Bega, M. Gramaglia, M. Fiore, A. Banchs, and X. Costa-P\'erez, ``AZTEC: Anticipatory capacity allocation for zero-touch network slicing,'' in \emph{Proc. IEEE INFOCOM}, 2020.
+\bibitem{sciancalepore2017} V. Sciancalepore, K. Samdanis, X. Costa-P\'erez, D. Bega, M. Gramaglia, and A. Banchs, ``Mobile traffic forecasting for maximizing 5G network slicing resource utilization,'' in \emph{Proc. IEEE INFOCOM}, 2017.
+\bibitem{kavehmadavani2023} F. Kavehmadavani, V.-D. Nguyen, T. X. Vu, and S. Chatzinotas, ``Intelligent traffic steering in beyond 5G open RAN based on LSTM traffic prediction,'' \emph{IEEE Trans. Wireless Commun.}, vol. 22, no. 11, pp. 7727--7742, 2023.
+\bibitem{kasuluru2024} V. Kasuluru, L. Blanco, C. J. Vaca-Rubio, and E. Zeydan, ``On the impact of PRB load uncertainty forecasting for sustainable open RAN,'' arXiv:2407.14400, 2024.
+\bibitem{cohen2023} K. M. Cohen, S. Park, O. Simeone, P. Popovski, and S. Shamai, ``Guaranteed dynamic scheduling of ultra-reliable low-latency traffic via conformal prediction,'' \emph{IEEE Wireless Commun. Lett.}, vol. 12, no. 2, pp. 296--300, 2023.
+\bibitem{gibbs2021} I. Gibbs and E. Cand\`es, ``Adaptive conformal inference under distribution shift,'' in \emph{Proc. NeurIPS}, 2021.
+\bibitem{dai2025} J. Dai, L. Li, R. Safavinejad, S. Mahboob, H. Chen, V. V. Ratnam, H. Wang, J. Zhang, and L. Liu, ``O-RAN-enabled intelligent network slicing to meet service-level agreement (SLA),'' \emph{IEEE Trans. Mobile Comput.}, vol. 24, no. 2, pp. 890--906, 2025.
+\bibitem{sever2025} O. Sever, O. Salan, I. Hokelek, and A. Gorcin, ``A practical demonstration of DRL-based dynamic resource allocation xApp using OpenAirInterface,'' arXiv:2501.05879, 2025.
+\bibitem{dora2025} A. Ebrahimi Dorcheh, T. Seyfi, and F. Afghah, ``DORA: Dynamic O-RAN resource allocation for multi-slice 5G networks,'' in \emph{Proc. IEEE MECOM}, 2025, doi: 10.1109/MECOM67453.2025.11439664.
+\bibitem{cheng2023} N. F. Cheng, T. Pamuklu, and M. Erol-Kantarci, ``Reinforcement learning based resource allocation for network slices in O-RAN midhaul,'' in \emph{Proc. IEEE CCNC}, 2023, pp. 140--145.
+\bibitem{anick1982} D. Anick, D. Mitra, and M. M. Sondhi, ``Stochastic theory of a data-handling system with multiple sources,'' \emph{Bell Syst. Tech. J.}, vol. 61, no. 8, pp. 1871--1894, 1982.
+\bibitem{kesidis1993} G. Kesidis, J. Walrand, and C.-S. Chang, ``Effective bandwidths for multiclass Markov fluids and other ATM sources,'' \emph{IEEE/ACM Trans. Netw.}, vol. 1, no. 4, pp. 424--428, 1993.
+\bibitem{chang1994} C.-S. Chang, ``Stability, queue length, and delay of deterministic and stochastic queueing networks,'' \emph{IEEE Trans. Autom. Control}, vol. 39, no. 5, pp. 913--931, 1994.
+\bibitem{kelly1996} F. P. Kelly, ``Notes on effective bandwidths,'' in \emph{Stochastic Networks: Theory and Applications}, F. P. Kelly, S. Zachary, and I. Ziedins, Eds. Oxford Univ. Press, 1996, pp. 141--168.
+\bibitem{duffield1994} N. G. Duffield, ``Exponential bounds for queues with Markovian arrivals,'' \emph{Queueing Syst.}, vol. 17, pp. 413--430, 1994.
+\bibitem{loynes1962} R. M. Loynes, ``The stability of a queue with non-independent inter-arrival and service times,'' \emph{Math. Proc. Cambridge Philos. Soc.}, vol. 58, no. 3, pp. 497--520, 1962.
+\bibitem{tassiulas1992} L. Tassiulas and A. Ephremides, ``Stability properties of constrained queueing systems and scheduling policies for maximum throughput in multihop radio networks,'' \emph{IEEE Trans. Autom. Control}, vol. 37, no. 12, pp. 1936--1948, 1992.
+\bibitem{neely2010} M. J. Neely, \emph{Stochastic Network Optimization with Application to Communication and Queueing Systems}. Morgan \& Claypool, 2010.
+\bibitem{huang2016} L. Huang, S. Zhang, M. Chen, and X. Liu, ``When backpressure meets predictive scheduling,'' \emph{IEEE/ACM Trans. Netw.}, vol. 24, no. 4, pp. 2237--2250, 2016.
+\bibitem{bertsekas2020} D. P. Bertsekas, \emph{Rollout, Policy Iteration, and Distributed Reinforcement Learning}. Belmont, MA: Athena Scientific, 2020.
+\bibitem{rubinstein1999} R. Y. Rubinstein, ``The cross-entropy method for combinatorial and continuous optimization,'' \emph{Methodol. Comput. Appl. Probab.}, vol. 1, no. 2, pp. 127--190, 1999.
+\bibitem{hadley1963} G. Hadley and T. M. Whitin, \emph{Analysis of Inventory Systems}. Englewood Cliffs, NJ: Prentice-Hall, 1963.
+\bibitem{leboudec2001} J.-Y. Le Boudec and P. Thiran, \emph{Network Calculus: A Theory of Deterministic Queuing Systems for the Internet}. Springer, 2001.
+\bibitem{willinger1997} W. Willinger, M. S. Taqqu, R. Sherman, and D. V. Wilson, ``Self-similarity through high-variability: Statistical analysis of Ethernet LAN traffic at the source level,'' \emph{IEEE/ACM Trans. Netw.}, vol. 5, no. 1, pp. 71--86, 1997.
+\bibitem{colo_ran} M. Polese, L. Bonati, S. D'Oro, S. Basagni, and T. Melodia, ``ColO-RAN: Developing machine learning-based xApps for open RAN closed-loop control on programmable experimental platforms,'' \emph{IEEE Trans. Mobile Comput.}, vol. 22, no. 10, pp. 5787--5800, 2023.
+\bibitem{tr38901} 3GPP, ``Study on channel model for frequencies from 0.5 to 100 GHz,'' TR 38.901, 2022.
+\bibitem{ts38214} 3GPP, ``NR; Physical layer procedures for data,'' TS 38.214, 2022.
+\bibitem{tr36814} 3GPP, ``Further advancements for E-UTRA physical layer aspects,'' TR 36.814, 2017.
+\bibitem{tr38838} 3GPP, ``Study on XR evaluations for NR,'' TR 38.838, 2021.
+\end{thebibliography}
+
+\end{document}

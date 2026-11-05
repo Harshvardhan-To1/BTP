@@ -1,0 +1,32 @@
+{
+ "high": {
+  "family": "synthetic",
+  "epochs": 1125,
+  "frac_binding": 0.9982222222222222,
+  "frac_embb_at_floor": 0.5813333333333334,
+  "lambda_median": 1.0,
+  "lambda_q25": 0.4226569896495199,
+  "lambda_q75": 1.0,
+  "ll_level_at_median_lambda": 0.6666666666666667
+ },
+ "tgpp_high": {
+  "family": "3gpp",
+  "epochs": 1125,
+  "frac_binding": 1.0,
+  "frac_embb_at_floor": 0.5644444444444444,
+  "lambda_median": 1.0,
+  "lambda_q25": 0.24272208092793618,
+  "lambda_q75": 1.0,
+  "ll_level_at_median_lambda": 0.6666666666666667
+ },
+ "mm_high": {
+  "family": "markov",
+  "epochs": 1125,
+  "frac_binding": 0.9991111111111111,
+  "frac_embb_at_floor": 0.4951111111111111,
+  "lambda_median": 0.9437799794159143,
+  "lambda_q25": 0.29096914079015296,
+  "lambda_q75": 1.0,
+  "ll_level_at_median_lambda": 0.6854066735280286
+ }
+}

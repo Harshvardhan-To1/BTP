@@ -18,7 +18,7 @@ def lu_inverse(a: np.ndarray) -> np.ndarray:
 
 
 def lapack_getri_inverse(a: np.ndarray) -> np.ndarray:
-    """numpy.linalg.inv — LAPACK getrf+getri (LU based, tuned reference)."""
+    """numpy.linalg.inv: LAPACK getrf+getri (LU based, tuned reference)."""
     return np.linalg.inv(a)
 
 

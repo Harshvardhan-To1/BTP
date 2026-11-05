@@ -1,0 +1,18 @@
+dataset: train (101248, 28), val (50624, 28)  (132.8s)
+trained 6 quantile models in 5.3s
+validation: {
+ "coverage_q05": 0.3389301517067004,
+ "coverage_q25": 0.3389301517067004,
+ "coverage_q50": 0.5678334386852086,
+ "coverage_q75": 0.6719145069532237,
+ "coverage_q90": 0.9066253160556258,
+ "coverage_q95": 0.9809378950695322,
+ "pinball_mean": 0.029215766472130835,
+ "median_mae": 0.06111160841263629,
+ "median_mae_rel": 0.23754903854462128,
+ "interval90_coverage": 0.9809378950695322,
+ "interval90_width_rel": 2.0082522616720806
+}
+saved model -> models/fhlm_quantile_gbm_T20_d2_3gpp.pkl
+report -> results/fhlm/forecast_training_T20_d2_3gpp.json
+window-quantile val pinball 0.0410 vs GBM 0.0292; median MAE: persistence 0.1009, window 0.1508, GBM 0.0611

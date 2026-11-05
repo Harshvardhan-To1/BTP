@@ -2,13 +2,13 @@
 
 Methods compared per dimension:
   * LU decomposition (scipy lu_factor + lu_solve)
-  * LAPACK getri (numpy.linalg.inv, also LU-based — tuned reference)
+  * LAPACK getri (numpy.linalg.inv, also LU-based, tuned reference)
   * Gauss-Jordan elimination (vectorized numpy)
   * QR decomposition
   * SVD
   * Newton-Schulz iteration (classical, to 1e-6 residual)
-  * InverseNet-MLP (dims 10, 100 — direct regression net)
-  * InverseNet-NS (all dims — learned unrolled Newton-Schulz, 8 steps)
+  * InverseNet-MLP (dims 10, 100; direct regression net)
+  * InverseNet-NS (all dims; learned unrolled Newton-Schulz, 8 steps)
 
 Neural models are evaluated on the held-out 20% split they were not
 trained on; classical methods are timed on the same held-out matrices.

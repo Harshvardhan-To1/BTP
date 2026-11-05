@@ -1,7 +1,7 @@
 """
 Experiment 4: SNR Robustness Sweep
 ====================================
-Paper Figure 4 — NMSE vs SNR at fixed CR for all methods.
+Paper Figure 4: NMSE vs SNR at fixed CR for all methods.
 
 Shows that CSEE and RAS-BFP are robust across the operating SNR range
 (unlike BFP which degrades at low SNR when the block exponent is poorly set).

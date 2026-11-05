@@ -1,0 +1,52 @@
+[runner] 216 runs in 95s
+{
+ "fixed_quantile": {
+  "level": 0.75
+ },
+ "maxweight": {
+  "margin": 0.0,
+  "hol_weight": 1.0
+ },
+ "point_forecast": {
+  "margin": 0.0
+ },
+ "proposed_cal": {
+  "gamma": 0.005
+ },
+ "queue_aware": {
+  "margin": 0.0,
+  "num_horizons": 1
+ },
+ "reactive_prop": {
+  "margin": 0.5,
+  "ewma_window": 60
+ }
+}
+            method                               params  weighted_violation_ratio
+0   fixed_quantile                      {"level": 0.75}                  0.080536
+1   fixed_quantile                       {"level": 0.9}                  0.102869
+2   fixed_quantile                      {"level": 0.95}                  0.112094
+3        maxweight   {"margin": 0.0, "hol_weight": 1.0}                  0.202458
+4        maxweight   {"margin": 0.0, "hol_weight": 0.0}                  0.203469
+5        maxweight  {"margin": 0.25, "hol_weight": 1.0}                  0.210107
+6        maxweight  {"margin": 0.25, "hol_weight": 0.0}                  0.211148
+7        maxweight   {"margin": 0.5, "hol_weight": 1.0}                  0.217397
+8        maxweight   {"margin": 0.5, "hol_weight": 0.0}                  0.218056
+9   point_forecast                      {"margin": 0.0}                  0.071810
+10  point_forecast                     {"margin": 0.25}                  0.082177
+11  point_forecast                      {"margin": 0.5}                  0.094838
+12    proposed_cal                     {"gamma": 0.005}                  0.062961
+13    proposed_cal                      {"gamma": 0.01}                  0.067892
+14    proposed_cal                      {"gamma": 0.02}                  0.072467
+15     queue_aware   {"margin": 0.0, "num_horizons": 1}                  0.093684
+16     queue_aware   {"margin": 0.0, "num_horizons": 3}                  0.096958
+17     queue_aware  {"margin": 0.25, "num_horizons": 1}                  0.101375
+18     queue_aware   {"margin": 0.0, "num_horizons": 6}                  0.107398
+19     queue_aware  {"margin": 0.25, "num_horizons": 3}                  0.112210
+20     queue_aware  {"margin": 0.25, "num_horizons": 6}                  0.121525
+21   reactive_prop   {"margin": 0.5, "ewma_window": 60}                  0.127364
+22   reactive_prop   {"margin": 0.5, "ewma_window": 20}                  0.135549
+23   reactive_prop  {"margin": 0.25, "ewma_window": 60}                  0.137129
+24   reactive_prop  {"margin": 0.25, "ewma_window": 20}                  0.142966
+25   reactive_prop   {"margin": 0.0, "ewma_window": 60}                  0.146917
+26   reactive_prop   {"margin": 0.0, "ewma_window": 20}                  0.150674

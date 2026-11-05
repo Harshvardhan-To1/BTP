@@ -1,4 +1,4 @@
-# BTP Mid-Term Evaluation — Presentation Deck (15 Slides)
+# BTP Mid-Term Evaluation: Presentation Deck (15 Slides)
 
 **Title:** High-Performance Fronthaul Load Management in 5G/6G C-RAN  
 **Target:** IEEE TWC / JSAC · Mid-Term 50% · September 2026  
@@ -7,28 +7,28 @@
 
 ---
 
-## Slide 1 — Title
+## Slide 1: Title
 
 ### High-Performance Fronthaul Load Management in 5G/6G C-RAN
 
-- **CSEE** — Circulant / delay-domain encoder — $\mathcal{O}(MN\log N)$
-- **RAS-BFP** — Rank-adaptive sketched BFP — $\mathcal{O}(rMN)$
-- **ACAFS** — Rank-driven functional split (7.2x / 7.1 / 6)
-- **Status:** 50% milestone — theory + simulator + benchmarks
+- **CSEE**: circulant / delay-domain encoder, $\mathcal{O}(MN\log N)$
+- **RAS-BFP**: rank-adaptive sketched BFP, $\mathcal{O}(rMN)$
+- **ACAFS**: rank-driven functional split (7.2x / 7.1 / 6)
+- **Status:** 50% milestone (theory + simulator + benchmarks)
 
 ---
 
-## Slide 2 — Problem
+## Slide 2: Problem
 
 ### Fronthaul Bottleneck in Massive MIMO C-RAN
 
 - RU↔DU I/Q grows as $2\,M\,N\,b\,R_{\mathrm{slot}}$ → **~15.36 Gbps/cell** ($M=64$, 100 MHz)
 - O-RAN BFP ≈ **4×** compression only
-- Truncated SVD compresses more but costs $\mathcal{O}(MN\min(M,N))$ — too slow for slot budgets
+- Truncated SVD compresses more but costs $\mathcal{O}(MN\min(M,N))$, too slow for slot budgets
 
 ---
 
-## Slide 3 — Architecture
+## Slide 3: Architecture
 
 ```
  RU:  TDL-A → Y∈C^{M×N}
@@ -41,14 +41,14 @@
 
 ---
 
-## Slide 4 — Baselines
+## Slide 4: Baselines
 
-**BFP:** shared block exponent + $b$-bit mantissa — fast, limited CR  
-**SVD:** $Y\approx U_r\Sigma_r V_r^H$ — optimal rank-$r$ approx, cubic-ish cost
+**BFP:** shared block exponent + $b$-bit mantissa; fast, limited CR  
+**SVD:** $Y\approx U_r\Sigma_r V_r^H$; optimal rank-$r$ approx, cubic-ish cost
 
 ---
 
-## Slide 5 — CSEE + Theorem 1
+## Slide 5: CSEE + Theorem 1
 
 Delay-domain sparsity of TDL-A:
 
@@ -56,11 +56,11 @@ $$Y_d=\mathrm{IFFT}(Y),\quad S=\mathrm{TopK}(|Y_d|),\quad \hat Y=\mathrm{FFT}(Y_
 
 $$\mathrm{NMSE}\le \sigma_{\mathrm{tail}}^2/\sigma_Y^2 + (\Delta^2/12)\,K/(MN\sigma_Y^2)$$
 
-Complexity $\mathcal{O}(MN\log N)$ — several× faster than SVD at matched CR.
+Complexity $\mathcal{O}(MN\log N)$, several times faster than SVD at matched CR.
 
 ---
 
-## Slide 6 — RAS-BFP + Theorems 2–4
+## Slide 6: RAS-BFP + Theorems 2–4
 
 1. Sketch $Z=\Omega Y$ (SRHT)  
 2. $Z^H=QR$  
@@ -71,7 +71,7 @@ $r^\star=\sqrt{B_{\mathrm{total}}/(b(M+N))}$
 
 ---
 
-## Slide 7 — ACAFS + Theorem 5
+## Slide 7: ACAFS + Theorem 5
 
 | Rank fraction | Split |
 |---|---|
@@ -83,7 +83,7 @@ Expected BW cut vs Split 6 ≈ **33%** (uniform ranks); simulated mean across SN
 
 ---
 
-## Slide 8 — Setup
+## Slide 8: Setup
 
 | Parameter | Value |
 |---|---|
@@ -94,7 +94,7 @@ Expected BW cut vs Split 6 ≈ **33%** (uniform ranks); simulated mean across SN
 
 ---
 
-## Slide 9 — Fig 1 · NMSE vs CR
+## Slide 9: Fig 1 · NMSE vs CR
 
 ![Fig1](../results/figures/exp1_nmse_vs_cr.png)
 
@@ -102,7 +102,7 @@ CSEE / RAS-BFP dominate the CR–NMSE frontier vs BFP; bounds overlay Thm 1–2.
 
 ---
 
-## Slide 10 — Fig 2 · Complexity
+## Slide 10: Fig 2 · Complexity
 
 ![Fig2](../results/figures/exp2_complexity.png)
 
@@ -110,7 +110,7 @@ CSEE & RAS-BFP stay far below SVD as $M$ grows.
 
 ---
 
-## Slide 11 — Fig 3 · ACAFS Gain
+## Slide 11: Fig 3 · ACAFS Gain
 
 ![Fig3](../results/figures/exp3_acafs.png)
 
@@ -118,7 +118,7 @@ BW reduction vs fixed Split 6 grows as SNR rises and estimated rank collapses.
 
 ---
 
-## Slide 12 — Fig 4 · SNR Sweep
+## Slide 12: Fig 4 · SNR Sweep
 
 ![Fig4](../results/figures/exp4_snr_sweep.png)
 
@@ -126,7 +126,7 @@ Proposed encoders remain stable across the full SNR sweep.
 
 ---
 
-## Slide 13 — Comparison Matrix
+## Slide 13: Comparison Matrix
 
 | Metric | BFP | SVD | CSEE | RAS-BFP |
 |---|---|---|---|---|
@@ -138,7 +138,7 @@ Proposed encoders remain stable across the full SNR sweep.
 
 ---
 
-## Slide 14 — 2nd-Half Roadmap
+## Slide 14: 2nd-Half Roadmap
 
 1. C++ / AVX-512 / CUDA (<100 µs)  
 2. Near-RT RIC E2 xApp for ACAFS  
@@ -147,9 +147,9 @@ Proposed encoders remain stable across the full SNR sweep.
 
 ---
 
-## Slide 15 — Conclusion
+## Slide 15: Conclusion
 
 - **50% complete:** theory, code, figures, live notebook  
 - CSEE & RAS-BFP: high CR + far lower latency than SVD  
 - ACAFS: rank-aware split → material fronthaul savings vs Split 6  
-- **Thank you — questions?**
+- **Thank you. Questions?**

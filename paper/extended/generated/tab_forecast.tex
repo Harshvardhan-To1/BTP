@@ -1,0 +1,18 @@
+\begin{tabular}{llcccc}
+\hline
+Family & Forecaster & pinball$\times$100 & cov. 5/50/95 & 90\,\% PI cov. & med. rel. err. (\%) \\
+\hline
+S & GBM (learned) & 2.32 & 5/50/95 & 90 & 37 \\
+ & window quantiles & 3.09 & 9/50/91 & 82 & 49 \\
+ & fitted Markov chain & 3.26 & 25/56/84 & 59 & 48 \\
+\hline
+G & GBM (learned) & 2.97 & 34/56/98 & 98 & 24 \\
+ & window quantiles & 4.22 & 38/60/94 & 90 & 60 \\
+ & fitted Markov chain & 3.03 & 37/53/91 & 54 & 33 \\
+\hline
+M & GBM (learned) & 1.98 & 6/52/95 & 89 & 30 \\
+ & window quantiles & 2.96 & 9/49/91 & 82 & 49 \\
+ & fitted Markov chain & 2.94 & 25/54/86 & 62 & 45 \\
+ & true Markov model & 1.89 & 6/50/95 & 89 & 28 \\
+\hline
+\end{tabular}
