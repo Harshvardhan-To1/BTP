@@ -95,8 +95,8 @@ wide-accumulate GEMM assumption, which a rank-1-update direct method cannot use.
 
 Honest reading: in complex MACs a direct inverse (K^3) is *cheaper* than a single Newton step (2 K^3), and the
 cold-start path is slower than LAPACK here. The win is the **tracking** step: batched GEMM runs about 5.5x faster than
-batched LAPACK inversion on this CPU, so one warm step fits in a 0.5 ms slot at K=16 and K=32 (inverse only) where
-LAPACK does not. The inversion is also only 20 to 25% of RZF MACs (the Gram and `W` formation dominate), and the
+batched LAPACK inversion on this CPU, so one warm step fits in a 0.5 ms slot at K=8 and K=16 (0.09 and 0.29 ms) where
+LAPACK fits only at K=8; at K=32 neither fits on 4 CPU cores (1.4 vs 7.8 ms). The inversion is also only 6 to 20% of RZF MACs (the Gram and `W` formation dominate), and the
 sequential critical path drops from about 3K steps to a few GEMMs, which matters for FPGA/ASIC/GPU. A tuned
 Cholesky-based inverse would narrow the CPU gap; this was not measured.
 
