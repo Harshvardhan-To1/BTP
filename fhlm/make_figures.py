@@ -28,6 +28,9 @@ COLORS = {
     "point_forecast": "#ff7f0e", "fixed_quantile": "#e6b800", "proposed_window": "#8bc34a", "proposed": "#d62728",
     "proposed_cal": "#9c27b0", "oracle": "#212121", "proposed_miscal": "#d62728", "oracle_kkt": "#616161",
     "proposed_transfer": "#e91e63",
+    # extended study
+    "pred_maxweight": "#00897b", "cem_policy": "#f06292", "eb_kkt": "#5c6bc0", "markov_kkt": "#26a69a",
+    "markov_oracle_kkt": "#424242", "proposed_vc": "#ef5350",
 }
 SHORT = {
     "static_equal": "Static equal", "reactive_prop": "Reactive prop.", "maxweight": "MaxWeight",
@@ -35,7 +38,14 @@ SHORT = {
     "proposed_window": "Proposed (window q.)", "proposed": "Proposed (GBM q.)", "proposed_cal": "Proposed + ACI cal.",
     "oracle": "Oracle water-fill", "proposed_miscal": "Proposed (miscalibrated)", "oracle_kkt": "Oracle + KKT rule",
     "proposed_transfer": "Proposed (transferred forecaster)",
+    "pred_maxweight": "Predictive MaxWeight", "cem_policy": "Policy search (CEM)", "eb_kkt": "Bound q. + KKT",
+    "markov_kkt": "Markov MC q. + KKT", "markov_oracle_kkt": "True Markov model + KKT",
+    "proposed_vc": "Proposed, volume w.",
 }
+# controllers of the NCC manuscript; the extended study adds the rest
+NCC_METHODS = ["static_equal", "reactive_prop", "maxweight", "queue_aware", "point_forecast", "fixed_quantile",
+               "proposed_window", "proposed", "proposed_cal", "proposed_transfer", "oracle", "oracle_kkt",
+               "proposed_miscal"]
 TGPP_ORDER = ["tgpp_moderate", "tgpp_high"]
 TGPP_LABELS = {"tgpp_moderate": "3GPP traffic, moderate\n(0.65)", "tgpp_high": "3GPP traffic, high\n(0.80)"}
 
@@ -426,10 +436,78 @@ def paper_fig_demo(npz_path: str, cell: int = 0, start: int = 6000, length: int 
         _save(fig, "paper_fig_demo")
 
 
+MM_ORDER = ["mm_moderate", "mm_high", "mm_shift"]
+PAPER_MM = {"mm_moderate": "0.65", "mm_high": "0.80", "mm_shift": "Shift\n(semi-Markov)"}
+EXT_SHOW = ["reactive_prop", "maxweight", "pred_maxweight", "queue_aware", "point_forecast", "cem_policy", "eb_kkt",
+            "markov_kkt", "proposed", "markov_oracle_kkt", "oracle_kkt"]
+
+
+def paper_fig_overview_ext(df: pd.DataFrame):
+    """Extended study: the three traffic families side by side with the model-based and predictive controllers."""
+    with plt.rc_context(PAPER_RC):
+        fig, axes = plt.subplots(1, 3, figsize=(7.1, 1.9), gridspec_kw={"width_ratios": [5.0, 2.1, 3.1], "wspace": 0.24})
+        for ax, order, labels, tag in ((axes[0], SCENARIO_ORDER, PAPER_SCEN, "(a) Family S: scenario (offered load)"),
+                                       (axes[1], TGPP_ORDER, PAPER_TGPP, "(b) Family G: offered load"),
+                                       (axes[2], MM_ORDER, PAPER_MM, "(c) Family M: offered load")):
+            d = df[df.scenario.isin(order)]
+            scen = [x for x in order if x in d.scenario.unique()]
+            if not scen:
+                ax.set_visible(False)
+                continue
+            methods = [m for m in EXT_SHOW if m in d.method.unique()]
+            _grouped_bars(ax, d, scen, labels, methods, PRIMARY_METRIC)
+            ax.set_xlabel(tag, labelpad=2)
+        axes[0].set_ylabel("$V_w$ [%]")
+        handles, labels = {}, []
+        for ax in axes:
+            for h, l in zip(*ax.get_legend_handles_labels()):
+                if l not in handles:
+                    handles[l] = h
+                    labels.append(l)
+        fig.legend([handles[l] for l in labels], labels, loc="upper center", ncol=6, bbox_to_anchor=(0.5, 1.16),
+                   frameon=False, handlelength=1.2, columnspacing=1.0, handletextpad=0.4)
+        _save(fig, "paper_fig_overview_ext")
+
+
+def paper_fig_regime(sweep: pd.DataFrame, delay: pd.DataFrame | None):
+    """Reservation vs back-pressure: V_w against the control interval (and telemetry delay) for the main contenders."""
+    show = ["reactive_prop", "maxweight", "pred_maxweight", "point_forecast", "markov_kkt", "proposed", "oracle_kkt"]
+    with plt.rc_context(PAPER_RC):
+        ncol = 2 if delay is not None else 1
+        fig, axes = plt.subplots(1, ncol, figsize=(3.5 * ncol, 1.9), squeeze=False)
+        for ax, d, col, xlab, tag in ((axes[0, 0], sweep, "interval_slots", "control interval $T$ [ms]", "(a)"),
+                                      (axes[0, -1], delay, "telemetry_delay_slots", "telemetry delay $\\tau$ [ms]", "(b)")):
+            if d is None:
+                continue
+            for m in show:
+                if m not in d.method.unique():
+                    continue
+                g = d[d.method == m].groupby(col)[PRIMARY_METRIC]
+                keys = np.array(sorted(g.groups.keys()))
+                ax.errorbar(keys * 0.5, g.mean().reindex(keys).values * 100,
+                            yerr=g.std().reindex(keys).fillna(0).values * 100, marker="o", ms=2.5, capsize=1.5,
+                            color=COLORS[m], label=PAPER_SHORT[m], lw=0.9, ls="--" if m == "oracle_kkt" else "-")
+            ax.set_xlabel(f"{tag} {xlab}", labelpad=2)
+            ax.set_ylabel("$V_w$ [%]")
+            if col == "interval_slots":
+                ax.set_xscale("log")
+                ax.set_xticks([2, 5, 10, 20])
+                ax.set_xticklabels(["2", "5", "10", "20"])
+                ax.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+            ax.grid(alpha=0.3, lw=0.5, which="both")
+            ax.tick_params(length=2, pad=1.5)
+        handles, labels = axes[0, 0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc="upper center", ncol=4, bbox_to_anchor=(0.5, 1.2), frameon=False,
+                   handlelength=1.4, columnspacing=1.0, handletextpad=0.4)
+        _save(fig, "paper_fig_regime")
+
+
 def main():
     main_path = os.path.join(RESULTS_DIR, "main_runs.csv")
     if os.path.exists(main_path):
-        df = pd.read_csv(main_path)
+        df_all = pd.read_csv(main_path)
+        paper_fig_overview_ext(df_all)
+        df = df_all[df_all.method.isin(NCC_METHODS)]
         paper_fig_overview(df)
         fig_tgpp(df)
         # the synthetic-family figures exclude the two reference-only controllers added for the paper
@@ -442,15 +520,20 @@ def main():
         fig_decision_time(df)
         fig_paired(df)
     sweep_path = os.path.join(RESULTS_DIR, "sweep_runs.csv")
+    delay_path = os.path.join(RESULTS_DIR, "delay_runs.csv")
     if os.path.exists(sweep_path):
-        fig_sweep(pd.read_csv(sweep_path))
+        sw = pd.read_csv(sweep_path)
+        paper_fig_regime(sw, pd.read_csv(delay_path) if os.path.exists(delay_path) else None)
+        fig_sweep(sw[sw.method.isin(NCC_METHODS)])
     comp_path = os.path.join(RESULTS_DIR, "compression_runs.csv")
     if os.path.exists(comp_path):
-        fig_compression(pd.read_csv(comp_path))
+        comp = pd.read_csv(comp_path)
+        fig_compression(comp[comp.method.isin(NCC_METHODS)])
     for name, fn in (("miscalibration_runs.csv", fig_miscalibration), ("delay_runs.csv", fig_delay)):
         pth = os.path.join(RESULTS_DIR, name)
         if os.path.exists(pth):
-            fn(pd.read_csv(pth))
+            d = pd.read_csv(pth)
+            fn(d[d.method.isin(NCC_METHODS)])
     fig_forecast_quality(os.path.join(RESULTS_DIR, "forecast_training_T20_d2.json"))
     fig_demo(os.path.join(RESULTS_DIR, "demo_timeseries.npz"))
     paper_fig_demo(os.path.join(RESULTS_DIR, "demo_timeseries.npz"))

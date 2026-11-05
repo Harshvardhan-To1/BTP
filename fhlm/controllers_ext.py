@@ -91,8 +91,8 @@ def cem_search(evaluate, mean0: np.ndarray, std0: np.ndarray, lo: np.ndarray, hi
         thetas[0] = mean                          # always re-evaluate the current mean
         costs = np.asarray(evaluate(thetas), dtype=float)
         idx = np.argsort(costs)[:elite]
-        mean = thetas[idx].mean(0)
-        std = np.maximum(thetas[idx].std(0), 0.25 * std0 * (0.7 ** it))
+        mean = 0.7 * thetas[idx].mean(0) + 0.3 * mean                       # smoothed update
+        std = np.maximum(thetas[idx].std(0), std0 * max(0.1, 0.75 ** it))  # slow floor against premature collapse
         if costs[idx[0]] < best[0]:
             best = (float(costs[idx[0]]), thetas[idx[0]].copy())
         history.append({"iter": it, "best_cost": float(costs[idx[0]]), "mean": mean.tolist(), "std": std.tolist()})

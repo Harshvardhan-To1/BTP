@@ -31,10 +31,20 @@ TEX = {
     "proposed_transfer": "Proposed, transferred forecaster",
     "oracle": "Oracle water-fill",
     "oracle_kkt": "Oracle + KKT rule",
+    # extended study
+    "pred_maxweight": "Predictive MaxWeight",
+    "cem_policy": "Policy search (CEM)",
+    "eb_kkt": "Bound quantiles + KKT",
+    "markov_kkt": "Markov MC quantiles + KKT",
+    "markov_oracle_kkt": "True Markov model + KKT",
+    "proposed_vc": "Proposed, volume weights",
 }
+# The NCC 2027 manuscript (paper/main.tex) compares exactly these controllers; the extended study adds more.
+NCC_METHODS = ["static_equal", "reactive_prop", "maxweight", "queue_aware", "point_forecast", "fixed_quantile",
+               "proposed_window", "proposed", "proposed_cal", "proposed_transfer", "oracle", "oracle_kkt"]
 SHORT_TEX = {"proposed": "Proposed (GBM + KKT)", "proposed_transfer": "Proposed, transferred",
              "proposed_window": "Proposed, window q.", "queue_aware": "Deadline-aware react."}
-REFERENCE_ONLY = ("oracle", "oracle_kkt", "proposed_transfer")   # never counted as "best implementable"
+REFERENCE_ONLY = ("oracle", "oracle_kkt", "proposed_transfer", "markov_oracle_kkt")   # never counted as "best implementable"
 # NCC/IEEE Trans. style tables carry no typographic highlighting; keep the best-value bookkeeping but render it plain.
 BOLD_BEST = False
 
@@ -267,8 +277,13 @@ def tab_compression(comp: pd.DataFrame) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _ncc(df):
+    """Restrict a runs table to the controllers of the NCC manuscript (keeps its tables stable)."""
+    return None if df is None else df[df.method.isin(NCC_METHODS)].copy()
+
+
 def main():
-    main_df = _csv("main_runs.csv")
+    main_df = _ncc(_csv("main_runs.csv"))
     macros = ""
     if main_df is not None:
         paired = paired_analysis(main_df, reference="proposed")
@@ -336,7 +351,7 @@ def main():
         for m in METHOD_ORDER:
             if m in dt:
                 macros += _m(f"dt{m.replace('_', '')}", f"{dt[m]:.2f}")
-    sw = _csv("sweep_runs.csv")
+    sw = _ncc(_csv("sweep_runs.csv"))
     if sw is not None:
         _w("tab_sweep.tex", tab_sweep(sw))
         macros += _m("nSeedsSweep", str(sw.seed.nunique()))
@@ -349,7 +364,7 @@ def main():
             for m in METHOD_ORDER:
                 if (T, m) in g:
                     macros += _m(f"sweepT{T}{m.replace('_', '')}Abs", f"{g.loc[(T, m)] * 100:.2f}")
-    dl = _csv("delay_runs.csv")
+    dl = _ncc(_csv("delay_runs.csv"))
     if dl is not None:
         _w("tab_delay.tex", tab_delay(dl))
         macros += _m("nSeedsDelay", str(dl.seed.nunique()))
@@ -359,7 +374,7 @@ def main():
                 if (tau, b) in g and (tau, "proposed") in g:
                     red = 100 * (g.loc[(tau, b)] - g.loc[(tau, "proposed")]) / g.loc[(tau, b)]
                     macros += _m(f"delayTau{tau}{b.replace('_', '')}", f"{red:.0f}")
-    mis = _csv("miscalibration_runs.csv")
+    mis = _ncc(_csv("miscalibration_runs.csv"))
     if mis is not None:
         _w("tab_misc.tex", tab_misc(mis))
         macros += _m("nSeedsMisc", str(mis.seed.nunique()))
@@ -375,11 +390,11 @@ def main():
             for b in ("point_forecast", "queue_aware"):
                 v = mis[(mis.method == b) & (mis.scenario == s)][PRIMARY_METRIC].mean()
                 macros += _m(f"misc{s.replace('_', '')}{b.replace('_', '')}", f"{v * 100:.2f}")
-    comp = _csv("compression_runs.csv")
+    comp = _ncc(_csv("compression_runs.csv"))
     if comp is not None:
         _w("tab_compression.tex", tab_compression(comp))
         macros += _m("nSeedsComp", str(comp.seed.nunique()))
-    wt = _csv("weights_runs.csv")
+    wt = _ncc(_csv("weights_runs.csv"))
     if any(x is not None for x in (sw, dl, comp, wt)):
         _w("tab_sensitivity.tex", tab_sensitivity(sw, dl, comp, wt))
     if wt is not None:
