@@ -279,8 +279,19 @@ def tab_compression(comp: pd.DataFrame) -> str:
 
 
 def _ncc(df):
-    """Restrict a runs table to the controllers of the NCC manuscript (keeps its tables stable)."""
-    return None if df is None else df[df.method.isin(NCC_METHODS)].copy()
+    """Restrict a runs table to the controllers and scenarios of the NCC manuscript.
+
+    Keeps its tables stable after the extended study appended methods and the
+    Markov family (``mm_*``) to the same CSVs; the scenario filter also keeps the
+    shared bootstrap RNG stream of ``paired_analysis`` identical to the submitted
+    version.  Miscalibration rows (``proposed_miscal``) belong to the NCC paper.
+    """
+    if df is None:
+        return None
+    keep = df.method.isin(NCC_METHODS) | (df.method == "proposed_miscal")
+    if "scenario" in df.columns:
+        keep &= ~df.scenario.astype(str).str.startswith("mm_")
+    return df[keep].copy()
 
 
 def main():

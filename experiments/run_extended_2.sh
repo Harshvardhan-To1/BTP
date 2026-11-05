@@ -17,5 +17,5 @@ step main-tw-M;    python3 -m fhlm.run_experiments main --family markov    --met
 step sweep-2;      python3 -m fhlm.run_experiments sweep --methods cem_policy proposed_tw --num-seeds 10 --append --workers $W > $R/ext2_sweep.log 2>&1
 step delay-2;      python3 -m fhlm.run_experiments delay --methods cem_policy proposed_tw --num-seeds 10 --append --workers $W > $R/ext2_delay.log 2>&1
 step weights-2;    python3 -m fhlm.run_experiments weights --methods cem_policy proposed_tw --scenarios high tgpp_high mm_high --num-seeds 20 --append --workers $W > $R/ext2_weights.log 2>&1
-step compression-2; python3 -m fhlm.run_experiments compression --methods cem_policy proposed_tw --num-seeds 10 --append --workers $W > $R/ext2_compression.log 2>&1
+step compression-2; python3 -m fhlm.run_experiments compression --scenario moderate --methods cem_policy proposed_tw --num-seeds 10 --append --workers $W > $R/ext2_compression.log 2>&1
 step done

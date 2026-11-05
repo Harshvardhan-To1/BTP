@@ -24,6 +24,6 @@ step sweep-new;    python3 -m fhlm.run_experiments sweep --methods pred_maxweigh
 step delay-new;    python3 -m fhlm.run_experiments delay --methods pred_maxweight markov_kkt --num-seeds 10 --append --workers $W > $R/ext_delay.log 2>&1
 step weights-new;  python3 -m fhlm.run_experiments weights --methods pred_maxweight --scenarios high tgpp_high mm_high --num-seeds 20 --append --workers $W > $R/ext_weights.log 2>&1
 step weights-M;    python3 -m fhlm.run_experiments weights --methods reactive_prop maxweight queue_aware point_forecast proposed oracle oracle_kkt --scenarios mm_high --num-seeds 20 --append --workers $W > $R/ext_weights_M.log 2>&1
-step compression-new; python3 -m fhlm.run_experiments compression --methods pred_maxweight --num-seeds 10 --append --workers $W > $R/ext_compression.log 2>&1
+step compression-new; python3 -m fhlm.run_experiments compression --scenario moderate --methods pred_maxweight --num-seeds 10 --append --workers $W > $R/ext_compression.log 2>&1
 step theory;       python3 -m fhlm.theory_validation > $R/ext_theory.log 2>&1
 step done

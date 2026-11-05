@@ -184,6 +184,7 @@ class UncertaintyAwareAllocator(Controller):
 
         r0 = alloc_for(0.0)
         if r0.sum() <= cap:
+            self.last_lambda = 0.0
             return waterfill(r0, np.ones(n), cap, caps)
         lo, hi = 0.0, float(w.max())
         for _ in range(60):
@@ -192,6 +193,7 @@ class UncertaintyAwareAllocator(Controller):
                 lo = mid
             else:
                 hi = mid
+        self.last_lambda = hi            # the common weighted tail probability of this epoch (diagnostics)
         r = alloc_for(hi)
         slack = cap - r.sum()
         if slack > 0:

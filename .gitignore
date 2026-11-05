@@ -27,3 +27,8 @@ models/fhlm_quantile_gbm_T20_d2_3gpp.pkl
 # ablation forecasters (sustainable-rate target) are retrained on demand
 models/*_sustain.pkl
 results/fhlm/trace_cache/
+paper/extended/*.aux
+paper/extended/*.log
+paper/extended/*.out
+paper/extended/*.bbl
+paper/extended/*.blg

@@ -57,7 +57,7 @@ def tab_family(df: pd.DataFrame, scen, head, paired=None, paired_scen=None, metr
     ncol = len(scen) + (1 if paired is not None else 0)
     lines = ["\\begin{tabular}{l" + "c" * ncol + "}", "\\hline",
              "Controller & " + " & ".join(head[s] for s in scen) +
-             (f" & $\\Delta$ at {head[paired_scen]} (wins)" if paired is not None else "") + " \\\\", "\\hline"]
+             (f" & $\\Delta$ (wins)" if paired is not None else "") + " \\\\", "\\hline"]
     for m in methods:
         cells = [f"{g.loc[(s, m), 'mean'] * 100:.2f}$\\pm${g.loc[(s, m), 'std'] * 100:.2f}" for s in scen]
         if paired is not None:
@@ -145,7 +145,7 @@ def tab_weights_ext(wt: pd.DataFrame, scenarios) -> str:
 
 def tab_theory(rep: dict) -> str:
     lines = ["\\begin{tabular}{lccccc}", "\\hline",
-             "Cell ($D$ slots) & tail prob. $p$ & $x_p/\\bar d$ & union bound $U(x_p)$ & $U(x_p)/p$ & sandwich: lower/drops, drops/upper \\\\",
+             "Cell ($D$ slots) & tail prob. $p$ & $x_p/\\bar d$ & union bound $U(x_p)$ & $U(x_p)/p$ & $\\ell$/drops, drops/$u$ \\\\",
              "\\hline"]
     for name, c in rep["cells"].items():
         probs = c["quantile_probs"]
@@ -226,7 +226,7 @@ def forecast_quality_table(macros: str):
     df = pd.DataFrame(rows)
     df.to_csv(os.path.join(RESULTS_DIR, "forecast_quality_ext.csv"), index=False)
     lines = ["\\begin{tabular}{llcccc}", "\\hline",
-             "Family & Forecaster & pinball ($\\times 100$) & coverage 5/50/95\\,\\% & 90\\,\\% interval cov. & median rel. error (\\%) \\\\",
+             "Family & Forecaster & pinball$\\times$100 & cov. 5/50/95 & 90\\,\\% PI cov. & med. rel. err. (\\%) \\\\",
              "\\hline"]
     for fam in ("S", "G", "M"):
         d = df[df.family == fam]
@@ -348,6 +348,14 @@ def main(with_forecast_quality: bool = True):
             macros += _m(k + "SandLo", f"{c['sandwich_lower_over_drops_mean']:.2f}")
             macros += _m(k + "SandHi", f"{c['sandwich_drops_over_upper_mean']:.2f}")
             macros += _m(k + "RstarMean", f"{c['rstar_over_mean_median']:.2f}")
+    lamd = os.path.join(RESULTS_DIR, "lambda_diagnostic.json")
+    if os.path.exists(lamd):
+        for sc, suf in (("high", "S"), ("tgpp_high", "G"), ("mm_high", "M")):
+            d = json.load(open(lamd)).get(sc)
+            if d:
+                macros += _m(f"xlamFloor{suf}", f"{100 * d['frac_embb_at_floor']:.0f}")
+                macros += _m(f"xlamBind{suf}", f"{100 * d['frac_binding']:.0f}")
+                macros += _m(f"xlamLLlevel{suf}", f"{100 * d['ll_level_at_median_lambda']:.0f}")
     for fam, suf in (("", "S"), ("_3gpp", "G"), ("_markov", "M")):
         fc = os.path.join(RESULTS_DIR, f"forecast_training_T20_d2{fam}.json")
         if os.path.exists(fc):
@@ -366,6 +374,8 @@ def main(with_forecast_quality: bool = True):
             sel = json.load(open(tun))["selected"]
             if "pred_maxweight" in sel:
                 macros += _m(f"xpmwParams{suf}", f"margin {sel['pred_maxweight'].get('margin', 0):g}, lookahead {sel['pred_maxweight'].get('lookahead', 1):g}")
+            if "proposed_tw" in sel:
+                macros += _m(f"xtw{suf}", f"{sel['proposed_tw'].get('ll_weight', 3.0):g}")
             if "markov_kkt" in sel:
                 macros += _m(f"xmkParams{suf}", f"$K={sel['markov_kkt'].get('K', 3)}$, window {sel['markov_kkt'].get('window', 2000) // 2} ms")
     if with_forecast_quality:
