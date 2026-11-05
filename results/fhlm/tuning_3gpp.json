@@ -32,6 +32,21 @@
     "reactive_prop": {
       "margin": 0.5,
       "ewma_window": 60
+    },
+    "eb_kkt": {
+      "K": 3,
+      "window": 2000
+    },
+    "markov_kkt": {
+      "K": 3,
+      "window": 3000
+    },
+    "pred_maxweight": {
+      "margin": 0.0,
+      "lookahead": 2.0
+    },
+    "proposed_tw": {
+      "ll_weight": 2.0
     }
   },
   "table": [
@@ -169,6 +184,106 @@
       "method": "reactive_prop",
       "params": "{\"margin\": 0.0, \"ewma_window\": 20}",
       "weighted_violation_ratio": 0.1506744190026665
+    },
+    {
+      "method": "eb_kkt",
+      "params": "{\"K\": 3, \"window\": 2000}",
+      "weighted_violation_ratio": 0.12404873756577317
+    },
+    {
+      "method": "eb_kkt",
+      "params": "{\"K\": 2, \"window\": 2000}",
+      "weighted_violation_ratio": 0.15275891371038622
+    },
+    {
+      "method": "markov_kkt",
+      "params": "{\"K\": 3, \"window\": 3000}",
+      "weighted_violation_ratio": 0.07258236711699932
+    },
+    {
+      "method": "markov_kkt",
+      "params": "{\"K\": 4, \"window\": 3000}",
+      "weighted_violation_ratio": 0.07261331464041987
+    },
+    {
+      "method": "markov_kkt",
+      "params": "{\"K\": 3, \"window\": 1000}",
+      "weighted_violation_ratio": 0.07295078890033088
+    },
+    {
+      "method": "markov_kkt",
+      "params": "{\"K\": 4, \"window\": 1000}",
+      "weighted_violation_ratio": 0.07316390789123856
+    },
+    {
+      "method": "markov_kkt",
+      "params": "{\"K\": 2, \"window\": 1000}",
+      "weighted_violation_ratio": 0.08048465669768491
+    },
+    {
+      "method": "markov_kkt",
+      "params": "{\"K\": 2, \"window\": 3000}",
+      "weighted_violation_ratio": 0.08133565270859154
+    },
+    {
+      "method": "pred_maxweight",
+      "params": "{\"margin\": 0.0, \"lookahead\": 2.0}",
+      "weighted_violation_ratio": 0.09329147857698601
+    },
+    {
+      "method": "pred_maxweight",
+      "params": "{\"margin\": 0.25, \"lookahead\": 2.0}",
+      "weighted_violation_ratio": 0.10664784632717901
+    },
+    {
+      "method": "pred_maxweight",
+      "params": "{\"margin\": 0.0, \"lookahead\": 1.0}",
+      "weighted_violation_ratio": 0.11773689749413688
+    },
+    {
+      "method": "pred_maxweight",
+      "params": "{\"margin\": 0.25, \"lookahead\": 1.0}",
+      "weighted_violation_ratio": 0.13453331232148424
+    },
+    {
+      "method": "pred_maxweight",
+      "params": "{\"margin\": 0.0, \"lookahead\": 0.5}",
+      "weighted_violation_ratio": 0.1430917518827554
+    },
+    {
+      "method": "pred_maxweight",
+      "params": "{\"margin\": 0.25, \"lookahead\": 0.5}",
+      "weighted_violation_ratio": 0.16193105820783874
+    },
+    {
+      "method": "proposed_tw",
+      "params": "{\"ll_weight\": 2.0}",
+      "weighted_violation_ratio": 0.05956405412919944
+    },
+    {
+      "method": "proposed_tw",
+      "params": "{\"ll_weight\": 3.0}",
+      "weighted_violation_ratio": 0.06151219969916706
+    },
+    {
+      "method": "proposed_tw",
+      "params": "{\"ll_weight\": 4.0}",
+      "weighted_violation_ratio": 0.06338398581631431
+    },
+    {
+      "method": "proposed_tw",
+      "params": "{\"ll_weight\": 1.5}",
+      "weighted_violation_ratio": 0.10215906432543159
+    },
+    {
+      "method": "proposed_tw",
+      "params": "{\"ll_weight\": 1.0}",
+      "weighted_violation_ratio": 0.14168572964256093
+    },
+    {
+      "method": "proposed_tw",
+      "params": "{\"ll_weight\": 0.75}",
+      "weighted_violation_ratio": 0.16916113449946746
     }
   ]
 }

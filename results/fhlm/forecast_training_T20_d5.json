@@ -1,6 +1,8 @@
 {
   "interval_slots": 20,
   "telemetry_delay_slots": 5,
+  "family": "synthetic",
+  "target": "rstar",
   "train_rows": 101120,
   "val_rows": 50560,
   "quantiles": [
@@ -46,7 +48,7 @@
   },
   "persistence_median_mae": 0.1128391812972646,
   "persistence_median_mae_rel": 0.5254624182295355,
-  "train_time_s": 19.438692485000047,
+  "train_time_s": 10.266411590000644,
   "feature_names": [
     "lag_mean_1",
     "lag_mean_2",

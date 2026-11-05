@@ -10,6 +10,7 @@
     2002,
     2003
   ],
+  "family": "synthetic",
   "selected": {
     "fixed_quantile": {
       "level": 0.75
@@ -31,6 +32,21 @@
     "reactive_prop": {
       "margin": 0.0,
       "ewma_window": 20
+    },
+    "eb_kkt": {
+      "K": 2,
+      "window": 2000
+    },
+    "markov_kkt": {
+      "K": 3,
+      "window": 1000
+    },
+    "pred_maxweight": {
+      "margin": 0.25,
+      "lookahead": 2.0
+    },
+    "proposed_tw": {
+      "ll_weight": 2.0
     }
   },
   "table": [
@@ -168,6 +184,106 @@
       "method": "reactive_prop",
       "params": "{\"margin\": 0.5, \"ewma_window\": 60}",
       "weighted_violation_ratio": 0.07660595086730905
+    },
+    {
+      "method": "eb_kkt",
+      "params": "{\"K\": 2, \"window\": 2000}",
+      "weighted_violation_ratio": 0.07745236706478481
+    },
+    {
+      "method": "eb_kkt",
+      "params": "{\"K\": 3, \"window\": 2000}",
+      "weighted_violation_ratio": 0.10029214734981202
+    },
+    {
+      "method": "markov_kkt",
+      "params": "{\"K\": 3, \"window\": 1000}",
+      "weighted_violation_ratio": 0.05608641547488543
+    },
+    {
+      "method": "markov_kkt",
+      "params": "{\"K\": 4, \"window\": 1000}",
+      "weighted_violation_ratio": 0.05608832375745945
+    },
+    {
+      "method": "markov_kkt",
+      "params": "{\"K\": 4, \"window\": 3000}",
+      "weighted_violation_ratio": 0.05770912967966408
+    },
+    {
+      "method": "markov_kkt",
+      "params": "{\"K\": 3, \"window\": 3000}",
+      "weighted_violation_ratio": 0.05780645959979421
+    },
+    {
+      "method": "markov_kkt",
+      "params": "{\"K\": 2, \"window\": 1000}",
+      "weighted_violation_ratio": 0.05957248132985745
+    },
+    {
+      "method": "markov_kkt",
+      "params": "{\"K\": 2, \"window\": 3000}",
+      "weighted_violation_ratio": 0.06150815823954092
+    },
+    {
+      "method": "pred_maxweight",
+      "params": "{\"margin\": 0.25, \"lookahead\": 2.0}",
+      "weighted_violation_ratio": 0.03812604101552457
+    },
+    {
+      "method": "pred_maxweight",
+      "params": "{\"margin\": 0.0, \"lookahead\": 2.0}",
+      "weighted_violation_ratio": 0.03838051668057142
+    },
+    {
+      "method": "pred_maxweight",
+      "params": "{\"margin\": 0.0, \"lookahead\": 1.0}",
+      "weighted_violation_ratio": 0.039186176217153056
+    },
+    {
+      "method": "pred_maxweight",
+      "params": "{\"margin\": 0.25, \"lookahead\": 1.0}",
+      "weighted_violation_ratio": 0.03929519083502555
+    },
+    {
+      "method": "pred_maxweight",
+      "params": "{\"margin\": 0.0, \"lookahead\": 0.5}",
+      "weighted_violation_ratio": 0.04062079509632841
+    },
+    {
+      "method": "pred_maxweight",
+      "params": "{\"margin\": 0.25, \"lookahead\": 0.5}",
+      "weighted_violation_ratio": 0.04128215267228337
+    },
+    {
+      "method": "proposed_tw",
+      "params": "{\"ll_weight\": 2.0}",
+      "weighted_violation_ratio": 0.05049743370595684
+    },
+    {
+      "method": "proposed_tw",
+      "params": "{\"ll_weight\": 3.0}",
+      "weighted_violation_ratio": 0.05073226258868062
+    },
+    {
+      "method": "proposed_tw",
+      "params": "{\"ll_weight\": 4.0}",
+      "weighted_violation_ratio": 0.05188321826154377
+    },
+    {
+      "method": "proposed_tw",
+      "params": "{\"ll_weight\": 1.5}",
+      "weighted_violation_ratio": 0.052354197592200585
+    },
+    {
+      "method": "proposed_tw",
+      "params": "{\"ll_weight\": 1.0}",
+      "weighted_violation_ratio": 0.05490650441121444
+    },
+    {
+      "method": "proposed_tw",
+      "params": "{\"ll_weight\": 0.75}",
+      "weighted_violation_ratio": 0.06724267312127184
     }
   ]
 }

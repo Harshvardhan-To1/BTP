@@ -1,0 +1,78 @@
+[runner] 328 runs in 374s
+{
+ "eb_kkt": {
+  "K": 2,
+  "window": 2000
+ },
+ "fixed_quantile": {
+  "level": 0.75
+ },
+ "markov_kkt": {
+  "K": 3,
+  "window": 3000
+ },
+ "maxweight": {
+  "margin": 0.0,
+  "hol_weight": 1.0
+ },
+ "point_forecast": {
+  "margin": 0.0
+ },
+ "pred_maxweight": {
+  "margin": 0.25,
+  "lookahead": 2.0
+ },
+ "proposed_cal": {
+  "gamma": 0.005
+ },
+ "queue_aware": {
+  "margin": 0.0,
+  "num_horizons": 1
+ },
+ "reactive_prop": {
+  "margin": 0.0,
+  "ewma_window": 20
+ }
+}
+            method                               params  weighted_violation_ratio
+0           eb_kkt             {"K": 2, "window": 2000}                  0.056208
+1           eb_kkt             {"K": 3, "window": 2000}                  0.080489
+2   fixed_quantile                      {"level": 0.75}                  0.038742
+3   fixed_quantile                       {"level": 0.9}                  0.066847
+4   fixed_quantile                      {"level": 0.95}                  0.097432
+5       markov_kkt             {"K": 3, "window": 3000}                  0.030592
+6       markov_kkt             {"K": 4, "window": 3000}                  0.030620
+7       markov_kkt             {"K": 3, "window": 1000}                  0.031262
+8       markov_kkt             {"K": 4, "window": 1000}                  0.031289
+9       markov_kkt             {"K": 2, "window": 3000}                  0.031509
+10      markov_kkt             {"K": 2, "window": 1000}                  0.032062
+11       maxweight   {"margin": 0.0, "hol_weight": 1.0}                  0.056166
+12       maxweight   {"margin": 0.0, "hol_weight": 0.0}                  0.056688
+13       maxweight  {"margin": 0.25, "hol_weight": 1.0}                  0.073632
+14       maxweight  {"margin": 0.25, "hol_weight": 0.0}                  0.074528
+15       maxweight   {"margin": 0.5, "hol_weight": 1.0}                  0.093449
+16       maxweight   {"margin": 0.5, "hol_weight": 0.0}                  0.094179
+17  point_forecast                      {"margin": 0.0}                  0.037122
+18  point_forecast                     {"margin": 0.25}                  0.039912
+19  point_forecast                      {"margin": 0.5}                  0.045253
+20  pred_maxweight   {"margin": 0.25, "lookahead": 2.0}                  0.031381
+21  pred_maxweight   {"margin": 0.25, "lookahead": 1.0}                  0.031631
+22  pred_maxweight   {"margin": 0.25, "lookahead": 0.5}                  0.032140
+23  pred_maxweight    {"margin": 0.0, "lookahead": 2.0}                  0.033185
+24  pred_maxweight    {"margin": 0.0, "lookahead": 1.0}                  0.033258
+25  pred_maxweight    {"margin": 0.0, "lookahead": 0.5}                  0.033547
+26    proposed_cal                     {"gamma": 0.005}                  0.027974
+27    proposed_cal                      {"gamma": 0.01}                  0.029012
+28    proposed_cal                      {"gamma": 0.02}                  0.034888
+29     queue_aware   {"margin": 0.0, "num_horizons": 1}                  0.045418
+30     queue_aware  {"margin": 0.25, "num_horizons": 1}                  0.052123
+31     queue_aware   {"margin": 0.0, "num_horizons": 3}                  0.068024
+32     queue_aware  {"margin": 0.25, "num_horizons": 3}                  0.086249
+33     queue_aware   {"margin": 0.0, "num_horizons": 6}                  0.088474
+34     queue_aware  {"margin": 0.25, "num_horizons": 6}                  0.114262
+35   reactive_prop   {"margin": 0.0, "ewma_window": 20}                  0.049365
+36   reactive_prop  {"margin": 0.25, "ewma_window": 20}                  0.055370
+37   reactive_prop   {"margin": 0.0, "ewma_window": 60}                  0.056695
+38   reactive_prop   {"margin": 0.5, "ewma_window": 20}                  0.060735
+39   reactive_prop  {"margin": 0.25, "ewma_window": 60}                  0.063045
+40   reactive_prop   {"margin": 0.5, "ewma_window": 60}                  0.068023
