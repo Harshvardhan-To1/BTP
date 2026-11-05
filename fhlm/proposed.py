@@ -81,7 +81,7 @@ class UncertaintyAwareAllocator(Controller):
     def __init__(self, forecaster=None, w_min: float = 0.25, calibrate: bool = False,
                  gamma: float = 0.02, target_level: float = 0.9, delta_bounds: Tuple[float, float] = (-0.3, 0.3),
                  name: Optional[str] = None, volume_weights: bool = False, volume_window: int = 30,
-                 queue_weights: float = 0.0):
+                 queue_weights: float = 0.0, ll_weight: Optional[float] = None):
         self.forecaster = forecaster if forecaster is not None else WindowQuantileForecaster()
         self.w_min = w_min
         self.calibrate = calibrate
@@ -100,6 +100,10 @@ class UncertaintyAwareAllocator(Controller):
         # in horizons of forecast demand multiplies the priority, so a cell that is already behind is funded
         # first. kappa = 0 disables the term; this is the one-step drift-plus-penalty view of the KKT rule.
         self.queue_weights = queue_weights
+        # Tuned internal LL weight (extended study): the rule's weight for cells with D_i <= 10 slots is
+        # ll_weight instead of the operator priority. The metric still uses the operator priority; this
+        # separates "is the KKT structure right" from "is the operator weight the right newsvendor weight".
+        self.ll_weight = ll_weight
         self._pending: Deque[Tuple[int, int, np.ndarray]] = deque()
         self._delta = np.zeros(0)
         self.stats = {"decisions": 0, "scored_horizons": 0, "delta_mean_abs": 0.0}
@@ -158,6 +162,9 @@ class UncertaintyAwareAllocator(Controller):
 
         B = backlog_rate_obs(obs)
         w = deadline_weights(obs, self.w_min)
+        if self.ll_weight is not None:
+            w = np.where(obs.deadlines <= 10, self.ll_weight, 1.0) * np.clip(
+                (T + obs.ctrl.telemetry_delay_slots) / obs.deadlines, self.w_min, 1.0)
         if self.volume_weights:
             w = obs.priorities * self._volume_factor(obs)
         if self.queue_weights > 0:

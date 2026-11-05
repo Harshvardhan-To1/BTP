@@ -74,25 +74,36 @@ def tab_family(df: pd.DataFrame, scen, head, paired=None, paired_scen=None, metr
     return "\n".join(lines) + "\n"
 
 
-def tab_head_to_head(df: pd.DataFrame, a: str = "proposed", b: str = "pred_maxweight") -> str:
-    """Paired comparison of two controllers on every scenario of the three families."""
-    paired = paired_analysis(df[df.method.isin([a, b])], reference=a)
-    heads = {**SC_HEAD, **{k: "G " + v for k, v in TGPP_HEAD.items()}, **{k: "M " + v for k, v in MM_HEAD.items()}}
-    heads = {**{k: "S " + v for k, v in SC_HEAD.items()}, **{k: v for k, v in heads.items() if k not in SC}}
-    gl = df.groupby(["scenario", "method"])[["violation_ratio_ll", "violation_ratio_embb", "fh_utilisation"]].mean()
-    lines = ["\\begin{tabular}{lcccccc}", "\\hline",
-             f"Scenario & $V_w$ {NAME[a]} & $V_w$ {NAME[b]} & $\\Delta$ [95\\,\\% CI] & wins & LL / eMBB ({NAME[a]}) & LL / eMBB ({NAME[b]}) \\\\",
-             "\\hline"]
+def tab_head_to_head(df: pd.DataFrame, a: str = "proposed", others=("pred_maxweight", "cem_policy", "markov_kkt")) -> str:
+    """The proposed rule against the strongest new comparators on every scenario of the three families."""
+    others = [b for b in others if b in df.method.unique()]
+    paired = paired_analysis(df[df.method.isin([a] + others)], reference=a)
+    heads = {**{k: "S " + v for k, v in SC_HEAD.items()}, **{k: "G " + v for k, v in TGPP_HEAD.items()},
+             **{k: "M " + v for k, v in MM_HEAD.items()}}
+    impl = df[~df.method.isin(REF)].groupby(["scenario", "method"])[PRIMARY_METRIC].mean()
+    lines = ["\\begin{tabular}{lc" + "cc" * len(others) + "l}", "\\hline",
+             "Scenario & " + NAME[a] + " & " + " & ".join(f"\\multicolumn{{2}}{{c}}{{{NAME[b]}}}" for b in others) +
+             " & best implementable \\\\",
+             " & $V_w$ & " + " & ".join("$V_w$ & $\\Delta$ [95\\,\\% CI], wins" for _ in others) + " & \\\\", "\\hline"]
     for s in ALL_SCEN:
-        r = paired[(paired.scenario == s) & (paired.baseline == b)]
-        if not len(r):
+        if s not in impl.index.get_level_values(0):
             continue
-        r = r.iloc[0]
-        la, lb = gl.loc[(s, a)], gl.loc[(s, b)]
-        lines.append(f"{heads[s]} & {r.reference_mean * 100:.2f} & {r.baseline_mean * 100:.2f} & "
-                     f"{_sgn(-r.rel_reduction_pct)} [{_sgn(-r.rel_ci_hi_pct)}, {_sgn(-r.rel_ci_lo_pct)}]{_star(r.wilcoxon_p_holm)} & "
-                     f"{int(r.reference_wins)}/{int(r.n_seeds)} & {la.violation_ratio_ll * 100:.1f} / {la.violation_ratio_embb * 100:.1f} & "
-                     f"{lb.violation_ratio_ll * 100:.1f} / {lb.violation_ratio_embb * 100:.1f} \\\\")
+        ra = paired[(paired.scenario == s) & (paired.baseline == others[0])]
+        if not len(ra):
+            continue
+        cells = [f"{ra.iloc[0].reference_mean * 100:.2f}"]
+        for b in others:
+            r = paired[(paired.scenario == s) & (paired.baseline == b)]
+            if not len(r):
+                cells += ["--", "--"]
+                continue
+            r = r.iloc[0]
+            cells += [f"{r.baseline_mean * 100:.2f}",
+                      f"{_sgn(-r.rel_reduction_pct)} [{_sgn(-r.rel_ci_hi_pct)}, {_sgn(-r.rel_ci_lo_pct)}]{_star(r.wilcoxon_p_holm)} "
+                      f"{int(r.reference_wins)}/{int(r.n_seeds)}"]
+        best = impl.loc[s].idxmin()
+        cells.append(NAME[best])
+        lines.append(f"{heads[s]} & " + " & ".join(cells) + " \\\\")
     lines += ["\\hline", "\\end{tabular}"]
     return "\n".join(lines) + "\n"
 

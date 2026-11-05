@@ -38,6 +38,7 @@ TEX = {
     "markov_kkt": "Markov MC quantiles + KKT",
     "markov_oracle_kkt": "True Markov model + KKT",
     "proposed_vc": "Proposed, volume weights",
+    "proposed_tw": "Proposed, tuned LL weight",
 }
 # The NCC 2027 manuscript (paper/main.tex) compares exactly these controllers; the extended study adds more.
 NCC_METHODS = ["static_equal", "reactive_prop", "maxweight", "queue_aware", "point_forecast", "fixed_quantile",

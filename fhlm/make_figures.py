@@ -30,7 +30,7 @@ COLORS = {
     "proposed_transfer": "#e91e63",
     # extended study
     "pred_maxweight": "#00897b", "cem_policy": "#f06292", "eb_kkt": "#5c6bc0", "markov_kkt": "#26a69a",
-    "markov_oracle_kkt": "#424242", "proposed_vc": "#ef5350",
+    "markov_oracle_kkt": "#424242", "proposed_vc": "#ef5350", "proposed_tw": "#b71c1c",
 }
 SHORT = {
     "static_equal": "Static equal", "reactive_prop": "Reactive prop.", "maxweight": "MaxWeight",
@@ -40,7 +40,7 @@ SHORT = {
     "proposed_transfer": "Proposed (transferred forecaster)",
     "pred_maxweight": "Predictive MaxWeight", "cem_policy": "Policy search (CEM)", "eb_kkt": "Bound q. + KKT",
     "markov_kkt": "Markov MC q. + KKT", "markov_oracle_kkt": "True Markov model + KKT",
-    "proposed_vc": "Proposed, volume w.",
+    "proposed_vc": "Proposed, volume w.", "proposed_tw": "Proposed, tuned LL w.",
 }
 # controllers of the NCC manuscript; the extended study adds the rest
 NCC_METHODS = ["static_equal", "reactive_prop", "maxweight", "queue_aware", "point_forecast", "fixed_quantile",
@@ -439,7 +439,7 @@ def paper_fig_demo(npz_path: str, cell: int = 0, start: int = 6000, length: int 
 MM_ORDER = ["mm_moderate", "mm_high", "mm_shift"]
 PAPER_MM = {"mm_moderate": "0.65", "mm_high": "0.80", "mm_shift": "Shift\n(semi-Markov)"}
 EXT_SHOW = ["reactive_prop", "maxweight", "pred_maxweight", "queue_aware", "point_forecast", "cem_policy", "eb_kkt",
-            "markov_kkt", "proposed", "markov_oracle_kkt", "oracle_kkt"]
+            "markov_kkt", "proposed", "proposed_tw", "markov_oracle_kkt", "oracle_kkt"]
 
 
 def paper_fig_overview_ext(df: pd.DataFrame):

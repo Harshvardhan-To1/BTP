@@ -219,3 +219,19 @@ def test_cem_search_finds_the_minimum_of_a_quadratic():
                              iters=12, pop=24, elite=6, seed=0, log=lambda *a: None)
     assert np.allclose(theta, target, atol=0.08)
     assert hist[-1]["best_cost"] < hist[0]["best_cost"]
+
+
+def test_tuned_ll_weight_reduces_to_the_proposed_rule_at_the_operator_priority():
+    cfg = mm_cfg(load=0.9, slots=1500)
+    tr = generate_traffic(cfg.network, cfg.traffic, cfg.num_slots, cfg.seed)
+    wq = WindowQuantileForecaster()
+    base = run_simulation(cfg, UncertaintyAwareAllocator(wq), trace=tr).metrics["weighted_violation_ratio"]
+    same = run_simulation(cfg, UncertaintyAwareAllocator(wq, ll_weight=3.0, name="proposed_tw"),
+                          trace=tr).metrics["weighted_violation_ratio"]
+    other = run_simulation(cfg, UncertaintyAwareAllocator(wq, ll_weight=1.0, name="proposed_tw"),
+                           trace=tr).metrics
+    assert same == pytest.approx(base, abs=1e-12)
+    # a lower internal LL weight must shift loss from eMBB to LL (the trade the weight controls)
+    base_m = run_simulation(cfg, UncertaintyAwareAllocator(wq), trace=tr).metrics
+    assert other["violation_ratio_ll"] >= base_m["violation_ratio_ll"]
+    assert other["violation_ratio_embb"] <= base_m["violation_ratio_embb"]

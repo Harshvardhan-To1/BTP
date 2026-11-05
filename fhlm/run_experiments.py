@@ -46,7 +46,7 @@ PRIMARY_METRIC = "weighted_violation_ratio"
 
 # method name -> (constructor, needs_forecaster)
 METHOD_ORDER = ["static_equal", "reactive_prop", "maxweight", "pred_maxweight", "queue_aware", "point_forecast",
-                "fixed_quantile", "cem_policy", "eb_kkt", "markov_kkt", "proposed_window", "proposed", "proposed_vc", "proposed_cal",
+                "fixed_quantile", "cem_policy", "eb_kkt", "markov_kkt", "proposed_window", "proposed", "proposed_vc", "proposed_tw", "proposed_cal",
                 "proposed_transfer", "markov_oracle_kkt", "oracle", "oracle_kkt"]
 METHOD_LABELS = {
     "static_equal": "Static equal share",
@@ -63,6 +63,7 @@ METHOD_LABELS = {
     "proposed_window": "Proposed rule with window quantiles (no ML)",
     "proposed": "Proposed: GBM quantiles + KKT allocation",
     "proposed_vc": "Proposed with volume-corrected weights w_i (l*_i + D_i) from the shortfall sandwich",
+    "proposed_tw": "Proposed with a TUNED internal LL weight (operator priority kept in the metric)",
     "proposed_cal": "Proposed + online (ACI) calibration",
     "proposed_transfer": "Proposed with the forecaster trained on the OTHER traffic family (transfer)",
     "oracle": "Oracle water-fill (true r*, not implementable; reference, not a bound)",
@@ -95,7 +96,7 @@ def ensure_forecaster(interval: int, delay: int, family: str = "synthetic", targ
     return _FORECASTER_CACHE[path]
 
 
-FORECAST_METHODS = ("point_forecast", "fixed_quantile", "proposed", "proposed_vc", "proposed_cal", "proposed_miscal",
+FORECAST_METHODS = ("point_forecast", "fixed_quantile", "proposed", "proposed_vc", "proposed_tw", "proposed_cal", "proposed_miscal",
                     "proposed_transfer", "pred_maxweight", "cem_policy")
 SUSTAIN_METHODS = ("proposed_sus", "point_forecast_sus")
 # controllers that are not implementable (future knowledge or the true traffic generator)
@@ -168,6 +169,9 @@ def build_controller(name: str, params: Dict[str, Any], interval: int, delay: in
         return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, family), calibrate=False,
                                          w_min=p.get("w_min", 0.25), volume_weights=True,
                                          volume_window=p.get("volume_window", 30), name="proposed_vc")
+    if name == "proposed_tw":
+        return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, family), calibrate=False,
+                                         w_min=p.get("w_min", 0.25), ll_weight=p.get("ll_weight", 3.0), name="proposed_tw")
     if name == "proposed_dw":
         return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, family), calibrate=False,
                                          w_min=p.get("w_min", 0.25), queue_weights=p.get("kappa", 1.0), name="proposed_dw")
@@ -305,6 +309,7 @@ def cmd_tune(args):
         "pred_maxweight": [{"margin": m, "lookahead": la} for m in (0.0, 0.25) for la in (0.5, 1.0, 2.0)],
         "markov_kkt": [{"K": k, "window": w} for k in (2, 3, 4) for w in (1000, 3000)],
         "eb_kkt": [{"K": k, "window": 2000} for k in (2, 3)],
+        "proposed_tw": [{"ll_weight": w} for w in (0.75, 1.0, 1.5, 2.0, 3.0, 4.0)],
     }
     if args.methods:
         grid = {m: g for m, g in grid.items() if m in args.methods}
