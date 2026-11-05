@@ -32,7 +32,13 @@ SCENARIOS: Dict[str, TrafficConfig] = {
 SCENARIOS["tgpp_moderate"] = TrafficConfig(load=0.65, family="3gpp")
 SCENARIOS["tgpp_high"] = TrafficConfig(load=0.80, family="3gpp")
 
-FAMILIES = ("synthetic", "3gpp")
+# Markov-modulated family (traffic_markov.py): hidden 3-phase Markov chain per cell with Gamma increments.
+# mm_shift keeps the phases and means but draws Pareto(1.5) sojourns, so the Markov model is misspecified.
+SCENARIOS["mm_moderate"] = TrafficConfig(load=0.65, family="markov")
+SCENARIOS["mm_high"] = TrafficConfig(load=0.80, family="markov")
+SCENARIOS["mm_shift"] = TrafficConfig(load=0.80, family="markov", mm_tail_alpha=1.5)
+
+FAMILIES = ("synthetic", "3gpp", "markov")
 
 
 def family_of(scenario: str) -> str:
@@ -46,7 +52,8 @@ def scenarios_of(family: str) -> List[str]:
 # Loads used for training traces (per family)
 TRAIN_LOADS = [0.5, 0.65, 0.8, 0.95]
 VAL_SCENARIOS = ["moderate", "high"]
-VAL_SCENARIOS_BY_FAMILY = {"synthetic": ["moderate", "high"], "3gpp": ["tgpp_moderate", "tgpp_high"]}
+VAL_SCENARIOS_BY_FAMILY = {"synthetic": ["moderate", "high"], "3gpp": ["tgpp_moderate", "tgpp_high"],
+                           "markov": ["mm_moderate", "mm_high"]}
 
 DEFAULT_SLOTS = 20000
 DEFAULT_WARMUP = 1000

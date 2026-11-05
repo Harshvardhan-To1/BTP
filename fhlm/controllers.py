@@ -20,7 +20,7 @@ from typing import Optional
 import numpy as np
 
 from .simulator import Controller, Observation
-from .demand import required_rates, backlog_rate
+from .demand import required_rates, backlog_rate, sustainable_rates
 
 
 # ---------------------------------------------------------------------------
@@ -292,8 +292,14 @@ class OracleKKT(OracleWaterfill):
 
     name = "oracle_kkt"
 
+    def __init__(self, w_min: float = 0.25, sustain: bool = False):
+        super().__init__(w_min)
+        self.sustain = sustain          # need = B + max(r*, horizon mean) instead of B + r*
+        if sustain:
+            self.name = "oracle_kkt_sus"
+
     def decide_oracle(self, obs: Observation, future_fh_demand: np.ndarray) -> np.ndarray:
-        rstar = required_rates(future_fh_demand, obs.deadlines)
+        rstar = (sustainable_rates if self.sustain else required_rates)(future_fh_demand, obs.deadlines)
         beta = obs.net.fh_bits_per_prb_layer
         # budgets are spent in whole PRB-layers, so a tight need is rounded up to the next PRB-layer
         need = np.minimum(np.ceil((backlog_rate_obs(obs) + rstar) / beta) * beta, obs.budget_caps)

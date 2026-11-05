@@ -102,6 +102,9 @@ def generate_traffic(net: NetworkConfig, tcfg: TrafficConfig, num_slots: int, se
     if getattr(tcfg, "family", "synthetic") == "3gpp":
         from .traffic_3gpp import generate_traffic_3gpp
         return _cached("3gpp", lambda: generate_traffic_3gpp(net, tcfg, num_slots, seed), net, tcfg, num_slots, seed)
+    if getattr(tcfg, "family", "synthetic") == "markov":
+        from .traffic_markov import generate_traffic_markov
+        return generate_traffic_markov(net, tcfg, num_slots, seed)
     return _generate_synthetic(net, tcfg, num_slots, seed)
 
 

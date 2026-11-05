@@ -58,7 +58,7 @@ import numpy as np
 from .simulator import Controller, Observation
 from .controllers import deadline_weights, backlog_rate_obs, waterfill
 from .forecast import WindowQuantileForecaster
-from .demand import required_rates
+from .demand import required_rates, critical_window_lengths
 
 
 def interp_quantile(levels: np.ndarray, q: np.ndarray, p: np.ndarray) -> np.ndarray:
@@ -80,7 +80,8 @@ class UncertaintyAwareAllocator(Controller):
 
     def __init__(self, forecaster=None, w_min: float = 0.25, calibrate: bool = False,
                  gamma: float = 0.02, target_level: float = 0.9, delta_bounds: Tuple[float, float] = (-0.3, 0.3),
-                 name: Optional[str] = None):
+                 name: Optional[str] = None, volume_weights: bool = False, volume_window: int = 30,
+                 queue_weights: float = 0.0):
         self.forecaster = forecaster if forecaster is not None else WindowQuantileForecaster()
         self.w_min = w_min
         self.calibrate = calibrate
@@ -89,6 +90,16 @@ class UncertaintyAwareAllocator(Controller):
         self.delta_bounds = delta_bounds
         if name:
             self.name = name
+        # Volume-corrected weights (extended study): the shortfall sandwich shows that a rate shortfall of
+        # delta on a horizon drops at least (l* + D_i) * delta bits, l* the length of the critical window.
+        # With volume_weights=True the newsvendor weight becomes w_i * (mean l*_i + D_i) estimated from the
+        # last `volume_window` horizons, so that the objective is measured in weighted BITS, like V_w.
+        self.volume_weights = volume_weights
+        self.volume_window = volume_window
+        # Drift (MaxWeight-type) weights: w_i <- w_i * (kappa + Q_i / (H * median_i)); the observed backlog measured
+        # in horizons of forecast demand multiplies the priority, so a cell that is already behind is funded
+        # first. kappa = 0 disables the term; this is the one-step drift-plus-penalty view of the KKT rule.
+        self.queue_weights = queue_weights
         self._pending: Deque[Tuple[int, int, np.ndarray]] = deque()
         self._delta = np.zeros(0)
         self.stats = {"decisions": 0, "scored_horizons": 0, "delta_mean_abs": 0.0}
@@ -112,6 +123,23 @@ class UncertaintyAwareAllocator(Controller):
             self.stats["scored_horizons"] += 1
 
     # ------------------------------------------------------------------
+    def _volume_factor(self, obs: Observation) -> np.ndarray:
+        """min(mean critical-window length + D_i, T): bits saved per unit of budget rate when it is needed.
+
+        A budget unit held for T slots can serve at most T extra bits, so the volume factor is capped at T.
+        """
+        H = obs.ctrl.interval_slots + obs.ctrl.telemetry_delay_slots
+        T = obs.ctrl.interval_slots
+        hist = obs.history_fh_demand
+        n, L = hist.shape
+        k = min(self.volume_window, L // H)
+        D = obs.deadlines
+        if k == 0:
+            return np.minimum(D + 1.0, T)
+        chunks = hist[:, L - k * H:].reshape(n, k, H)
+        ls = np.stack([critical_window_lengths(chunks[:, j, :], D) for j in range(k)], axis=1)   # [N, k]
+        return np.minimum(D + ls.mean(1), T)
+
     def decide(self, obs: Observation) -> np.ndarray:
         T = obs.ctrl.interval_slots
         n = obs.num_cells
@@ -130,6 +158,13 @@ class UncertaintyAwareAllocator(Controller):
 
         B = backlog_rate_obs(obs)
         w = deadline_weights(obs, self.w_min)
+        if self.volume_weights:
+            w = obs.priorities * self._volume_factor(obs)
+        if self.queue_weights > 0:
+            H = T + obs.ctrl.telemetry_delay_slots
+            med = np.maximum(q[:, self.forecaster.median_index], 1e-6)
+            from .controllers import backlog_fh_bits
+            w = w * (self.queue_weights + backlog_fh_bits(obs) / (H * med))
         cap = obs.capacity
         caps = obs.budget_caps
         delta = self._delta

@@ -28,7 +28,9 @@ def main(argv=None):
     ap.add_argument("--delay", type=int, default=2)
     ap.add_argument("--slots", type=int, default=16000)
     ap.add_argument("--max-iter", type=int, default=300)
-    ap.add_argument("--family", default="synthetic", choices=["synthetic", "3gpp"])
+    ap.add_argument("--family", default="synthetic", choices=["synthetic", "3gpp", "markov"])
+    ap.add_argument("--target", default="rstar", choices=["rstar", "sustain"],
+                    help="forecast target: deadline-feasible rate r* or the sustainable rate max(r*, horizon mean)")
     args = ap.parse_args(argv)
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
@@ -40,14 +42,14 @@ def main(argv=None):
         cfg = train_config(TRAIN_LOADS[k % len(TRAIN_LOADS)], seed, args.slots, args.interval, args.delay, args.family)
         train_traces.append(generate_traffic(cfg.network, cfg.traffic, cfg.num_slots, cfg.seed))
     net, ctrl = cfg.network, cfg.control
-    X, y = build_dataset(train_traces, net, ctrl)
+    X, y = build_dataset(train_traces, net, ctrl, target=args.target)
 
     val_traces = []
     for seed in VAL_SEEDS:
         for sc in VAL_SCENARIOS_BY_FAMILY[args.family]:
             vcfg = make_config(sc, seed, args.slots, 0, args.interval, args.delay)
             val_traces.append(generate_traffic(vcfg.network, vcfg.traffic, vcfg.num_slots, vcfg.seed))
-    Xv, yv = build_dataset(val_traces, net, ctrl)
+    Xv, yv = build_dataset(val_traces, net, ctrl, target=args.target)
     print(f"dataset: train {X.shape}, val {Xv.shape}  ({time.perf_counter() - t0:.1f}s)")
 
     model = QuantileGBMForecaster(max_iter=args.max_iter)
@@ -63,7 +65,7 @@ def main(argv=None):
     rstar_lag1 = Xv[:, names.index("rstar_lag_1")]
     persist_mae = float(np.mean(np.abs(yv - rstar_lag1)))
     report = {
-        "interval_slots": args.interval, "telemetry_delay_slots": args.delay, "family": args.family,
+        "interval_slots": args.interval, "telemetry_delay_slots": args.delay, "family": args.family, "target": args.target,
         "train_rows": int(len(y)), "val_rows": int(len(yv)), "quantiles": list(model.quantiles),
         "gbm_params": model.params, "gbm_validation": info["val"],
         "window_quantile_validation": win_val,
@@ -72,7 +74,8 @@ def main(argv=None):
         "train_time_s": info["train_time_s"],
         "feature_names": names,
     }
-    model.meta.update({"interval_slots": args.interval, "telemetry_delay_slots": args.delay, "family": args.family})
+    model.meta.update({"interval_slots": args.interval, "telemetry_delay_slots": args.delay, "family": args.family,
+                       "target": args.target})
     model.save(args.out)
     with open(args.report, "w") as f:
         json.dump(report, f, indent=2)

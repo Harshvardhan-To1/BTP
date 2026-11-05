@@ -67,3 +67,39 @@ def backlog_rate(backlog_bits: np.ndarray, deadlines: np.ndarray, hol_age: np.nd
     """
     slack = np.clip(deadlines - hol_age - telemetry_delay + 1, np.ceil(deadlines / 2.0), float(interval))
     return backlog_bits / slack
+
+
+def critical_window_lengths(arrivals: np.ndarray, deadlines: np.ndarray) -> np.ndarray:
+    """Length e - s + 1 of the window attaining r* for each cell (arrivals [N, H]); 1 for an all-zero horizon.
+
+    By the shortfall sandwich (theory.py) a rate shortfall of delta on a horizon costs at least
+    (e* - s* + 1 + D) * delta dropped bits, so this length converts rate shortfall into bit volume.
+    """
+    a = np.asarray(arrivals, dtype=float)
+    n, H = a.shape
+    if H == 0:
+        return np.ones(n)
+    cs = np.concatenate([np.zeros((n, 1)), np.cumsum(a, axis=1)], axis=1)
+    s = np.arange(H)[:, None]
+    e = np.arange(H)[None, :]
+    sums = cs[:, e + 1] - cs[:, s]
+    lengths = (e - s + 1)[None, :, :] + np.asarray(deadlines, dtype=float)[:, None, None]
+    ratio = np.where((e >= s)[None], sums / np.maximum(lengths, 1), -1.0)
+    idx = ratio.reshape(n, -1).argmax(1)
+    s_star, e_star = idx // H, idx % H
+    return (e_star - s_star + 1).astype(float)
+
+
+def sustainable_rates(arrivals: np.ndarray, deadlines: np.ndarray) -> np.ndarray:
+    """Sustainable deadline-feasible rate: max(r*, horizon mean rate), [N, H] -> [N].
+
+    r* is defined for one horizon from an empty queue and lets bits spill up to D slots past the horizon;
+    when D is comparable to H this is about half the mean rate, which is not sustainable because the next
+    horizon brings new arrivals (Loynes: a FIFO queue is stable only if the service rate exceeds the mean
+    arrival rate). Flooring r* at the horizon mean removes the systematic under-reservation of long-deadline
+    cells; for short-deadline cells r* already exceeds the mean and nothing changes.
+    """
+    a = np.asarray(arrivals, dtype=float)
+    if a.shape[1] == 0:
+        return np.zeros(a.shape[0])
+    return np.maximum(required_rates(a, deadlines), a.mean(1))

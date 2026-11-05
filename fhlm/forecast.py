@@ -31,7 +31,7 @@ import numpy as np
 from .config import NetworkConfig, ControlConfig
 from .simulator import Observation
 from .traffic import TrafficTrace
-from .demand import required_rates
+from .demand import required_rates, sustainable_rates
 
 DEFAULT_QUANTILES = (0.05, 0.25, 0.5, 0.75, 0.9, 0.95)
 NUM_LAG_INTERVALS = 6
@@ -110,9 +110,14 @@ def features_from_obs(obs: Observation) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # dataset construction from exogenous traces (controller independent)
 # ---------------------------------------------------------------------------
+def target_fn(target: str = "rstar"):
+    return sustainable_rates if target == "sustain" else required_rates
+
+
 def build_dataset(traces: List[TrafficTrace], net: NetworkConfig, ctrl: ControlConfig,
-                  min_history_slots: Optional[int] = None):
-    """Rows = (trace, decision epoch, cell). Returns X [M, F], y [M] (normalised r*)."""
+                  min_history_slots: Optional[int] = None, target: str = "rstar"):
+    """Rows = (trace, decision epoch, cell). Returns X [M, F], y [M] (normalised r*, or sustainable rate)."""
+    tfn = target_fn(target)
     T = ctrl.interval_slots
     tau = ctrl.telemetry_delay_slots
     H = T + tau
@@ -127,7 +132,7 @@ def build_dataset(traces: List[TrafficTrace], net: NetworkConfig, ctrl: ControlC
             if obs_slot < min_hist:
                 continue
             f = build_features(tr.fh_demand_bits[:, :obs_slot], tr.se[:, obs_slot], net, ctrl)
-            y = required_rates(tr.fh_demand_bits[:, obs_slot:t + T], deadlines) / scale
+            y = tfn(tr.fh_demand_bits[:, obs_slot:t + T], deadlines) / scale
             X.append(f)
             Y.append(y)
     return np.vstack(X), np.concatenate(Y)

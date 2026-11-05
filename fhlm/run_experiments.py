@@ -35,6 +35,8 @@ from .controllers import (StaticEqualShare, ReactiveProportional, QueueAwareReac
                           MaxWeightReactive, FixedQuantileWaterfill)
 from .proposed import UncertaintyAwareAllocator
 from .forecast import QuantileGBMForecaster, WindowQuantileForecaster
+from .markov import MarkovChainForecaster, MarkovOracleForecaster, ChernoffBoundForecaster
+from .controllers_ext import PredictiveMaxWeight, ClassLevelPolicy, cem_search
 
 RESULTS_DIR = "results/fhlm"
 RAW_DIR = os.path.join(RESULTS_DIR, "raw")
@@ -43,8 +45,9 @@ MODEL_DIR = "models"
 PRIMARY_METRIC = "weighted_violation_ratio"
 
 # method name -> (constructor, needs_forecaster)
-METHOD_ORDER = ["static_equal", "reactive_prop", "maxweight", "queue_aware", "point_forecast", "fixed_quantile",
-                "proposed_window", "proposed", "proposed_cal", "proposed_transfer", "oracle", "oracle_kkt"]
+METHOD_ORDER = ["static_equal", "reactive_prop", "maxweight", "pred_maxweight", "queue_aware", "point_forecast",
+                "fixed_quantile", "cem_policy", "eb_kkt", "markov_kkt", "proposed_window", "proposed", "proposed_vc", "proposed_cal",
+                "proposed_transfer", "markov_oracle_kkt", "oracle", "oracle_kkt"]
 METHOD_LABELS = {
     "static_equal": "Static equal share",
     "reactive_prop": "Reactive proportional (EWMA)",
@@ -52,8 +55,14 @@ METHOD_LABELS = {
     "queue_aware": "Deadline-aware reactive (persistence r*)",
     "point_forecast": "Point forecast (GBM median) + water-fill",
     "fixed_quantile": "Global fixed quantile (tuned level) + water-fill",
+    "pred_maxweight": "Predictive MaxWeight / drift-plus-penalty with forecast arrivals in the weight",
+    "cem_policy": "Direct policy search (CEM) over class-level forecast quantiles and LL weight",
+    "eb_kkt": "KKT rule with Chernoff-union (effective-bandwidth) bound quantiles of a fitted Markov chain",
+    "markov_kkt": "KKT rule with Monte Carlo quantiles of a Markov chain fitted online (model-based, no training)",
+    "markov_oracle_kkt": "KKT rule with the TRUE Markov generator + HMM filter (Bayes predictive; Family M reference)",
     "proposed_window": "Proposed rule with window quantiles (no ML)",
     "proposed": "Proposed: GBM quantiles + KKT allocation",
+    "proposed_vc": "Proposed with volume-corrected weights w_i (l*_i + D_i) from the shortfall sandwich",
     "proposed_cal": "Proposed + online (ACI) calibration",
     "proposed_transfer": "Proposed with the forecaster trained on the OTHER traffic family (transfer)",
     "oracle": "Oracle water-fill (true r*, not implementable; reference, not a bound)",
@@ -67,28 +76,64 @@ def _fam_suffix(family: str) -> str:
     return "" if family == "synthetic" else f"_{family}"
 
 
-def model_path(interval: int, delay: int, family: str = "synthetic") -> str:
-    return os.path.join(MODEL_DIR, f"fhlm_quantile_gbm_T{interval}_d{delay}{_fam_suffix(family)}.pkl")
+def model_path(interval: int, delay: int, family: str = "synthetic", target: str = "rstar") -> str:
+    suf = "" if target == "rstar" else f"_{target}"
+    return os.path.join(MODEL_DIR, f"fhlm_quantile_gbm_T{interval}_d{delay}{_fam_suffix(family)}{suf}.pkl")
 
 
-def ensure_forecaster(interval: int, delay: int, family: str = "synthetic") -> QuantileGBMForecaster:
-    path = model_path(interval, delay, family)
+def ensure_forecaster(interval: int, delay: int, family: str = "synthetic", target: str = "rstar") -> QuantileGBMForecaster:
+    path = model_path(interval, delay, family, target)
     if path not in _FORECASTER_CACHE:
         if not os.path.exists(path):
-            print(f"[runner] training forecaster for T={interval}, tau={delay}, family={family} -> {path}")
+            print(f"[runner] training forecaster for T={interval}, tau={delay}, family={family}, target={target} -> {path}")
+            suf = "" if target == "rstar" else f"_{target}"
             subprocess.run([sys.executable, "-m", "fhlm.train", "--out", path, "--interval", str(interval),
-                            "--delay", str(delay), "--family", family, "--report",
-                            os.path.join(RESULTS_DIR, f"forecast_training_T{interval}_d{delay}{_fam_suffix(family)}.json")],
+                            "--delay", str(delay), "--family", family, "--target", target, "--report",
+                            os.path.join(RESULTS_DIR, f"forecast_training_T{interval}_d{delay}{_fam_suffix(family)}{suf}.json")],
                            check=True)
         _FORECASTER_CACHE[path] = QuantileGBMForecaster.load(path)
     return _FORECASTER_CACHE[path]
 
 
-FORECAST_METHODS = ("point_forecast", "fixed_quantile", "proposed", "proposed_cal", "proposed_miscal", "proposed_transfer")
+FORECAST_METHODS = ("point_forecast", "fixed_quantile", "proposed", "proposed_vc", "proposed_cal", "proposed_miscal",
+                    "proposed_transfer", "pred_maxweight", "cem_policy")
+SUSTAIN_METHODS = ("proposed_sus", "point_forecast_sus")
+# controllers that are not implementable (future knowledge or the true traffic generator)
+REFERENCE_METHODS = ("oracle", "oracle_kkt", "markov_oracle_kkt")
 
 
-def build_controller(name: str, params: Dict[str, Any], interval: int, delay: int, family: str = "synthetic"):
+def _other_family(family: str) -> str:
+    return "synthetic" if family != "synthetic" else "3gpp"
+
+
+def cem_policy_path(family: str) -> str:
+    return os.path.join(RESULTS_DIR, f"cem_policy{_fam_suffix(family)}.json")
+
+
+def build_controller(name: str, params: Dict[str, Any], interval: int, delay: int, family: str = "synthetic", cfg=None):
     p = dict(params or {})
+    if name == "pred_maxweight":
+        return PredictiveMaxWeight(ensure_forecaster(interval, delay, family), margin=p.get("margin", 0.0),
+                                  lookahead=p.get("lookahead", 1.0))
+    if name == "cem_policy":
+        path = cem_policy_path(family)
+        fc = ensure_forecaster(interval, delay, family)
+        if os.path.exists(path):
+            return ClassLevelPolicy.from_file(fc, path, w_min=p.get("w_min", 0.25))
+        return ClassLevelPolicy(fc, p_ll=p.get("p_ll", 0.9), p_embb=p.get("p_embb", 0.5), w_ll=p.get("w_ll", 3.0))
+    if name == "markov_kkt":
+        return UncertaintyAwareAllocator(MarkovChainForecaster(K=p.get("K", 3), window=p.get("window", 2000),
+                                                               n_paths=p.get("n_paths", 200)),
+                                         calibrate=False, w_min=p.get("w_min", 0.25), name="markov_kkt")
+    if name == "eb_kkt":
+        return UncertaintyAwareAllocator(ChernoffBoundForecaster(K=p.get("K", 3), window=p.get("window", 2000)),
+                                         calibrate=False, w_min=p.get("w_min", 0.25), name="eb_kkt")
+    if name == "markov_oracle_kkt":
+        from .traffic_markov import build_sources
+        if cfg is None or cfg.traffic.family != "markov":
+            raise ValueError("markov_oracle_kkt is defined for the Markov-modulated family only")
+        fc = MarkovOracleForecaster(build_sources(cfg.network, cfg.traffic), cfg.network, n_paths=p.get("n_paths", 200))
+        return UncertaintyAwareAllocator(fc, calibrate=False, w_min=p.get("w_min", 0.25), name="markov_oracle_kkt")
     if name == "static_equal":
         return StaticEqualShare()
     if name == "reactive_prop":
@@ -111,8 +156,23 @@ def build_controller(name: str, params: Dict[str, Any], interval: int, delay: in
     if name == "proposed":
         return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, family), calibrate=False,
                                          w_min=p.get("w_min", 0.25), name="proposed")
+    if name == "proposed_sus":
+        return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, family, "sustain"), calibrate=False,
+                                         w_min=p.get("w_min", 0.25), name="proposed_sus")
+    if name == "point_forecast_sus":
+        return PointForecastWaterfill(ensure_forecaster(interval, delay, family, "sustain"), margin=p.get("margin", 0.0),
+                                      w_min=p.get("w_min", 0.25))
+    if name == "oracle_kkt_sus":
+        return OracleKKT(w_min=p.get("w_min", 0.25), sustain=True)
+    if name == "proposed_vc":
+        return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, family), calibrate=False,
+                                         w_min=p.get("w_min", 0.25), volume_weights=True,
+                                         volume_window=p.get("volume_window", 30), name="proposed_vc")
+    if name == "proposed_dw":
+        return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, family), calibrate=False,
+                                         w_min=p.get("w_min", 0.25), queue_weights=p.get("kappa", 1.0), name="proposed_dw")
     if name == "proposed_transfer":
-        other = "synthetic" if family == "3gpp" else "3gpp"
+        other = _other_family(family)
         return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, other), calibrate=False,
                                          w_min=p.get("w_min", 0.25), name="proposed_transfer")
     if name == "proposed_cal":
@@ -157,13 +217,18 @@ def run_one(job) -> Dict[str, Any]:
     scenario, seed, method, params, interval, delay, slots, warmup, tag = job[:9]
     mantissa = job[9] if len(job) > 9 else None
     ll_priority = job[10] if len(job) > 10 else None
-    cfg = make_config(scenario, seed, slots, warmup, interval, delay)
+    if scenario == "__train__":      # closed-loop policy search episodes on training traces
+        from .scenarios import train_config
+        cfg = train_config(job[11], seed, slots, interval, delay, job[12])
+        cfg.warmup_slots = warmup
+    else:
+        cfg = make_config(scenario, seed, slots, warmup, interval, delay)
     trace = generate_traffic(cfg.network, cfg.traffic, cfg.num_slots, cfg.seed)
     if mantissa is not None:
         cfg, trace = with_compression(cfg, trace, mantissa)
     if ll_priority is not None:
         cfg = with_ll_priority(cfg, ll_priority)
-    ctrl = build_controller(method, params, interval, delay, cfg.traffic.family)
+    ctrl = build_controller(method, params, interval, delay, cfg.traffic.family, cfg)
     t0 = time.perf_counter()
     res = run_simulation(cfg, ctrl, trace=trace)
     row = {"scenario": scenario, "seed": seed, "method": method, "params": json.dumps(params or {}),
@@ -184,14 +249,24 @@ def run_one(job) -> Dict[str, Any]:
     return row
 
 
+def merge_runs(df: pd.DataFrame, path: str, keys: List[str], append: bool) -> pd.DataFrame:
+    """Replace the rows of `path` that share `keys` with the new runs (append mode), else return df."""
+    if append and os.path.exists(path):
+        old = pd.read_csv(path)
+        new_keys = set(map(tuple, df[keys].astype(str).values.tolist()))
+        keep = ~old[keys].astype(str).apply(tuple, axis=1).isin(new_keys)
+        df = pd.concat([old[keep], df], ignore_index=True)
+    return df
+
+
 def run_jobs(jobs: List[tuple], workers: int) -> pd.DataFrame:
     # make sure any required forecaster exists before forking workers
     for job in jobs:
-        if job[2] in FORECAST_METHODS:
-            fam = family_of(job[0])
-            ensure_forecaster(job[4], job[5], fam)
+        if job[2] in FORECAST_METHODS or job[2] in SUSTAIN_METHODS:
+            fam = family_of(job[0]) if job[0] != "__train__" else job[12]
+            ensure_forecaster(job[4], job[5], fam, "sustain" if job[2] in SUSTAIN_METHODS else "rstar")
             if job[2] == "proposed_transfer":
-                ensure_forecaster(job[4], job[5], "synthetic" if fam == "3gpp" else "3gpp")
+                ensure_forecaster(job[4], job[5], _other_family(fam))
     t0 = time.perf_counter()
     if workers > 1:
         with Pool(workers) as pool:
@@ -227,7 +302,12 @@ def cmd_tune(args):
         "point_forecast": [{"margin": m} for m in (0.0, 0.25, 0.5)],
         "fixed_quantile": [{"level": q} for q in (0.75, 0.9, 0.95)],
         "proposed_cal": [{"gamma": g} for g in (0.005, 0.01, 0.02)],
+        "pred_maxweight": [{"margin": m, "lookahead": la} for m in (0.0, 0.25) for la in (0.5, 1.0, 2.0)],
+        "markov_kkt": [{"K": k, "window": w} for k in (2, 3, 4) for w in (1000, 3000)],
+        "eb_kkt": [{"K": k, "window": 2000} for k in (2, 3)],
     }
+    if args.methods:
+        grid = {m: g for m, g in grid.items() if m in args.methods}
     jobs = []
     val_scenarios = VAL_SCENARIOS_BY_FAMILY[args.family]
     for method, plist in grid.items():
@@ -244,16 +324,22 @@ def cmd_tune(args):
         selected[method] = json.loads(best)
         for p, v in agg.items():
             table.append({"method": method, "params": p, PRIMARY_METRIC: v})
+    tpath = os.path.join(RESULTS_DIR, f"tuning{_fam_suffix(args.family)}.json")
+    if args.methods and os.path.exists(tpath):      # merge a partial re-tune into the existing selection
+        with open(tpath) as f:
+            old = json.load(f)
+        selected = {**old.get("selected", {}), **selected}
+        table = [r for r in old.get("table", []) if r["method"] not in args.methods] + table
     out = {"primary_metric": PRIMARY_METRIC, "validation_scenarios": val_scenarios, "validation_seeds": VAL_SEEDS,
            "family": args.family, "selected": selected, "table": table}
-    with open(os.path.join(RESULTS_DIR, f"tuning{_fam_suffix(args.family)}.json"), "w") as f:
+    with open(tpath, "w") as f:
         json.dump(out, f, indent=2)
     print(json.dumps(out["selected"], indent=1))
     print(pd.DataFrame(table).to_string())
 
 
 def cmd_main(args):
-    methods = args.methods or [m for m in METHOD_ORDER if m != "proposed_transfer"]
+    methods = args.methods or [m for m in METHOD_ORDER if m not in ("proposed_transfer", "markov_oracle_kkt")]
     scenarios = args.scenarios or scenarios_of(args.family)
     jobs = [(sc, seed, m, tuned_params(m, sc), args.interval, args.delay, args.slots, args.warmup, "main")
             for sc in scenarios for seed in TEST_SEEDS for m in methods]
@@ -390,6 +476,7 @@ def cmd_delay(args):
     jobs = [(args.scenario, seed, m, tuned_params(m, args.scenario), args.interval, tau, args.slots, args.warmup, "delay")
             for tau in taus for seed in seeds for m in methods]
     df = run_jobs(jobs, args.workers)
+    df = merge_runs(df, os.path.join(RESULTS_DIR, "delay_runs.csv"), ["telemetry_delay_slots", "method"], args.append)
     df.to_csv(os.path.join(RESULTS_DIR, "delay_runs.csv"), index=False)
     agg = df.groupby(["telemetry_delay_slots", "method"])[[PRIMARY_METRIC, "violation_ratio_ll", "violation_ratio_embb"]].agg(["mean", "std"])
     print(agg.to_string())
@@ -431,6 +518,7 @@ def cmd_weights(args):
     jobs = [(sc, seed, m, tuned_params(m, sc), args.interval, args.delay, args.slots, args.warmup, "weights", None, w)
             for sc in scenarios for w in weights for seed in seeds for m in methods]
     df = run_jobs(jobs, args.workers)
+    df = merge_runs(df, os.path.join(RESULTS_DIR, "weights_runs.csv"), ["scenario", "ll_priority", "method"], args.append)
     df.to_csv(os.path.join(RESULTS_DIR, "weights_runs.csv"), index=False)
     agg = df.groupby(["scenario", "ll_priority", "method"])[[PRIMARY_METRIC, "violation_ratio", "violation_ratio_ll",
                                                              "violation_ratio_embb"]].agg(["mean", "std"])
@@ -451,12 +539,49 @@ def cmd_compression(args):
     jobs = [(args.scenario, seed, m, tuned_params(m, args.scenario), args.interval, args.delay, args.slots, args.warmup,
              "compression", b) for b in widths for seed in seeds for m in methods]
     df = run_jobs(jobs, args.workers)
+    df = merge_runs(df, os.path.join(RESULTS_DIR, "compression_runs.csv"), ["mantissa_bits", "method"], args.append)
     df.to_csv(os.path.join(RESULTS_DIR, "compression_runs.csv"), index=False)
     agg = df.groupby(["mantissa_bits", "method"])[[PRIMARY_METRIC, "violation_ratio_ll", "violation_ratio_embb",
                                                    "fh_utilisation", "realised_load"]].agg(["mean", "std"])
     agg.columns = [f"{a}_{b}" for a, b in agg.columns]
     agg.reset_index().to_csv(os.path.join(RESULTS_DIR, "compression_summary.csv"), index=False)
     print(agg.to_string())
+
+
+def cmd_cem(args):
+    """Direct policy search (cross-entropy method) for the class-level policy on TRAINING seeds.
+
+    The policy is evaluated in closed loop on the training loads of its family (never on validation or test
+    seeds); the cost is the primary metric averaged over the episodes. Result -> results/fhlm/cem_policy*.json.
+    """
+    from .scenarios import TRAIN_SEEDS, TRAIN_LOADS, train_config
+    family = args.family
+    interval, delay = args.interval, args.delay
+    ensure_forecaster(interval, delay, family)
+    episodes = [(TRAIN_SEEDS[k], TRAIN_LOADS[k % len(TRAIN_LOADS)]) for k in range(len(TRAIN_SEEDS))
+                if TRAIN_LOADS[k % len(TRAIN_LOADS)] in (0.65, 0.8)][:args.num_seeds]
+    slots = min(args.slots, 10000)
+
+    def evaluate(thetas):
+        jobs = []
+        for j, th in enumerate(thetas):
+            params = {"p_ll": float(th[0]), "p_embb": float(th[1]), "w_ll": float(np.exp(th[2])), "_cem": j}
+            for seed, load in episodes:
+                jobs.append(("__train__", seed, "cem_policy", params, interval, delay, slots, args.warmup, "", None, None,
+                             load, family))
+        df = run_jobs(jobs, args.workers)
+        df["j"] = df.params.apply(lambda s_: json.loads(s_)["_cem"])
+        return df.groupby("j")[PRIMARY_METRIC].mean().reindex(range(len(thetas))).values
+
+    # search over (p_LL, p_eMBB, log w_LL); start from the natural guess "high LL quantile, median eMBB, w=3"
+    theta, hist = cem_search(evaluate, mean0=np.array([0.85, 0.5, np.log(3.0)]), std0=np.array([0.1, 0.15, 0.5]),
+                             lo=np.array([0.05, 0.05, np.log(0.5)]), hi=np.array([0.995, 0.995, np.log(20.0)]),
+                             iters=args.cem_iters, pop=args.cem_pop, elite=4, seed=0)
+    out = {"family": family, "selected": {"p_ll": float(theta[0]), "p_embb": float(theta[1]), "w_ll": float(np.exp(theta[2]))},
+           "episodes": episodes, "slots": slots, "history": hist}
+    with open(cem_policy_path(family), "w") as f:
+        json.dump(out, f, indent=2)
+    print(json.dumps(out["selected"], indent=1))
 
 
 def cmd_demo(args):
@@ -483,7 +608,10 @@ def cmd_demo(args):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=["tune", "main", "sweep", "compression", "miscalibration", "delay", "weights", "demo"])
+    ap.add_argument("command", choices=["tune", "main", "sweep", "compression", "miscalibration", "delay", "weights", "demo",
+                                        "cem"])
+    ap.add_argument("--cem-iters", type=int, default=8)
+    ap.add_argument("--cem-pop", type=int, default=16)
     ap.add_argument("--interval", type=int, default=20)
     ap.add_argument("--delay", type=int, default=2)
     ap.add_argument("--slots", type=int, default=DEFAULT_SLOTS)
@@ -498,13 +626,15 @@ def main(argv=None):
     ap.add_argument("--eps", nargs="*", type=float, help="probability-level shifts for the miscalibration sweep")
     ap.add_argument("--delays", nargs="*", type=int, help="telemetry delays (slots) for the delay sweep")
     ap.add_argument("--weights", nargs="*", type=float, help="low-latency priority weights for the weight sweep")
-    ap.add_argument("--family", default="synthetic", choices=["synthetic", "3gpp"],
+    ap.add_argument("--family", default="synthetic", choices=["synthetic", "3gpp", "markov"],
                     help="traffic family for tune/main (scenario set and forecaster)")
-    ap.add_argument("--append", action="store_true", help="main: merge into the existing main_runs.csv instead of replacing it")
+    ap.add_argument("--append", action="store_true",
+                    help="main/sweep/delay/weights/compression: merge into the existing runs CSV instead of replacing it")
     args = ap.parse_args(argv)
     os.makedirs(RESULTS_DIR, exist_ok=True)
     {"tune": cmd_tune, "main": cmd_main, "sweep": cmd_sweep, "compression": cmd_compression,
-     "miscalibration": cmd_miscalibration, "delay": cmd_delay, "weights": cmd_weights, "demo": cmd_demo}[args.command](args)
+     "miscalibration": cmd_miscalibration, "delay": cmd_delay, "weights": cmd_weights, "demo": cmd_demo,
+     "cem": cmd_cem}[args.command](args)
 
 
 if __name__ == "__main__":
