@@ -253,6 +253,17 @@ so **on this CPU the recommended path is the fused exact kernel; the Newton/cert
 GEMM-engine hardware.** Not done: AVX512-FP16 / AMX (the CPU has both, would need an accuracy study),
 cache-blocking for K > 32, NUMA pinning, comparison against vendor libraries (MKL batched, Eigen), and
 real-time (non-benchmark) OS settings.
+**FP16 weight formation (`exp18`) and Gram: negative results.** The largest stage, `W^T = X conj(H)`, was rewritten with
+AVX512-FP16 complex FMA (`_mm512_fcmadd_pch`, 16 complex per instruction, two output rows per pass; Gram and inverse
+stay in float32; per-PRB block scaling). It is numerically sane (relative weight error 7e-4 to 1.3e-3) but
+**not faster**: 0.78x at K=8, 0.95x at K=16/M=64, 1.0x at K=16/M=128, 1.13x at K=32/M=64, 1.30x at K=32/M=128
+(4 threads), and it costs sum-rate at high SNR: loss vs the float32 kernel is 0.014% at 10 dB but 0.50% (worst drop 1.3%)
+at 30 dB, 0.29% in the ill-conditioned case, 0.26% for K=32. Conversion overhead and the complex-FMA throughput eat the
+gain, so I do **not** recommend the FP16 path; it is kept in the source (`rzf_fused_fp16`, `rzf_fp16`) as a documented
+negative result. The Gram stage (20 to 24% of cycles) already runs at about 28 flops/cycle, roughly 44% of the AVX-512
+peak; my one blocking attempt was slower, and a transposed rank-1-update formulation would need twice the flops
+(no symmetry), so I did not pursue it. AMX was not tried.
+
 Build: `kernels/build.sh` (gcc with OpenMP; x86 with AVX-512 for the shipped flags, edit the script for AVX2-only CPUs); the
 library is git-ignored.
 

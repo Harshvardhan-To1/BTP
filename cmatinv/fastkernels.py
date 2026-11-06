@@ -43,3 +43,16 @@ def rzf_ns(H, Xprev, alpha, power, W=None, threads=4):
     resid = np.empty(S, np.float32)
     _lib.rzf_fused_ns(H.ctypes.data, Xprev.ctypes.data, W.ctypes.data, resid.ctypes.data, S, K, M, alpha, power, threads)
     return W, resid
+
+_lib.rzf_fused_fp16.argtypes = _lib.rzf_fused_chol.argtypes
+_lib.has_fp16.restype = ctypes.c_int
+HAS_FP16 = bool(_lib.has_fp16())
+
+
+def rzf_fp16(H, alpha, power, W=None, threads=4):
+    """Like rzf_chol but the W = X conj(H) product runs in AVX512-FP16 complex FMA (M must be a multiple of 16, K <= 32)."""
+    S, K, M = H.shape
+    assert HAS_FP16 and M % 16 == 0
+    W = np.empty((S, K, M), np.complex64) if W is None else W
+    _lib.rzf_fused_fp16(H.ctypes.data, W.ctypes.data, S, K, M, alpha, power, threads)
+    return W

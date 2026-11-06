@@ -89,3 +89,17 @@ def test_fused_c_kernels_match_numpy():
         X = Xp.copy()
         _, r = rzf_ns(H, X, al, 10.0)
         assert np.allclose(r, np.linalg.norm(np.eye(K) - G @ Xp, axis=(1, 2)) / np.sqrt(K), rtol=1e-3)
+
+
+def test_fp16_kernel_accuracy_if_available():
+    import pytest
+    try:
+        from cmatinv.fastkernels import rzf_fp16, rzf_chol, HAS_FP16
+    except OSError:
+        pytest.skip("libcmat.so not built")
+    if not HAS_FP16:
+        pytest.skip("no AVX512-FP16")
+    rng = np.random.default_rng(0)
+    H = ((rng.standard_normal((8, 16, 64)) + 1j * rng.standard_normal((8, 16, 64))) / np.sqrt(2)).astype(np.complex64)
+    a, b = rzf_fp16(H, 1.6, 10.0), rzf_chol(H, 1.6, 10.0)
+    assert np.linalg.norm(a - b) / np.linalg.norm(b) < 5e-3

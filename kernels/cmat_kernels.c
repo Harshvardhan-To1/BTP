@@ -264,3 +264,66 @@ void rzf_fused_ns(const float *H, float *Xinout, float *W, float *resid, int S, 
         form_w(K, M, hr, hi, ur, ui, power, W + (size_t)s * M * K * 2);
     }
 }
+
+// ---- FP16 weight-formation path (AVX512-FP16 complex FMA) -------------------------------------------------------
+// Gram and inverse stay in float32 (inversion amplifies rounding); only the final W^T = X conj(H) product, the largest stage,
+// runs in half precision. H and X are block-scaled per PRB so the fp16 range is never an issue, and the global scale cancels
+// in the power normalisation.
+#ifdef __AVX512FP16__
+#include <immintrin.h>
+
+static void form_w_fp16(int K, int M, const float *Hint, const float *xr, const float *xi, float power, float *wt) {
+    _Float16 hh[KMAX * MMAX * 2] __attribute__((aligned(64)));
+    _Float16 xh[KMAX * KMAX * 2];
+    float hmax = 1e-30f, xmax = 1e-30f;
+    for (int n = 0; n < 2 * K * M; n++) { float a = fabsf(Hint[n]); if (a > hmax) hmax = a; }
+    for (int n = 0; n < K * K; n++) { float a = fabsf(xr[n]), b = fabsf(xi[n]); if (a > xmax) xmax = a; if (b > xmax) xmax = b; }
+    float sh = 1.f / hmax, sx = 1.f / xmax;
+    for (int n = 0; n < 2 * K * M; n++) hh[n] = (_Float16)(Hint[n] * sh);
+    for (int n = 0; n < K * K; n++) { xh[2 * n] = (_Float16)(xr[n] * sx); xh[2 * n + 1] = (_Float16)(xi[n] * sx); }
+    double energy = 0.0;
+    int nb = M / 16;                                   // 16 complex numbers per zmm; remainder handled in float
+    for (int k = 0; k < K; k += 2) {                   // two output rows per pass -> 2*nb independent FMA chains
+        int two = (k + 1 < K);
+        __m512h acc0[MMAX / 16], acc1[MMAX / 16];
+        for (int b = 0; b < nb; b++) { acc0[b] = _mm512_setzero_ph(); acc1[b] = _mm512_setzero_ph(); }
+        for (int j = 0; j < K; j++) {
+            __m512h x0 = (__m512h)_mm512_set1_epi32(((int *)xh)[j * K + k]);
+            __m512h x1 = two ? (__m512h)_mm512_set1_epi32(((int *)xh)[j * K + k + 1]) : x0;
+            const _Float16 *hrow = hh + 2 * (size_t)j * M;
+            for (int b = 0; b < nb; b++) {
+                __m512h h = _mm512_load_ph(hrow + 32 * b);
+                acc0[b] = _mm512_fcmadd_pch(x0, h, acc0[b]);
+                acc1[b] = _mm512_fcmadd_pch(x1, h, acc1[b]);
+            }
+        }
+        for (int r = 0; r < 1 + two; r++) {
+            float *o = wt + 2 * (size_t)(k + r) * M;
+            for (int b = 0; b < nb; b++) {
+                __m512h v = r ? acc1[b] : acc0[b];
+                _mm512_storeu_ps(o + 32 * b, _mm512_cvtph_ps(_mm512_castsi512_si256((__m512i)v)));
+                _mm512_storeu_ps(o + 32 * b + 16, _mm512_cvtph_ps(_mm512_extracti64x4_epi64((__m512i)v, 1)));
+            }
+            for (int n = 0; n < 32 * nb; n++) energy += (double)o[n] * o[n];
+        }
+    }
+    float sc = (float)sqrt(power / energy);
+    for (int k = 0; k < K; k++) { float *o = wt + 2 * (size_t)k * M; for (int n = 0; n < 32 * nb; n++) o[n] *= sc; }
+}
+
+void rzf_fused_fp16(const float *H, float *W, int S, int K, int M, float alpha, float power, int nthreads) {
+#pragma omp parallel for num_threads(nthreads) schedule(static)
+    for (int s = 0; s < S; s++) {
+        float hr[KMAX * MMAX], hi[KMAX * MMAX], g[KMAX * KMAX * 2], xr[KMAX * KMAX], xi[KMAX * KMAX];
+        const float *Hs = H + (size_t)s * K * M * 2;
+        load_h(K, M, Hs, hr, hi);
+        gram_lower(K, M, hr, hi, alpha, g);
+        gj_inv_one(K, g, xr, xi);
+        form_w_fp16(K, M, Hs, xr, xi, power, W + (size_t)s * M * K * 2);
+    }
+}
+int has_fp16(void) { return 1; }
+#else
+void rzf_fused_fp16(const float *H, float *W, int S, int K, int M, float alpha, float power, int nthreads) {}
+int has_fp16(void) { return 0; }
+#endif
