@@ -28,17 +28,17 @@ def main(S=273):
         X = np.linalg.inv(G).astype(np.complex64)
         W = np.empty((S, K, M), np.complex64)
         r = dict(K=K, M=M, numpy_lapack=timeit(lambda: numpy_pipeline(H, al, P)),
-                 c_chol_1t=timeit(lambda: rzf_chol(H, al, P, W, 1)),
-                 c_chol_2t=timeit(lambda: rzf_chol(H, al, P, W, 2)),
-                 c_chol_4t=timeit(lambda: rzf_chol(H, al, P, W, 4)),
+                 c_fused_1t=timeit(lambda: rzf_chol(H, al, P, W, 1)),
+                 c_fused_2t=timeit(lambda: rzf_chol(H, al, P, W, 2)),
+                 c_fused_4t=timeit(lambda: rzf_chol(H, al, P, W, 4)),
                  c_ns_4t=timeit(lambda: rzf_ns(H, X.copy(), al, P, W, 4)))
-        r["speedup_chol_4t"] = r["numpy_lapack"] / r["c_chol_4t"]
+        r["speedup_chol_4t"] = r["numpy_lapack"] / r["c_fused_4t"]
         rows.append({k: (round(v, 3) if isinstance(v, float) else v) for k, v in r.items()})
         print(rows[-1])
     dump(dict(S=S, nproc=os.cpu_count(), rows=rows), "exp17_pipeline_kernel")
     fig, ax = plt.subplots(figsize=(8, 3.8))
-    labs = [("numpy_lapack", "numpy + LAPACK"), ("c_chol_1t", "fused C, Cholesky (1 thr)"),
-            ("c_chol_4t", "fused C, Cholesky (4 thr)"), ("c_ns_4t", "fused C, Newton step (4 thr)")]
+    labs = [("numpy_lapack", "numpy + LAPACK"), ("c_fused_1t", "fused C, GJ sweep (1 thr)"),
+            ("c_fused_4t", "fused C, GJ sweep (4 thr)"), ("c_ns_4t", "fused C, Newton step (4 thr)")]
     for i, (k, l) in enumerate(labs):
         ax.bar(np.arange(len(rows)) + (i - 1.5) * 0.2, [r[k] for r in rows], 0.2, label=l)
     ax.set_yscale("log"); ax.set_xticks(range(len(rows))); ax.set_xticklabels([f"K={r['K']}\nM={r['M']}" for r in rows])

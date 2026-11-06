@@ -97,12 +97,47 @@ static void chol_inv_one(int K, const float *g, float *xr, float *xi) {
         }
 }
 
+// In-place Gauss-Jordan "sweep" inverse of a Hermitian positive-definite matrix (no pivoting needed for HPD).
+// K rank-1 updates whose inner loops run over contiguous rows -> fully vectorised, no sqrt / divide chains.
+// g: interleaved lower triangle of G; output: full inverse in split planes xr/xi.
+static void gj_inv_one(int K, const float *g, float *xr, float *xi) {
+    for (int i = 0; i < K; i++)
+        for (int j = 0; j <= i; j++) {
+            float r = g[2 * (i * K + j)], q = g[2 * (i * K + j) + 1];
+            xr[i * K + j] = r; xi[i * K + j] = q; xr[j * K + i] = r; xi[j * K + i] = -q;
+        }
+    float rkr[KMAX], rki[KMAX], ckr[KMAX], cki[KMAX];
+    for (int k = 0; k < K; k++) {
+        float piv = 1.f / xr[k * K + k];
+        for (int j = 0; j < K; j++) { rkr[j] = xr[k * K + j]; rki[j] = xi[k * K + j]; ckr[j] = xr[j * K + k]; cki[j] = xi[j * K + k]; }
+        for (int i = 0; i < K; i++) {
+            if (i == k) continue;
+            float fr = ckr[i] * piv, fi = cki[i] * piv;   // A[i][:] -= f * rowk
+            float *ar = xr + i * K, *ai = xi + i * K;
+#pragma omp simd
+            for (int j = 0; j < K; j++) {
+                ar[j] -= fr * rkr[j] - fi * rki[j];
+                ai[j] -= fr * rki[j] + fi * rkr[j];
+            }
+            ar[k] = -fr; ai[k] = -fi;                      // column k becomes -A[i][k] * piv
+        }
+        float *kr = xr + k * K, *ki = xi + k * K;
+#pragma omp simd
+        for (int j = 0; j < K; j++) { kr[j] = rkr[j] * piv; ki[j] = rki[j] * piv; }
+        kr[k] = piv; ki[k] = 0.f;
+    }
+}
+
 void chol_inverse_batch(const float *G, float *Xout, int S, int K, int nthreads) {
 #pragma omp parallel for num_threads(nthreads) schedule(static)
     for (int s = 0; s < S; s++) {
         float xr[KMAX * KMAX], xi[KMAX * KMAX];
         size_t off = (size_t)s * K * K * 2;
+#ifdef USE_CHOL
         chol_inv_one(K, G + off, xr, xi);
+#else
+        gj_inv_one(K, G + off, xr, xi);
+#endif
         store_soa(K, xr, xi, Xout + off);
     }
 }
@@ -165,16 +200,35 @@ static void load_h(int K, int M, const float *src, float *hr, float *hi) {
 }
 
 // Exact path: Gram -> Cholesky inverse -> W, one pass per PRB, everything L1-resident.
+#ifdef PROFILE
+#include <x86intrin.h>
+double prof_cycles[4];
+#define TICK(i) do { unsigned long long t_ = __rdtsc(); if (s == 0) { prof_cycles[i] += (double)(t_ - last); } last = t_; } while (0)
+#else
+#define TICK(i)
+#endif
+
 void rzf_fused_chol(const float *H, float *W, int S, int K, int M, float alpha, float power, int nthreads) {
 #pragma omp parallel for num_threads(nthreads) schedule(static)
     for (int s = 0; s < S; s++) {
         float hr[KMAX * MMAX], hi[KMAX * MMAX], g[KMAX * KMAX * 2], xr[KMAX * KMAX], xi[KMAX * KMAX];
+#ifdef PROFILE
+        unsigned long long last = __rdtsc();
+#endif
         load_h(K, M, H + (size_t)s * K * M * 2, hr, hi);
+        TICK(0);
         gram_lower(K, M, hr, hi, alpha, g);
+        TICK(1);
+#ifdef USE_CHOL
         chol_inv_one(K, g, xr, xi);
-        for (int i = 0; i < K; i++)                      // complete the Hermitian inverse for the W product
+        for (int i = 0; i < K; i++)
             for (int j = i + 1; j < K; j++) { xr[i * K + j] = xr[j * K + i]; xi[i * K + j] = -xi[j * K + i]; }
+#else
+        gj_inv_one(K, g, xr, xi);
+#endif
+        TICK(2);
         form_w(K, M, hr, hi, xr, xi, power, W + (size_t)s * M * K * 2);
+        TICK(3);
     }
 }
 

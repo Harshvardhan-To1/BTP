@@ -213,38 +213,48 @@ cost-accuracy frontier (0.63% at 4 vs 0.43% at 5.2). Against the exact Cholesky 
 ## 3e. Kernel optimisation of the whole precoder (`kernels/cmat_kernels.c`, `exp17`)
 
 Treating the DU workload as a kernel-programming task, I fused the whole per-PRB RZF chain into one C pass
-(`rzf_fused_chol`, `rzf_fused_ns`): load H once, Gram `H H^H + alpha I` (lower triangle only), Cholesky inverse
-(or one fused Newton step with its free exact residual), `W = H^H G^-1` and the power scaling, all L1/stack
-resident, OpenMP across PRBs, split re/im planes, `-O3 -march=native -ffast-math`. Optimisations that mattered:
+(`rzf_fused_chol`, name kept for the API; `rzf_fused_ns` is the Newton-step variant): load H once, Gram
+`H H^H + alpha I` (lower triangle only), inverse, `W = H^H G^-1` and the power scaling, all stack/L1 resident,
+OpenMP across PRBs, split re/im planes. Profiling with `rdtsc` per stage (K=16, M=64, one thread, cycles per PRB)
+drove the work; optimisations in the order applied:
 
-1. Hermitian symmetry: Gram computed on the lower triangle only, Cholesky reads only the lower triangle.
-2. Fusion: no intermediate G, X or W arrays in DRAM; one load of H, one store of W.
-3. Register-blocked axpy formulation of `W = H^H X` (32-wide m blocks, accumulators stay in vector registers across the
-   j loop) and a transposed output layout `W^T [S, K, M]` so every inner loop is contiguous. This alone cut the
-   K=16, M=64 precoder from 0.81 ms to about 0.42 ms.
-4. A 4-column register-blocked Gram variant was tried and was **slower** (0.65 ms), so it was reverted.
+1. Fusion and Hermitian symmetry (Gram on the lower triangle only, no intermediate arrays in DRAM).
+2. Register-blocked axpy form of `W = H^H X` with transposed output `W^T [S, K, M]`: 0.81 ms -> 0.42 ms per slot.
+3. **Replacing the Cholesky inverse by an in-place Gauss-Jordan "sweep" inverse** (K rank-1 updates with contiguous,
+   fully vectorised inner loops, no sqrt or divide chains; valid without pivoting because G is Hermitian positive
+   definite): inverse stage 6.4k -> 2.9k cycles per PRB (K=16), 21k -> 11k (K=32). The Cholesky variant is kept behind
+   `-DUSE_CHOL`.
+4. **AVX-512 code generation** (`-mprefer-vector-width=512`; gcc defaults to 256-bit even with `-march=native`):
+   about 1.3 to 1.5x single-thread, 2x on the full 4-thread run.
+5. A 4-column register-blocked Gram variant was **slower** and was reverted. Note a correction: after (3) the Gram is
+   only 20 to 24% of the cycles and `form_w` (the K x K by K x M product) is the largest stage at 44 to 58%
+   (already about 30 flops/cycle, near half the AVX-512 peak), not the Gram as I said before.
 
-Whole precoder per slot (273 PRBs, complex64, 4-core Xeon, median of 40 runs), numpy + LAPACK vs fused C (4 threads):
+Whole precoder per slot (273 PRBs, complex64, 4-core Xeon with AVX-512, median of 40 runs, one run shown, about 10%
+run-to-run noise on this shared VM), numpy + LAPACK vs fused C with 4 threads:
 
-| K, M | numpy + LAPACK | fused C, Cholesky | fused C, Newton step | speed-up |
-|---|---|---|---|---|
-| 8, 64 | 1.09 ms | 0.12 ms | 0.13 ms | 9.1x |
-| 16, 64 | 3.29 ms | 0.46 ms | 0.42 ms | 7.1x |
-| 32, 64 | 12.5 ms | 1.53 ms | 1.66 ms | 8.1x |
-| 16, 128 | 4.81 ms | 0.70 ms | 0.65 ms | 6.9x |
-| 32, 128 | 15.7 ms | 2.36 ms | 2.52 ms | 6.6x |
+| K, M | numpy + LAPACK | fused C, GJ sweep, 1 thread | fused C, 4 threads | fused C Newton step, 4 threads | speed-up (4 thr) |
+|---|---|---|---|---|---|
+| 8, 64 | 1.08 ms | 0.27 ms | 0.070 ms | 0.11 ms | 15x |
+| 16, 64 | 3.21 ms | 0.92 ms | 0.226 ms | 0.31 ms | 14x |
+| 32, 64 | 12.2 ms | 3.75 ms | 0.97 ms | 1.29 ms | 12.5x |
+| 16, 128 | 4.71 ms | 1.61 ms | 0.41 ms | 0.50 ms | 11.6x |
+| 32, 128 | 16.3 ms | 6.43 ms | 1.60 ms | 1.96 ms | 10x |
 
-Thread scaling is close to linear (K=16, M=64: 1.58 -> 0.78 -> 0.46 ms for 1, 2, 4 threads). **K=8 and K=16 (M=64) now fit
-a 0.5 ms slot on 4 CPU cores for the entire precoder**, which numpy+LAPACK does not for K=16 (3.3 ms). Numerical error
-vs the float64 reference is 2e-7 to 4e-7 (single precision). Timings vary by about 10% between runs on this shared VM.
+Thread scaling is near-linear (K=16, M=64: 0.92 -> 0.45 -> 0.23 ms for 1, 2, 4 threads). **K=8 and K=16 with
+M=64 now use under half of a 0.5 ms slot on 4 cores for the entire precoder (including the Gram and W products), and
+K=32, M=64 uses about 1 ms (2 slots, or about 8 cores for one slot).** Accuracy: sum-rate loss of the float32 kernel vs
+the float64 exact precoder is below 1e-5% in the base, the ill-conditioned (3 deg spread, 25 dB) and K=32 scenarios;
+element-wise error vs float64 is about 3e-7.
 
-Interpretation: this is a solid kernel-engineering result (about 7 to 9x), and it applies equally to the exact
-Cholesky path. The warm Newton path ties but does not beat Cholesky inside the fused pipeline (0.42 vs 0.46 ms), so
-on a CPU the practical recommendation is the fused Cholesky kernel; the Newton/certificate machinery is for
-GEMM-engine hardware. Not done: AVX-512 / AMX paths, FP16 kernels, cache-blocking for K > 32, NUMA pinning, and the
-Gram step is still the largest single stage.
-Build: `kernels/build.sh` (needs gcc with OpenMP); the library is git-ignored. Requires an x86 CPU with AVX/FMA for the
-`-march=native` build.
+Interpretation: a solid kernel-engineering result (10 to 15x over numpy/LAPACK) that applies to the exact
+inverse. The warm Newton path is still slower than the GJ sweep inside the fused pipeline (0.31 vs 0.23 ms at K=16),
+so **on this CPU the recommended path is the fused exact kernel; the Newton/certificate machinery is only for
+GEMM-engine hardware.** Not done: AVX512-FP16 / AMX (the CPU has both, would need an accuracy study),
+cache-blocking for K > 32, NUMA pinning, comparison against vendor libraries (MKL batched, Eigen), and
+real-time (non-benchmark) OS settings.
+Build: `kernels/build.sh` (gcc with OpenMP; x86 with AVX-512 for the shipped flags, edit the script for AVX2-only CPUs); the
+library is git-ignored.
 
 ## 4. Claims we can defend, and ones we cannot
 
