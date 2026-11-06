@@ -1,0 +1,74 @@
+{
+ "3 | exact (Cholesky), 1 GEMM-eq": {
+  "loss_pct": 0.0,
+  "gemms": 1.0
+ },
+ "3 | warm Gauss-Seidel x2": {
+  "loss_pct": 0.23150122932690775,
+  "gemms": 2.0
+ },
+ "3 | warm Gauss-Seidel x4": {
+  "loss_pct": 0.008896600591482007,
+  "gemms": 4.0
+ },
+ "3 | warm CG x2 (+1 for residual)": {
+  "loss_pct": 0.363479529640107,
+  "gemms": 3.0
+ },
+ "3 | warm CG x4 (+1)": {
+  "loss_pct": 0.012553851481823808,
+  "gemms": 5.0
+ },
+ "3 | RMT-WS (adaptive)": {
+  "loss_pct": 0.00609445268016616,
+  "gemms": 2.25
+ },
+ "30 | exact (Cholesky), 1 GEMM-eq": {
+  "loss_pct": 0.0,
+  "gemms": 1.0
+ },
+ "30 | warm Gauss-Seidel x2": {
+  "loss_pct": 5.927397064706215,
+  "gemms": 2.0
+ },
+ "30 | warm Gauss-Seidel x4": {
+  "loss_pct": 0.624956251993591,
+  "gemms": 4.0
+ },
+ "30 | warm CG x2 (+1 for residual)": {
+  "loss_pct": 10.558589679213373,
+  "gemms": 3.0
+ },
+ "30 | warm CG x4 (+1)": {
+  "loss_pct": 0.9571498369741712,
+  "gemms": 5.0
+ },
+ "30 | RMT-WS (adaptive)": {
+  "loss_pct": 0.42719952221117896,
+  "gemms": 5.200520833333334
+ },
+ "120 | exact (Cholesky), 1 GEMM-eq": {
+  "loss_pct": 0.0,
+  "gemms": 1.0
+ },
+ "120 | warm Gauss-Seidel x2": {
+  "loss_pct": 16.901816261130463,
+  "gemms": 2.0
+ },
+ "120 | warm Gauss-Seidel x4": {
+  "loss_pct": 2.902166474128854,
+  "gemms": 4.0
+ },
+ "120 | warm CG x2 (+1 for residual)": {
+  "loss_pct": 30.446013597596757,
+  "gemms": 3.0
+ },
+ "120 | warm CG x4 (+1)": {
+  "loss_pct": 5.542454607504915,
+  "gemms": 5.0
+ },
+ "120 | RMT-WS (adaptive)": {
+  "loss_pct": 0.12234098338973504,
+  "gemms": 6.25
+ }
+}

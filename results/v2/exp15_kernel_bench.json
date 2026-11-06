@@ -1,0 +1,37 @@
+{
+ "S": 273,
+ "M": 64,
+ "nproc": 4,
+ "rows": [
+  {
+   "K": 8,
+   "lapack_inv": 0.354,
+   "numpy_ns_step": 0.086,
+   "c_chol_1t": 0.149,
+   "c_chol_4t": 0.042,
+   "c_ns_1t": 0.121,
+   "c_ns_4t": 0.036,
+   "c_ns_2steps_4t": 0.07
+  },
+  {
+   "K": 16,
+   "lapack_inv": 1.594,
+   "numpy_ns_step": 0.31,
+   "c_chol_1t": 0.473,
+   "c_chol_4t": 0.124,
+   "c_ns_1t": 0.443,
+   "c_ns_4t": 0.115,
+   "c_ns_2steps_4t": 0.228
+  },
+  {
+   "K": 32,
+   "lapack_inv": 7.883,
+   "numpy_ns_step": 1.477,
+   "c_chol_1t": 2.338,
+   "c_chol_4t": 0.572,
+   "c_ns_1t": 2.622,
+   "c_ns_4t": 0.645,
+   "c_ns_2steps_4t": 1.284
+  }
+ ]
+}

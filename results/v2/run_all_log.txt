@@ -81,9 +81,9 @@ ill-conditioned: AS 3deg, 25 dB
 tracking 30 km/h (RMT-WS adaptive)
    {'6': {'rate_loss_pct': 1.9117766038091082, 'gemms': 5.06712962962963}, '8': {'rate_loss_pct': 0.7003993906227768, 'gemms': 5.05787037037037}, '10': {'rate_loss_pct': 0.553776253071337, 'gemms': 5.05787037037037}, '12': {'rate_loss_pct': 0.5442246809407993, 'gemms': 5.05787037037037}, '24': {'rate_loss_pct': 0.5436591622246914, 'gemms': 5.05787037037037}}
 ==================== exp9_cost_latency
-{'K': 8, 'M': 64, 'S': 273, 'gram': 0.169, 'exact': 0.358, 'chol': 0.092, 'cold6': 0.745, 'warm1': 0.097, 'warm2': 0.176, 'wform': 0.191, 'macs_exact_inv': 512, 'macs_w_formation': 4096, 'macs_gram': 4096, 'depth_exact': 24, 'depth_cold6': 24, 'depth_warm1': 8}
-{'K': 16, 'M': 64, 'S': 273, 'gram': 0.426, 'exact': 1.607, 'chol': 0.381, 'cold6': 3.269, 'warm1': 0.295, 'warm2': 0.572, 'wform': 0.424, 'macs_exact_inv': 4096, 'macs_w_formation': 16384, 'macs_gram': 16384, 'depth_exact': 48, 'depth_cold6': 30, 'depth_warm1': 10}
-{'K': 32, 'M': 64, 'S': 273, 'gram': 1.942, 'exact': 8.169, 'chol': 1.801, 'cold6': 17.651, 'warm1': 1.497, 'warm2': 2.932, 'wform': 1.056, 'macs_exact_inv': 32768, 'macs_w_formation': 65536, 'macs_gram': 65536, 'depth_exact': 96, 'depth_cold6': 36, 'depth_warm1': 12}
+{'K': 8, 'M': 64, 'S': 273, 'gram': 0.169, 'exact': 0.354, 'chol': 0.091, 'cold6': 0.725, 'warm1': 0.088, 'warm2': 0.172, 'wform': 0.181, 'macs_exact_inv': 512, 'macs_w_formation': 4096, 'macs_gram': 4096, 'depth_exact': 24, 'depth_cold6': 24, 'depth_warm1': 8}
+{'K': 16, 'M': 64, 'S': 273, 'gram': 0.427, 'exact': 1.584, 'chol': 0.384, 'cold6': 3.184, 'warm1': 0.277, 'warm2': 0.574, 'wform': 0.433, 'macs_exact_inv': 4096, 'macs_w_formation': 16384, 'macs_gram': 16384, 'depth_exact': 48, 'depth_cold6': 30, 'depth_warm1': 10}
+{'K': 32, 'M': 64, 'S': 273, 'gram': 1.872, 'exact': 7.868, 'chol': 1.743, 'cold6': 17.212, 'warm1': 1.472, 'warm2': 2.957, 'wform': 1.082, 'macs_exact_inv': 32768, 'macs_w_formation': 65536, 'macs_gram': 65536, 'depth_exact': 96, 'depth_cold6': 36, 'depth_warm1': 12}
 ==================== exp10_fronthaul
 3 km/h  CatA 118.4 Gbps | K-layer floor 29.6 Gbps
    Tu=1,bw=6      ratio=0.967  FH=32.0 Gbps
@@ -141,3 +141,45 @@ i.i.d., equal gains measured/predicted: median 1.10  range 1.01-1.26
  120 km/h warm NS x1                   loss  98.831% [98.744, 98.909]  GEMMs 2.00 [2.00, 2.00]
  120 km/h warm NS x2                   loss  99.634% [99.614, 99.652]  GEMMs 4.00 [4.00, 4.00]
  120 km/h Proposed RMT-WS (adaptive)   loss   0.387% [0.249, 0.545]  GEMMs 6.25 [6.25, 6.25]
+==================== exp14_stronger_baselines
+M=64,K=16
+   Gauss-Seidel                                            GEMMs for <=1% loss: 6
+   Block CG (no spectrum info)                             GEMMs for <=1% loss: 7
+   Chebyshev-MP (ours)                                     GEMMs for <=1% loss: 10
+   Chebyshev-MP init + NS (ours; best of grid per budget)  GEMMs for <=1% loss: 6
+M=128,K=16
+   Gauss-Seidel                                            GEMMs for <=1% loss: 4
+   Block CG (no spectrum info)                             GEMMs for <=1% loss: 5
+   Chebyshev-MP (ours)                                     GEMMs for <=1% loss: 7
+   Chebyshev-MP init + NS (ours; best of grid per budget)  GEMMs for <=1% loss: 5
+M=64,K=32
+   Gauss-Seidel                                            GEMMs for <=1% loss: >12
+   Block CG (no spectrum info)                             GEMMs for <=1% loss: 12
+   Chebyshev-MP (ours)                                     GEMMs for <=1% loss: >11
+   Chebyshev-MP init + NS (ours; best of grid per budget)  GEMMs for <=1% loss: 9
+==================== exp15_kernel_bench
+{'K': 8, 'lapack_inv': 0.354, 'numpy_ns_step': 0.086, 'c_chol_1t': 0.149, 'c_chol_4t': 0.042, 'c_ns_1t': 0.121, 'c_ns_4t': 0.036, 'c_ns_2steps_4t': 0.07}
+{'K': 16, 'lapack_inv': 1.594, 'numpy_ns_step': 0.31, 'c_chol_1t': 0.473, 'c_chol_4t': 0.124, 'c_ns_1t': 0.443, 'c_ns_4t': 0.115, 'c_ns_2steps_4t': 0.228}
+{'K': 32, 'lapack_inv': 7.883, 'numpy_ns_step': 1.477, 'c_chol_1t': 2.338, 'c_chol_4t': 0.572, 'c_ns_1t': 2.622, 'c_ns_4t': 0.645, 'c_ns_2steps_4t': 1.284}
+==================== exp16_warm_baselines
+-- 3 km/h
+  exact (Cholesky), 1 GEMM-eq      loss=   0.000%  GEMM-eq/slot=1.00
+  warm Gauss-Seidel x2             loss=   0.232%  GEMM-eq/slot=2.00
+  warm Gauss-Seidel x4             loss=   0.009%  GEMM-eq/slot=4.00
+  warm CG x2 (+1 for residual)     loss=   0.363%  GEMM-eq/slot=3.00
+  warm CG x4 (+1)                  loss=   0.013%  GEMM-eq/slot=5.00
+  RMT-WS (adaptive)                loss=   0.006%  GEMM-eq/slot=2.25
+-- 30 km/h
+  exact (Cholesky), 1 GEMM-eq      loss=   0.000%  GEMM-eq/slot=1.00
+  warm Gauss-Seidel x2             loss=   5.927%  GEMM-eq/slot=2.00
+  warm Gauss-Seidel x4             loss=   0.625%  GEMM-eq/slot=4.00
+  warm CG x2 (+1 for residual)     loss=  10.559%  GEMM-eq/slot=3.00
+  warm CG x4 (+1)                  loss=   0.957%  GEMM-eq/slot=5.00
+  RMT-WS (adaptive)                loss=   0.427%  GEMM-eq/slot=5.20
+-- 120 km/h
+  exact (Cholesky), 1 GEMM-eq      loss=   0.000%  GEMM-eq/slot=1.00
+  warm Gauss-Seidel x2             loss=  16.902%  GEMM-eq/slot=2.00
+  warm Gauss-Seidel x4             loss=   2.902%  GEMM-eq/slot=4.00
+  warm CG x2 (+1 for residual)     loss=  30.446%  GEMM-eq/slot=3.00
+  warm CG x4 (+1)                  loss=   5.542%  GEMM-eq/slot=5.00
+  RMT-WS (adaptive)                loss=   0.122%  GEMM-eq/slot=6.25

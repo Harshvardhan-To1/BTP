@@ -93,7 +93,7 @@ wide-accumulate GEMM assumption, which a rank-1-update direct method cannot use.
 | 16 | 1.60 ms | 3.09 ms | 0.29 ms | 0.42 ms |
 | 32 | 7.82 ms | 16.6 ms | 1.43 ms | 1.05 ms |
 
-Honest reading: in complex MACs a direct inverse (K^3) is *cheaper* than a single Newton step (2 K^3), and the
+Note: the numpy-based timings in this table are superseded by section 3d (C kernels), which shows a tuned Cholesky kernel beats every Newton-based path on CPU. Honest reading: in complex MACs a direct inverse (K^3) is *cheaper* than a single Newton step (2 K^3), and the
 cold-start path is slower than LAPACK here. The win is the **tracking** step: batched GEMM runs about 5.5x faster than
 batched LAPACK inversion on this CPU, so one warm step fits in a 0.5 ms slot at K=8 and K=16 (0.09 and 0.29 ms) where
 LAPACK fits only at K=8; at K=32 neither fits on 4 CPU cores (1.4 vs 7.8 ms). The inversion is also only 6 to 20% of RZF MACs (the Gram and `W` formation dominate), and the
@@ -166,6 +166,49 @@ iteration, whereas our kernels are pure GEMMs plus a closed-form interval. Wheth
 hardware and was **not measured**. The earlier claim (we beat Neumann / Joint Newton-Neumann / classical Newton-Schulz)
 stands, but those are older baselines and are my own implementations. Gauss-Seidel and CG were not warm-started here;
 a warm-started comparison is the fair next test of the tracking contribution.
+
+## 3d. C kernels and an honest correction of the timing claims (`kernels/`, `exp15`, `exp16`)
+
+I wrote batched complex64 C kernels (`kernels/cmat_kernels.c`, AVX/FMA via `-march=native`, OpenMP over PRBs,
+`kernels/build.sh`, Python binding `cmatinv/fastkernels.py`): (a) a **fused Newton-Schulz step** `X <- X(2I - GX)` that
+also returns the **exact** residual `||I - GX||_F / sqrt(K)` of its input as a by-product (the product `GX` is already
+computed, so the certificate costs K^2 extra instead of a probe pass; since `||R^2||_F <= ||R||_F^2` the output residual
+is deterministically bounded by the input residual squared), and (b) a **Cholesky-based exact inverse** as the
+strongest direct baseline. Both match numpy to float32 precision (relative error 1e-7 to 3e-7).
+
+Wall-clock per slot, 273 PRBs, complex64, 4-core Xeon, median of 40 runs:
+
+| K | numpy/LAPACK `inv` | C Cholesky inverse (4 thr) | numpy NS step | **C fused NS step (4 thr)** |
+|---|---|---|---|---|
+| 8 | 0.353 ms | 0.041 ms | 0.089 ms | 0.035 ms |
+| 16 | 1.593 ms | 0.124 ms | 0.289 ms | 0.115 ms |
+| 32 | 7.876 ms | 0.582 ms | 1.463 ms | 0.662 ms |
+
+What this says:
+- **Real improvement:** the C kernels run the DU inversion 10 to 13x faster than numpy/LAPACK (K=16: 1.59 ms -> 0.12 ms;
+  K=32: 7.9 ms -> 0.58 ms), and K=16 now fits in a 0.5 ms slot with room to spare. This is a genuine CPU result.
+- **Correction:** the earlier claim that a warm Newton step is "5.5x faster than LAPACK" compared against a slow
+  library path. Against a tuned Cholesky kernel the NS step is **not faster**: 0.115 vs 0.124 ms at K=16, 0.66 vs
+  0.58 ms at K=32, and the adaptive tracker averages 2.25 to 6.25 steps. **On this CPU, a good direct inverse beats
+  the proposed tracker on both time and operation count.** The tracking contribution can only pay off on hardware
+  where GEMM engines are far more efficient than sequential factorisation (GPU, NPU, systolic arrays, RU
+  accelerators), which I could not test.
+- After the inverse is optimised, the Gram `H H^H` and `W = H^H G^-1` products (numpy batched matmul) become the
+  dominant cost at K=16 (about 0.43 ms each); fusing those in C is the next kernel step (not done).
+
+**Warm-started Gauss-Seidel / CG (`exp16`)**, loss vs exact / GEMM-equivalents per slot (4 drops, K=16, M=64):
+
+| | 3 km/h | 30 km/h | 120 km/h |
+|---|---|---|---|
+| exact Cholesky | 0 / 1 | 0 / 1 | 0 / 1 |
+| warm Gauss-Seidel x2 | 0.23% / 2 | 5.9% / 2 | 16.9% / 2 |
+| warm Gauss-Seidel x4 | 0.009% / 4 | **0.63% / 4** | 2.9% / 4 |
+| warm CG x4 (+1 residual) | 0.013% / 5 | 0.96% / 5 | 5.5% / 5 |
+| RMT-WS (ours) | **0.006% / 2.25** | 0.43% / 5.2 | **0.12% / 6.25** |
+
+Against the iterative baselines we win at 3 km/h (about 40x lower loss than GS x2 at similar cost) and at 120 km/h
+(0.12% vs 2.9% for GS x4, because the certificate triggers a cold start), and at 30 km/h GS x4 is on the same
+cost-accuracy frontier (0.63% at 4 vs 0.43% at 5.2). Against the exact Cholesky inverse we win nowhere on CPU.
 
 ## 4. Claims we can defend, and ones we cannot
 
