@@ -1,5 +1,10 @@
 # Complex matrix inversion for split-RAN precoding: novelty, simulations, results
 
+> **Read `docs/CRITICAL_REVIEW.md` first.** A later literature check found that warm-started Newton/Neumann inversion for
+> time/frequency-correlated channels and Chebyshev-initialised Newton/Neumann precoding already exist, that the kernel
+> speed-up is 2.5x to 4x at one thread (the rest is threading), and that the fronthaul saving depends on weight granularity.
+> Statements below that read as novelty claims should be taken as superseded by that review.
+
 Everything below is reproduced by `python experiments_v2/run_all.py` (about 1 minute, CPU only, needs only numpy,
 scipy, matplotlib). Raw numbers: `results/v2/*.json`, figures: `results/v2/*.png|pdf`, tests: `pytest tests`.
 
