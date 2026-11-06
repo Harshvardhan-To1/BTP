@@ -149,11 +149,29 @@ With proper intervals the 30 km/h case is a **wash** (about 10% fewer GEMMs, sli
 at low mobility (2.7x fewer GEMMs, 30x lower loss than a fixed cold start). Fixed 1- or 2-step warm starts lose 12.9% and
 1.8% at 30 km/h and fail completely at 120 km/h.
 
+## 3c. Stronger existing baselines (`exp14`): the honest answer to "do we beat prior art?"
+
+GEMMs (K^3-MAC equivalents) needed for <= 1% sum-rate loss, cold start, same test drops:
+
+| | M=64,K=16 | M=128,K=16 | M=64,K=32 |
+|---|---|---|---|
+| Gauss-Seidel (sweep counted as 1 GEMM-equivalent) | **6** | **4** | >12 |
+| Block conjugate gradient (no spectrum info) | 7 | 5 | 12 |
+| Chebyshev-MP init + Newton-Schulz (ours; best of config grid per budget, so flattering to us) | **6** | 5 | **9** |
+
+So against Gauss-Seidel and CG, which are standard in the massive-MIMO precoding literature, **we do not win on
+operation count when K/M <= 0.25** (tie or loss); we win only at K/M = 0.5. Their cost counts hide that Gauss-Seidel
+sweeps are sequential triangular solves (critical path about K per sweep) and CG needs inner-product reductions each
+iteration, whereas our kernels are pure GEMMs plus a closed-form interval. Whether that matters depends on the target
+hardware and was **not measured**. The earlier claim (we beat Neumann / Joint Newton-Neumann / classical Newton-Schulz)
+stands, but those are older baselines and are my own implementations. Gauss-Seidel and CG were not warm-started here;
+a warm-started comparison is the fair next test of the tracking contribution.
+
 ## 4. Claims we can defend, and ones we cannot
 
 Defensible: (i) a moment-matched MP interval is a probabilistic, eigensolve-free spectral model that works for
-correlated and near-far channels; (ii) Chebyshev-then-Newton beats published approximate-inversion schemes at equal
-GEMM budget; (iii) certificate-driven warm start cuts tracking cost 2.7x at low mobility (not at 30 km/h and above) and is
+correlated and near-far channels; (ii) Chebyshev-then-Newton beats Neumann-type schemes (Neumann, Joint Newton-Neumann, classical Newton-Schulz) at
+equal GEMM budget, but only ties or loses to Gauss-Seidel/CG on operation count for K/M <= 0.25 (section 3c); (iii) certificate-driven warm start cuts tracking cost 2.7x at low mobility (not at 30 km/h and above) and is
 safe at high mobility, with a closed-form speed envelope and a probabilistic safety bound for the certificate; (iv) RU-side precoding with per-slot refreshed 8-bit weights saves 72% fronthaul at 0.3% rate loss.
 
 Not defensible: that it needs fewer arithmetic operations than a direct Cholesky/LU inverse (it does not at K <= 32);
