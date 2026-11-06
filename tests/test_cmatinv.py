@@ -69,3 +69,23 @@ def test_doppler_law_matches_iid_simulation():
     r = np.median(residual(Gh, X0))
     pred = predicted_warm_residual(cfg.K, cfg.M, 1 - doppler_rho(cfg))
     assert 0.8 < r / pred < 1.4
+
+
+def test_fused_c_kernels_match_numpy():
+    import pytest
+    try:
+        from cmatinv.fastkernels import rzf_chol, rzf_ns, chol_inverse
+    except OSError:
+        pytest.skip("libcmat.so not built (run kernels/build.sh)")
+    from cmatinv.precoding import rzf_weights
+    rng = np.random.default_rng(0)
+    for K, M in ((8, 64), (16, 48), (32, 128)):
+        H = ((rng.standard_normal((6, K, M)) + 1j * rng.standard_normal((6, K, M))) / np.sqrt(2)).astype(np.complex64)
+        al = K / 10.0
+        G = H @ np.conj(np.swapaxes(H, -1, -2)) + al * np.eye(K)
+        Wr = rzf_weights(H.astype(complex), np.linalg.inv(G), 10.0)
+        assert np.linalg.norm(rzf_chol(H, al, 10.0).transpose(0, 2, 1) - Wr) / np.linalg.norm(Wr) < 1e-5
+        Xp = np.linalg.inv(G).astype(np.complex64) * np.complex64(1.02)
+        X = Xp.copy()
+        _, r = rzf_ns(H, X, al, 10.0)
+        assert np.allclose(r, np.linalg.norm(np.eye(K) - G @ Xp, axis=(1, 2)) / np.sqrt(K), rtol=1e-3)

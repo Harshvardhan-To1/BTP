@@ -23,3 +23,23 @@ def chol_inverse(G, threads=4):
     out = np.empty_like(G)
     _lib.chol_inverse_batch(G.ctypes.data, out.ctypes.data, S, K, threads)
     return out
+
+_lib.rzf_fused_chol.argtypes = [_p, _p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_float, ctypes.c_float, ctypes.c_int]
+_lib.rzf_fused_ns.argtypes = [_p, _p, _p, _p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_float, ctypes.c_float, ctypes.c_int]
+
+
+def rzf_chol(H, alpha, power, W=None, threads=4):
+    """Fused Gram + Cholesky inverse + W = H^H G^-1 (+ power scaling). H [S,K,M] complex64 -> W^T [S,K,M] (row k = beam vector of layer k; W = swapaxes)."""
+    S, K, M = H.shape
+    W = np.empty((S, K, M), np.complex64) if W is None else W
+    _lib.rzf_fused_chol(H.ctypes.data, W.ctypes.data, S, K, M, alpha, power, threads)
+    return W
+
+
+def rzf_ns(H, Xprev, alpha, power, W=None, threads=4):
+    """Fused Gram + one Newton-Schulz step from Xprev (updated in place) + W. Returns (W, exact input residual)."""
+    S, K, M = H.shape
+    W = np.empty((S, K, M), np.complex64) if W is None else W
+    resid = np.empty(S, np.float32)
+    _lib.rzf_fused_ns(H.ctypes.data, Xprev.ctypes.data, W.ctypes.data, resid.ctypes.data, S, K, M, alpha, power, threads)
+    return W, resid

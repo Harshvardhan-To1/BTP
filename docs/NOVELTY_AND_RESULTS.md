@@ -210,6 +210,42 @@ Against the iterative baselines we win at 3 km/h (about 40x lower loss than GS x
 (0.12% vs 2.9% for GS x4, because the certificate triggers a cold start), and at 30 km/h GS x4 is on the same
 cost-accuracy frontier (0.63% at 4 vs 0.43% at 5.2). Against the exact Cholesky inverse we win nowhere on CPU.
 
+## 3e. Kernel optimisation of the whole precoder (`kernels/cmat_kernels.c`, `exp17`)
+
+Treating the DU workload as a kernel-programming task, I fused the whole per-PRB RZF chain into one C pass
+(`rzf_fused_chol`, `rzf_fused_ns`): load H once, Gram `H H^H + alpha I` (lower triangle only), Cholesky inverse
+(or one fused Newton step with its free exact residual), `W = H^H G^-1` and the power scaling, all L1/stack
+resident, OpenMP across PRBs, split re/im planes, `-O3 -march=native -ffast-math`. Optimisations that mattered:
+
+1. Hermitian symmetry: Gram computed on the lower triangle only, Cholesky reads only the lower triangle.
+2. Fusion: no intermediate G, X or W arrays in DRAM; one load of H, one store of W.
+3. Register-blocked axpy formulation of `W = H^H X` (32-wide m blocks, accumulators stay in vector registers across the
+   j loop) and a transposed output layout `W^T [S, K, M]` so every inner loop is contiguous. This alone cut the
+   K=16, M=64 precoder from 0.81 ms to about 0.42 ms.
+4. A 4-column register-blocked Gram variant was tried and was **slower** (0.65 ms), so it was reverted.
+
+Whole precoder per slot (273 PRBs, complex64, 4-core Xeon, median of 40 runs), numpy + LAPACK vs fused C (4 threads):
+
+| K, M | numpy + LAPACK | fused C, Cholesky | fused C, Newton step | speed-up |
+|---|---|---|---|---|
+| 8, 64 | 1.09 ms | 0.12 ms | 0.13 ms | 9.1x |
+| 16, 64 | 3.29 ms | 0.46 ms | 0.42 ms | 7.1x |
+| 32, 64 | 12.5 ms | 1.53 ms | 1.66 ms | 8.1x |
+| 16, 128 | 4.81 ms | 0.70 ms | 0.65 ms | 6.9x |
+| 32, 128 | 15.7 ms | 2.36 ms | 2.52 ms | 6.6x |
+
+Thread scaling is close to linear (K=16, M=64: 1.58 -> 0.78 -> 0.46 ms for 1, 2, 4 threads). **K=8 and K=16 (M=64) now fit
+a 0.5 ms slot on 4 CPU cores for the entire precoder**, which numpy+LAPACK does not for K=16 (3.3 ms). Numerical error
+vs the float64 reference is 2e-7 to 4e-7 (single precision). Timings vary by about 10% between runs on this shared VM.
+
+Interpretation: this is a solid kernel-engineering result (about 7 to 9x), and it applies equally to the exact
+Cholesky path. The warm Newton path ties but does not beat Cholesky inside the fused pipeline (0.42 vs 0.46 ms), so
+on a CPU the practical recommendation is the fused Cholesky kernel; the Newton/certificate machinery is for
+GEMM-engine hardware. Not done: AVX-512 / AMX paths, FP16 kernels, cache-blocking for K > 32, NUMA pinning, and the
+Gram step is still the largest single stage.
+Build: `kernels/build.sh` (needs gcc with OpenMP); the library is git-ignored. Requires an x86 CPU with AVX/FMA for the
+`-march=native` build.
+
 ## 4. Claims we can defend, and ones we cannot
 
 Defensible: (i) a moment-matched MP interval is a probabilistic, eigensolve-free spectral model that works for

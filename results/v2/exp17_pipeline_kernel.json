@@ -1,0 +1,56 @@
+{
+ "S": 273,
+ "nproc": 4,
+ "rows": [
+  {
+   "K": 8,
+   "M": 64,
+   "numpy_lapack": 1.09,
+   "c_chol_1t": 0.477,
+   "c_chol_2t": 0.234,
+   "c_chol_4t": 0.12,
+   "c_ns_4t": 0.126,
+   "speedup_chol_4t": 9.118
+  },
+  {
+   "K": 16,
+   "M": 64,
+   "numpy_lapack": 3.294,
+   "c_chol_1t": 1.584,
+   "c_chol_2t": 0.78,
+   "c_chol_4t": 0.463,
+   "c_ns_4t": 0.422,
+   "speedup_chol_4t": 7.109
+  },
+  {
+   "K": 32,
+   "M": 64,
+   "numpy_lapack": 12.474,
+   "c_chol_1t": 5.735,
+   "c_chol_2t": 2.857,
+   "c_chol_4t": 1.531,
+   "c_ns_4t": 1.661,
+   "speedup_chol_4t": 8.148
+  },
+  {
+   "K": 16,
+   "M": 128,
+   "numpy_lapack": 4.808,
+   "c_chol_1t": 2.502,
+   "c_chol_2t": 1.253,
+   "c_chol_4t": 0.699,
+   "c_ns_4t": 0.651,
+   "speedup_chol_4t": 6.875
+  },
+  {
+   "K": 32,
+   "M": 128,
+   "numpy_lapack": 15.668,
+   "c_chol_1t": 9.142,
+   "c_chol_2t": 4.555,
+   "c_chol_4t": 2.364,
+   "c_ns_4t": 2.524,
+   "speedup_chol_4t": 6.627
+  }
+ ]
+}
