@@ -54,3 +54,18 @@ def test_tracker_safe_under_fast_fading():
     for H in ch.sequence(6):
         Gi, _ = trk.update(gram(H, al))
         assert np.all(np.isfinite(Gi))
+
+
+def test_doppler_law_matches_iid_simulation():
+    from cmatinv.tracker import predicted_warm_residual
+    cfg = ChannelConfig(M=64, K=8, angular_spread_deg=0, shadow_db=0, min_dist_m=499, max_dist_m=500,
+                        speed_kmh=10.0, seed=3)
+    ch = MassiveMIMOChannel(cfg)
+    al = cfg.K / 10.0
+    Gp = gram(ch.current(), al)
+    Gn = gram(ch.step(), al)
+    Gh, s = equilibrate(Gn)
+    X0 = np.linalg.inv(Gp) / (s[:, :, None] * s[:, None, :])
+    r = np.median(residual(Gh, X0))
+    pred = predicted_warm_residual(cfg.K, cfg.M, 1 - doppler_rho(cfg))
+    assert 0.8 < r / pred < 1.4

@@ -56,7 +56,7 @@ GEMMs needed for <=1% sum-rate loss / residual<=1e-2:
   warm NS x1                   loss= 10.946%  GEMMs/slot= 2.00  refresh=0.000
   warm NS x2                   loss=  0.985%  GEMMs/slot= 4.00  refresh=0.000
   warm NS x3                   loss=  0.010%  GEMMs/slot= 6.00  refresh=0.000
-  Proposed RMT-WS (adaptive)   loss=  0.411%  GEMMs/slot= 5.22  refresh=0.025
+  Proposed RMT-WS (adaptive)   loss=  0.446%  GEMMs/slot= 5.19  refresh=0.033
 -- 120 km/h
   exact every slot             loss=  0.000%  GEMMs/slot= 1.00  refresh=0.000
   exact every 2                loss= 37.856%  GEMMs/slot= 0.50  refresh=0.000
@@ -79,11 +79,11 @@ ill-conditioned: AS 3deg, 25 dB
   Cheb-MP + 2 NS, 6 GEMMs                  4b: 25.296 5b: 16.133 6b: 10.106 8b:  4.928 10b:  4.075 12b:  4.015 16b:  3.996 24b:  3.997
   Cheb-MP + 3 NS, 9 GEMMs                  4b: 23.365 5b: 14.339 6b:  8.277 8b:  2.103 10b:  0.490 12b:  0.224 16b:  0.198 24b:  0.198
 tracking 30 km/h (RMT-WS adaptive)
-   {'6': {'rate_loss_pct': 1.9126315920348114, 'gemms': 5.0625}, '8': {'rate_loss_pct': 0.6677521214508464, 'gemms': 5.074074074074074}, '10': {'rate_loss_pct': 0.5253605172262406, 'gemms': 5.078703703703704}, '12': {'rate_loss_pct': 0.512867076398742, 'gemms': 5.078703703703704}, '24': {'rate_loss_pct': 0.5121286888101095, 'gemms': 5.078703703703704}}
+   {'6': {'rate_loss_pct': 1.9117766038091082, 'gemms': 5.06712962962963}, '8': {'rate_loss_pct': 0.7003993906227768, 'gemms': 5.05787037037037}, '10': {'rate_loss_pct': 0.553776253071337, 'gemms': 5.05787037037037}, '12': {'rate_loss_pct': 0.5442246809407993, 'gemms': 5.05787037037037}, '24': {'rate_loss_pct': 0.5436591622246914, 'gemms': 5.05787037037037}}
 ==================== exp9_cost_latency
-{'K': 8, 'M': 64, 'S': 273, 'gram': 0.182, 'exact': 0.417, 'chol': 0.102, 'cold6': 0.85, 'warm1': 0.111, 'warm2': 0.213, 'wform': 0.213, 'macs_exact_inv': 512, 'macs_w_formation': 4096, 'macs_gram': 4096, 'depth_exact': 24, 'depth_cold6': 24, 'depth_warm1': 8}
-{'K': 16, 'M': 64, 'S': 273, 'gram': 0.502, 'exact': 1.773, 'chol': 0.379, 'cold6': 3.446, 'warm1': 0.335, 'warm2': 0.685, 'wform': 0.468, 'macs_exact_inv': 4096, 'macs_w_formation': 16384, 'macs_gram': 16384, 'depth_exact': 48, 'depth_cold6': 30, 'depth_warm1': 10}
-{'K': 32, 'M': 64, 'S': 273, 'gram': 1.924, 'exact': 8.965, 'chol': 1.862, 'cold6': 18.363, 'warm1': 1.632, 'warm2': 3.168, 'wform': 1.059, 'macs_exact_inv': 32768, 'macs_w_formation': 65536, 'macs_gram': 65536, 'depth_exact': 96, 'depth_cold6': 36, 'depth_warm1': 12}
+{'K': 8, 'M': 64, 'S': 273, 'gram': 0.169, 'exact': 0.358, 'chol': 0.092, 'cold6': 0.745, 'warm1': 0.097, 'warm2': 0.176, 'wform': 0.191, 'macs_exact_inv': 512, 'macs_w_formation': 4096, 'macs_gram': 4096, 'depth_exact': 24, 'depth_cold6': 24, 'depth_warm1': 8}
+{'K': 16, 'M': 64, 'S': 273, 'gram': 0.426, 'exact': 1.607, 'chol': 0.381, 'cold6': 3.269, 'warm1': 0.295, 'warm2': 0.572, 'wform': 0.424, 'macs_exact_inv': 4096, 'macs_w_formation': 16384, 'macs_gram': 16384, 'depth_exact': 48, 'depth_cold6': 30, 'depth_warm1': 10}
+{'K': 32, 'M': 64, 'S': 273, 'gram': 1.942, 'exact': 8.169, 'chol': 1.801, 'cold6': 17.651, 'warm1': 1.497, 'warm2': 2.932, 'wform': 1.056, 'macs_exact_inv': 32768, 'macs_w_formation': 65536, 'macs_gram': 65536, 'depth_exact': 96, 'depth_cold6': 36, 'depth_warm1': 12}
 ==================== exp10_fronthaul
 3 km/h  CatA 118.4 Gbps | K-layer floor 29.6 Gbps
    Tu=1,bw=6      ratio=0.967  FH=32.0 Gbps
@@ -118,3 +118,26 @@ tracking 30 km/h (RMT-WS adaptive)
    Tu=8,bw=8      ratio=0.236  FH=30.0 Gbps
    Tu=16,bw=6     ratio=0.153  FH=29.7 Gbps
    Tu=16,bw=8     ratio=0.156  FH=29.8 Gbps
+==================== exp11_doppler_law_and_certificate
+K=16, 10 dB slope(low speed)=1.00 c=1.48 ['0.007', '0.022', '0.037', '0.075', '0.150', '0.225', '0.376', '0.611', '0.898']
+K=16, 25 dB slope(low speed)=1.00 c=1.58 ['0.008', '0.024', '0.040', '0.080', '0.160', '0.241', '0.408', '0.648', '0.959']
+K=8, 10 dB slope(low speed)=1.00 c=0.98 ['0.005', '0.015', '0.025', '0.051', '0.101', '0.150', '0.250', '0.388', '0.557']
+tail {1: {'empirical_miss': 0.07968750000000001, 'bound': 0.5105368860627989}, 2: {'empirical_miss': 0.020416666666666666, 'bound': 0.2629054027027867}, 4: {'empirical_miss': 0.0012152777777777778, 'bound': 0.07172241744918573}}
+audit {'0.1': {'accept_frac': np.float64(0.39166666666666666), 'unsafe_accepts': 0, 'n': 480}, '0.177': {'accept_frac': np.float64(0.425), 'unsafe_accepts': 0, 'n': 480}, '0.25': {'accept_frac': np.float64(0.55625), 'unsafe_accepts': 0, 'n': 480}, '0.3': {'accept_frac': np.float64(0.6041666666666666), 'unsafe_accepts': 0, 'n': 480}, '0.4': {'accept_frac': np.float64(0.6770833333333334), 'unsafe_accepts': 4, 'n': 480}, '0.5': {'accept_frac': np.float64(0.75), 'unsafe_accepts': 12, 'n': 480}}
+==================== exp12_doppler_law
+i.i.d., equal gains measured/predicted: median 1.10  range 1.01-1.26
+38.901 near-far + 12 deg spread measured/predicted: median 1.28  range 1.20-1.56
+{'M=64,K=8': np.float64(59.9), 'M=64,K=16': np.float64(39.2), 'M=128,K=16': np.float64(59.9), 'M=128,K=32': np.float64(39.2), 'M=64,K=32': np.float64(22.7)}
+==================== exp13_confidence
+   3 km/h cold d0=3,ns=2               loss   0.407% [0.259, 0.591]  GEMMs 6.00 [6.00, 6.00]
+   3 km/h warm NS x1                   loss   0.011% [0.007, 0.017]  GEMMs 2.00 [2.00, 2.00]
+   3 km/h warm NS x2                   loss   0.000% [0.000, 0.000]  GEMMs 4.00 [4.00, 4.00]
+   3 km/h Proposed RMT-WS (adaptive)   loss   0.011% [0.007, 0.017]  GEMMs 2.25 [2.25, 2.26]
+  30 km/h cold d0=3,ns=2               loss   0.406% [0.245, 0.619]  GEMMs 6.00 [6.00, 6.00]
+  30 km/h warm NS x1                   loss  12.854% [10.752, 14.892]  GEMMs 2.00 [2.00, 2.00]
+  30 km/h warm NS x2                   loss   1.824% [1.306, 2.373]  GEMMs 4.00 [4.00, 4.00]
+  30 km/h Proposed RMT-WS (adaptive)   loss   0.615% [0.415, 0.842]  GEMMs 5.39 [5.25, 5.54]
+ 120 km/h cold d0=3,ns=2               loss   0.387% [0.244, 0.546]  GEMMs 6.00 [6.00, 6.00]
+ 120 km/h warm NS x1                   loss  98.831% [98.744, 98.909]  GEMMs 2.00 [2.00, 2.00]
+ 120 km/h warm NS x2                   loss  99.634% [99.614, 99.652]  GEMMs 4.00 [4.00, 4.00]
+ 120 km/h Proposed RMT-WS (adaptive)   loss   0.387% [0.249, 0.545]  GEMMs 6.25 [6.25, 6.25]

@@ -105,9 +105,9 @@
   "refresh_frac": 0.0
  },
  "30 km/h | Proposed RMT-WS (adaptive)": {
-  "rate_loss_pct": 0.41120434028726793,
-  "gemms_per_slot": 5.2197916666666675,
-  "refresh_frac": 0.025297619047619048
+  "rate_loss_pct": 0.4457067804329612,
+  "gemms_per_slot": 5.194791666666667,
+  "refresh_frac": 0.033234126984126984
  },
  "120 km/h | exact every slot": {
   "rate_loss_pct": 0.0,

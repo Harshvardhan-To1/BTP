@@ -72,7 +72,7 @@ The config per budget is chosen on validation drops, then reported on disjoint t
 | speed | exact every 2 slots | cold start (6 GEMM) | warm x1 | warm x2 | **RMT-WS** |
 |---|---|---|---|---|---|
 | 3 km/h | 1.2% / 0.5 | 0.12% / 6 | 0.006% / 2 | 0.000% / 4 | **0.006% / 2.25** |
-| 30 km/h | 16% / 0.5 | 0.14% / 6 | 10.9% / 2 | 0.99% / 4 | **0.41% / 5.2** |
+| 30 km/h | 16% / 0.5 | 0.14% / 6 | 10.9% / 2 | 0.99% / 4 | **0.45% / 5.2** |
 | 120 km/h | 38% / 0.5 | 0.13% / 6 | diverges | diverges | **0.13% / 6.25** (falls back to cold start) |
 
 No fixed warm-start depth is right at every speed; the certificate picks it per PRB and never diverges. The saving
@@ -82,7 +82,7 @@ becomes a cold start and gives no saving.
 **Exp8, low precision (`exp8_*`).** GEMM operands/results rounded to b mantissa bits, wide accumulate (tensor-core /
 NPU style). Sum-rate loss vs fp64 exact, direct Gauss-Jordan (every op rounded) vs Chebyshev+3 Newton (9 GEMMs):
 8 bits 0.88% vs 0.15%; 6 bits 5.1% vs 1.4%; ill-conditioned (3 deg spread, 25 dB) at 10 bits 1.2% vs 0.49%. The
-tracker at 8 mantissa bits loses 0.67% vs 0.51% at full precision at 30 km/h. The advantage depends on the
+tracker at 8 mantissa bits loses 0.70% vs 0.54% at full precision at 30 km/h. The advantage depends on the
 wide-accumulate GEMM assumption, which a rank-1-update direct method cannot use.
 
 **Exp9, cost and latency (`exp9_*`), 273 PRBs per slot, complex64, this 4-core CPU:**
@@ -107,12 +107,54 @@ sum-rate**; 6-bit weights 32.0 Gbit/s at 96.7%. Refreshing less often saves only
 at mobility (Tu=4 slots: 97% at 3 km/h, 70% at 30 km/h, 39% at 120 km/h). So RU-side precoding needs a per-slot
 weight refresh at mobility, which is exactly the workload the cheap warm-start step makes affordable.
 
+## 3b. Added on day 2: a closed-form law, a certificate guarantee, and confidence intervals
+
+**Doppler-to-warm-start law (`exp11`, `exp12`).** For the residual of the previous slot's inverse,
+`r0 = ||I - G_t X_{t-1}||_F / sqrt(K)`, a first-order expansion of the AR(1) channel gives
+
+    r0  ~  corr * 2 * sqrt(K / (M - K)) * sqrt(1 - rho),     1 - rho ~ (pi f_D T)^2  (small Doppler)
+
+so `r0` grows **linearly with UE speed** (measured log-log slope 1.00 at 1 to 20 km/h for K=8 and K=16, at 10 and 25 dB),
+and the number of Newton steps needed is `ceil(log2(ln eps / ln r0))`. Measured / predicted over 7 (M, K) pairs
+(K/M from 1/16 to 1/2) and speeds 3 and 10 km/h: median 1.10 (range 1.01 to 1.26) for i.i.d. equal-gain channels;
+median 1.28 (range 1.20 to 1.56) for 38.901 near-far + 12 deg angular spread, so `corr ~ 1.3` there. The law is least
+accurate at K/M = 0.5 (higher-order terms). Consequence, `max_warm_speed_kmh(K, M, corr=1.3)` in `cmatinv/tracker.py`
+(3.5 GHz, 0.5 ms slots, `r0 <= 0.3`): about 39 km/h for M=64, K=16; 60 km/h for K=8; 23 km/h for K=32.
+This is a design rule: for a given array and user count it says up to what speed a one-step warm start is valid and
+when the DU must fall back to a cold start. Not derived rigorously (first-order, large-system heuristics); validated numerically.
+
+**Certificate tail bound (`exp11`).** The probe estimate `r_hat^2 = sum_j ||R z_j||^2 / (p K)` with `z ~ CN(0, I)` is
+unbiased for `||R||_F^2 / K`, and `||R z||^2 = sum_i sigma_i^2 e_i` with `e_i ~ Exp(1)`. A Laurent-Massart lower-tail
+bound for weighted chi-square sums gives
+
+    P( r_hat^2 <= (1 - d) r^2 )  <=  exp( - p d^2 s / 2 ),     s = (sum sigma_i^2)^2 / sum sigma_i^4  (stable rank of R).
+
+For `d = 0.5`, averaged over aged-channel residuals: empirical miss probability 8.0%, 2.0%, 0.12% for p = 1, 2, 4 vs
+bound 51%, 26%, 7%. The bound holds but is loose (it uses a worst-case chi-square tail). Because
+`||R||_2 <= ||R||_F = sqrt(K) r`, accepting a warm start when `r_hat <= sqrt(1-d)/sqrt(K)` (0.18 for K=16, d=0.5)
+guarantees contraction with probability at least `1 - exp(-p d^2 s / 2)`. That guarantee is conservative: in a safety
+audit (480 per-PRB cases, 3 to 120 km/h) the empirical rule `r_hat <= 0.3` had **0 accepted-but-non-contractive cases**
+(spectral radius of R < 1 in all), while `0.4` and `0.5` had 4 and 12. The theoretical threshold accepts 43% of cases,
+the empirical one 60%.
+
+**Confidence intervals (`exp13`, 16 independent user drops, bootstrap 95%):**
+
+| speed | cold start 6 GEMM | **RMT-WS** |
+|---|---|---|
+| 3 km/h | 0.41% [0.26, 0.59] at 6 GEMM | **0.011% [0.007, 0.017] at 2.25 GEMM** |
+| 30 km/h | 0.41% [0.25, 0.62] at 6 GEMM | 0.62% [0.42, 0.84] at 5.4 GEMM [5.25, 5.54] |
+| 120 km/h | 0.39% [0.24, 0.55] at 6 GEMM | 0.39% [0.25, 0.55] at 6.25 GEMM (all cold starts) |
+
+With proper intervals the 30 km/h case is a **wash** (about 10% fewer GEMMs, slightly higher loss); the clear win is
+at low mobility (2.7x fewer GEMMs, 30x lower loss than a fixed cold start). Fixed 1- or 2-step warm starts lose 12.9% and
+1.8% at 30 km/h and fail completely at 120 km/h.
+
 ## 4. Claims we can defend, and ones we cannot
 
 Defensible: (i) a moment-matched MP interval is a probabilistic, eigensolve-free spectral model that works for
 correlated and near-far channels; (ii) Chebyshev-then-Newton beats published approximate-inversion schemes at equal
-GEMM budget; (iii) certificate-driven warm start cuts tracking cost 2.7x at low mobility and is safe at high
-mobility; (iv) RU-side precoding with per-slot refreshed 8-bit weights saves 72% fronthaul at 0.3% rate loss.
+GEMM budget; (iii) certificate-driven warm start cuts tracking cost 2.7x at low mobility (not at 30 km/h and above) and is
+safe at high mobility, with a closed-form speed envelope and a probabilistic safety bound for the certificate; (iv) RU-side precoding with per-slot refreshed 8-bit weights saves 72% fronthaul at 0.3% rate loss.
 
 Not defensible: that it needs fewer arithmetic operations than a direct Cholesky/LU inverse (it does not at K <= 32);
 that it beats LAPACK in cold-start wall-clock; any "real-world measured" claim. **No measured channel data is
@@ -129,6 +171,6 @@ and weight compression beyond BFP.
 
 ## 6. Suggested next steps for the paper
 
-Add confidence intervals (more drops), a Cholesky-inverse timing baseline, channel-estimation error, user
+Done on day 2: confidence intervals for the tracking table, certificate tail bound, Doppler law. Remaining: a Cholesky-inverse timing baseline, channel-estimation error, user
 scheduling changes (certificate-triggered refresh), measured channels, a fixed-point FPGA cost estimate, and
 close the loop with Part B by letting the weight-refresh rate be a per-cell knob in the fronthaul allocation rule.

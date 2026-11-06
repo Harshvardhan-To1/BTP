@@ -65,3 +65,20 @@ class WarmStartTracker:
         self.stats["refresh"] += int(refresh.sum()); self.stats["total"] += S
         self.Ginv = unequilibrate(X, s)
         return self.Ginv, cost
+
+
+def predicted_warm_residual(K, M, one_minus_rho, corr=1.0):
+    """First-order Doppler law: residual of the previous-slot inverse, r0 ~ corr * 2 sqrt(K/(M-K)) sqrt(1-rho).
+
+    Derivation sketch (i.i.d. equal-gain channel): H_t - H_{t-1} ~ sqrt(2(1-rho)) N, so
+    I - G_t X_{t-1} ~ -(N H^H + H N^H) G^-1 sqrt(2(1-rho)); the Frobenius energy of that,
+    divided by K, is 4 K/(M-K) (1-rho). `corr` ~ 1.2-1.5 absorbs near-far + spatial correlation (38.901).
+    """
+    return corr * 2.0 * np.sqrt(K / (M - K)) * np.sqrt(one_minus_rho)
+
+
+def max_warm_speed_kmh(K, M, fc_hz=3.5e9, slot_s=0.5e-3, r_max=0.3, corr=1.0):
+    """Largest UE speed for which one warm-start slot keeps r0 <= r_max (small-Doppler: 1-rho ~ (pi fD T)^2)."""
+    c_coef = corr * 2.0 * np.sqrt(K / (M - K))
+    fd = r_max / (c_coef * np.pi * slot_s)
+    return fd * 299_792_458.0 / fc_hz * 3.6

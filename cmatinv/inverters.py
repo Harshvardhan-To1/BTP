@@ -189,10 +189,14 @@ def residual(Gh, X):
 
 # ---------------------------------------------------------------- certificate
 def probe_residual(Gh, X, probes=2, rng=None):
-    """Randomised residual certificate: ||(I - Gh X) z|| / ||z|| with Gaussian probes z (2K^2 per probe)."""
+    """Unbiased randomised residual certificate.
+
+    z ~ CN(0, I) gives E||R z||^2 = ||R||_F^2 exactly, so with p probes
+    r_hat^2 = sum_j ||R z_j||^2 / (p K) is an unbiased estimate of (||R||_F / sqrt(K))^2,
+    R = I - Gh X, at 2 K^2 MACs per probe. See docs for the tail bound.
+    """
     rng = rng or np.random.default_rng(1)
     S, K, _ = Gh.shape
-    z = rng.standard_normal((S, K, probes)) + 1j * rng.standard_normal((S, K, probes))
+    z = (rng.standard_normal((S, K, probes)) + 1j * rng.standard_normal((S, K, probes))) / np.sqrt(2)
     r = z - Gh @ (X @ z)
-    # E||Rz||^2 / ||z||^2 = ||R||_F^2 / K  ->  estimate of the normalised Frobenius residual
-    return np.sqrt(np.sum(np.abs(r) ** 2, axis=(-2, -1)) / np.sum(np.abs(z) ** 2, axis=(-2, -1)))
+    return np.sqrt(np.sum(np.abs(r) ** 2, axis=(-2, -1)) / (probes * K))
