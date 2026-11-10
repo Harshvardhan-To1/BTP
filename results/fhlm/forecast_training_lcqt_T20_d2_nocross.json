@@ -1,0 +1,272 @@
+{
+  "interval_slots": 20,
+  "telemetry_delay_slots": 2,
+  "family": "synthetic",
+  "hyperparameters": {
+    "d_model": 48,
+    "heads": 4,
+    "layers": 2,
+    "patches": 16,
+    "cross_cell": false,
+    "priority_weighted": true
+  },
+  "train_rows_epochs": 12496,
+  "val_rows_epochs": 6248,
+  "n_params": 44406,
+  "train_time_s": 467.7328777670002,
+  "epochs_run": 40,
+  "lcqt_validation": {
+    "coverage_q05": 0.04665492957746479,
+    "coverage_q25": 0.23719590268886043,
+    "coverage_q50": 0.480713828425096,
+    "coverage_q75": 0.7403169014084507,
+    "coverage_q90": 0.8967069462227913,
+    "coverage_q95": 0.9499439820742638,
+    "pinball_mean": 0.021320858335545822,
+    "median_mae": 0.07234807312488556,
+    "median_mae_rel": 0.35852137207984924,
+    "interval90_coverage": 0.903289052496799,
+    "interval90_width_rel": 1.3798437118530273
+  },
+  "history": [
+    {
+      "epoch": 0,
+      "train_loss": 0.18628510475998195,
+      "val_pinball": 0.03420070821150157
+    },
+    {
+      "epoch": 1,
+      "train_loss": 0.032756778338826266,
+      "val_pinball": 0.026940845788599694
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.028913036184373495,
+      "val_pinball": 0.025554659316415235
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.027909098371920606,
+      "val_pinball": 0.024724435936243575
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.027438131386411786,
+      "val_pinball": 0.023787150129062323
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.02686955787422715,
+      "val_pinball": 0.023856672049736852
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.026542108753998973,
+      "val_pinball": 0.02266695923388881
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.026187923261072967,
+      "val_pinball": 0.02455200207231767
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.026054000677528975,
+      "val_pinball": 0.02232439078141073
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.025799154443487467,
+      "val_pinball": 0.02201127427549181
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.025752085720149562,
+      "val_pinball": 0.022039578732078666
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.025573601521713785,
+      "val_pinball": 0.02193388268406986
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.025423696214540666,
+      "val_pinball": 0.021933962796430343
+    },
+    {
+      "epoch": 13,
+      "train_loss": 0.02541910387604246,
+      "val_pinball": 0.021884090564952236
+    },
+    {
+      "epoch": 14,
+      "train_loss": 0.025273479452111048,
+      "val_pinball": 0.02173994062447666
+    },
+    {
+      "epoch": 15,
+      "train_loss": 0.02521510472790685,
+      "val_pinball": 0.022343199937323577
+    },
+    {
+      "epoch": 16,
+      "train_loss": 0.025068876508828466,
+      "val_pinball": 0.022148762671606967
+    },
+    {
+      "epoch": 17,
+      "train_loss": 0.02506109058532611,
+      "val_pinball": 0.021789270602729227
+    },
+    {
+      "epoch": 18,
+      "train_loss": 0.024927959401785334,
+      "val_pinball": 0.021881643684045837
+    },
+    {
+      "epoch": 19,
+      "train_loss": 0.02491301078249184,
+      "val_pinball": 0.02146785831288607
+    },
+    {
+      "epoch": 20,
+      "train_loss": 0.024903894045536862,
+      "val_pinball": 0.021983966309200742
+    },
+    {
+      "epoch": 21,
+      "train_loss": 0.02477079960928989,
+      "val_pinball": 0.02179817564021577
+    },
+    {
+      "epoch": 22,
+      "train_loss": 0.024749148434335688,
+      "val_pinball": 0.021466216476393987
+    },
+    {
+      "epoch": 23,
+      "train_loss": 0.024661169407672216,
+      "val_pinball": 0.02149366245356986
+    },
+    {
+      "epoch": 24,
+      "train_loss": 0.02459924324164012,
+      "val_pinball": 0.02153176482935192
+    },
+    {
+      "epoch": 25,
+      "train_loss": 0.02450947206414921,
+      "val_pinball": 0.021469587854117803
+    },
+    {
+      "epoch": 26,
+      "train_loss": 0.024480275010806955,
+      "val_pinball": 0.02140208368894504
+    },
+    {
+      "epoch": 27,
+      "train_loss": 0.024405127372139547,
+      "val_pinball": 0.021365162618203568
+    },
+    {
+      "epoch": 28,
+      "train_loss": 0.02443098147827822,
+      "val_pinball": 0.02136665190619538
+    },
+    {
+      "epoch": 29,
+      "train_loss": 0.02431793189661222,
+      "val_pinball": 0.021339684617288773
+    },
+    {
+      "epoch": 30,
+      "train_loss": 0.024283547572095172,
+      "val_pinball": 0.0214826198487536
+    },
+    {
+      "epoch": 31,
+      "train_loss": 0.02420559777101924,
+      "val_pinball": 0.021320858335545822
+    },
+    {
+      "epoch": 32,
+      "train_loss": 0.024188773067389042,
+      "val_pinball": 0.02145163337829875
+    },
+    {
+      "epoch": 33,
+      "train_loss": 0.024149730524928255,
+      "val_pinball": 0.02134633946265545
+    },
+    {
+      "epoch": 34,
+      "train_loss": 0.02409212363981636,
+      "val_pinball": 0.021360748202341087
+    },
+    {
+      "epoch": 35,
+      "train_loss": 0.024056198468930284,
+      "val_pinball": 0.021321118757767887
+    },
+    {
+      "epoch": 36,
+      "train_loss": 0.024046941029525596,
+      "val_pinball": 0.02133701500413998
+    },
+    {
+      "epoch": 37,
+      "train_loss": 0.02402352426253574,
+      "val_pinball": 0.021368902044001437
+    },
+    {
+      "epoch": 38,
+      "train_loss": 0.02403708981175963,
+      "val_pinball": 0.02134774675347062
+    },
+    {
+      "epoch": 39,
+      "train_loss": 0.023999580152323244,
+      "val_pinball": 0.021347573818440487
+    }
+  ],
+  "lcqt_validation_ll": {
+    "coverage_q05": 0.04710840802390098,
+    "coverage_q25": 0.25016005121638923,
+    "coverage_q50": 0.503254374733248,
+    "coverage_q75": 0.7615770379854887,
+    "coverage_q90": 0.9034891165172856,
+    "coverage_q95": 0.9501173708920188,
+    "pinball_mean": 0.024889452083225183,
+    "median_mae": 0.08785638213157654,
+    "median_mae_rel": 0.3849576413631439,
+    "interval90_coverage": 0.9030089628681178,
+    "interval90_width_rel": 1.4249873161315918
+  },
+  "gbm_validation_same_rows": {
+    "coverage_q05": 0.055517765685019205,
+    "coverage_q25": 0.2558018565941101,
+    "coverage_q50": 0.5074023687580026,
+    "coverage_q75": 0.7532810499359796,
+    "coverage_q90": 0.8991477272727273,
+    "coverage_q95": 0.9496638924455826,
+    "pinball_mean": 0.022361452509277985,
+    "median_mae": 0.07515176006075924,
+    "median_mae_rel": 0.3724150492282743,
+    "interval90_coverage": 0.8941461267605634,
+    "interval90_width_rel": 1.5069389370728643
+  },
+  "gbm_validation_ll_same_rows": {
+    "coverage_q05": 0.05644472897994025,
+    "coverage_q25": 0.2590162185232608,
+    "coverage_q50": 0.5095497225778916,
+    "coverage_q75": 0.7521873666239863,
+    "coverage_q90": 0.8994878361075545,
+    "coverage_q95": 0.9479300042680324,
+    "pinball_mean": 0.025923497763875213,
+    "median_mae": 0.09173240030986353,
+    "median_mae_rel": 0.40194107640258175,
+    "interval90_coverage": 0.8914852752880922,
+    "interval90_width_rel": 1.4746659006844645
+  }
+}
