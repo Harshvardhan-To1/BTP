@@ -48,6 +48,10 @@
 \setbeamertemplate{itemize items}[circle]
 \setbeamertemplate{blocks}[rounded][shadow=false]
 \setbeamerfont{frametitle}{size=\large,series=\bfseries}
+\setbeamerfont{section in toc}{size=\small}
+\makeatletter
+\patchcmd{\beamer@sectionintoc}{\vskip1.5em}{\vskip0.6em}{}{}
+\makeatother
 
 \newcommand{\rstar}{r^{\ast}}
 \newcommand{\hl}[1]{\textcolor{accent}{\textbf{#1}}}
@@ -145,6 +149,7 @@ Deadline-Feasible, Uncertainty-Aware Budget Allocation on a Shared 7-2x Link}
 \end{frame}
 
 \begin{frame}{Objectives and contributions}
+  \footnotesize
   \begin{enumerate}
     \item \textbf{Part A --- Compression and computation}
       \begin{itemize}
@@ -160,7 +165,8 @@ Deadline-Feasible, Uncertainty-Aware Budget Allocation on a Shared 7-2x Link}
         \item Fair evaluation: 12 controllers, 2 traffic families, 20 test seeds, paired statistics.
       \end{itemize}
     \item \textbf{Extended study} --- MDP formulation, Markov-fluid theory of $\rstar$, a 3rd traffic family, 7 more controllers.
-    \item \textbf{Outputs} --- NCC 2027 paper (6 pp.), 11-page extended manuscript, fully reproducible code (38 tests).
+    \item \textbf{Part B2} --- a modified Transformer forecaster (LCQT) with a Bayesian mixture layer and a differentiable KKT layer.
+    \item \textbf{Outputs} --- NCC 2027 paper (6 pp.), 11-page extended manuscript, fully reproducible code (42 tests).
   \end{enumerate}
 \end{frame}
 
@@ -1319,11 +1325,223 @@ gcc -O3 -march=native -fopenmp -ffast-math
 \end{frame}
 
 % =====================================================================
+\section{Part B2: A Bayesian, Decision-Focused Transformer for the Shared Link}
+% =====================================================================
+
+\begin{frame}{Starting point: which Transformer, and what we change}
+  \scriptsize
+  \begin{columns}[T]
+    \begin{column}{0.47\textwidth}
+      \textbf{Existing architectures we build on}
+      \begin{itemize}
+        \item \textbf{PatchTST} (Nie et al., ICLR 2023): series cut into patches, one shared encoder per channel.
+        \item \textbf{iTransformer} (Liu et al., ICLR 2024): attention \emph{across} variates instead of time.
+        \item \textbf{TFT} (Lim et al., 2021): multi-quantile output, static covariates.
+        \item \textbf{MC dropout} (Gal \& Ghahramani 2016), \textbf{deep ensembles} (Lakshminarayanan et al.\ 2017).
+        \item \textbf{Decision-focused learning} (Donti et al.\ 2017; Elmachtoub \& Grigas 2022).
+      \end{itemize}
+      \textbf{Closest O-RAN work}: goal-oriented PRB forecasting with TFT (arXiv 2609.17297) trains pinball at a cost-derived level and \emph{avoids} differentiating through the allocation; per cell, no shared link, no deadlines.
+    \end{column}
+    \begin{column}{0.53\textwidth}
+      \textbf{Our modifications (LCQT family)}
+      \begin{enumerate}
+        \item \textbf{Deadline-aware patch tokens}: each patch carries its own $\rstar$ at the cell's deadline (+ mean, max); a summary token holds the 28 GBM features.
+        \item \textbf{Deadline/priority FiLM}: one network for LL and eMBB cells.
+        \item \textbf{Link-aware cross-cell layer}: attention over the 8 cells that share the link.
+        \item \textbf{Non-crossing quantile head}: $q_k = q_{k-1} + \mathrm{softplus}(a_k)$.
+        \item \textbf{Bayesian layer}: ensemble $\times$ MC-dropout posterior, fed to the KKT rule as a \emph{mixture} (keeps epistemic spread).
+        \item \textbf{Differentiable KKT layer}: train \emph{through} the coupled capacity constraint (implicit gradient through the shadow price $\lambda^\ast$).
+      \end{enumerate}
+      \vspace{2pt}
+      \textcolor{accent}{We found no paper combining these; each block is prior art.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{LCQT: link-aware cross-cell quantile Transformer}
+  \centering
+  \begin{tikzpicture}[
+      font=\scriptsize, >=Stealth,
+      box/.style={draw=iitblue, fill=soft, rounded corners=2pt, align=center, minimum height=0.9cm, inner sep=3pt},
+      hot/.style={box, draw=accent, fill=accent!8},
+      grn/.style={box, draw=good, fill=good!8}]
+    \node[box] (hist) {Per-cell history\\$a_i(t)$, 352 slots};
+    \node[box, right=0.35cm of hist] (patch) {16 patches $\times$ $H{=}22$\\+ $\rstar$, mean, max};
+    \node[box, below=0.25cm of patch] (feat) {Summary token\\28 GBM features};
+    \node[box, right=0.35cm of patch] (enc) {Temporal encoder\\2 layers, $d{=}48$, 4 heads\\(shared by cells)};
+    \node[box, right=0.35cm of enc] (film) {FiLM\\$(D_i/H,\ p_i)$};
+    \node[hot, right=0.35cm of film] (cross) {Cross-cell\\attention\\(8 cells)};
+    \node[box, right=0.35cm of cross] (head) {Non-crossing\\6 quantiles};
+    \node[grn, below=1.25cm of cross] (bayes) {Bayesian layer\\3 seeds $\times$ 8 dropout\\$\Rightarrow$ mixture $\hat F_i$};
+    \node[grn, left=0.9cm of bayes] (kkt) {KKT rule\\$r_i = B_i + \hat F_i^{-1}(1-\lambda^\ast/w_i)$\\$\textstyle\sum_i r_i = C$};
+    \node[hot, left=0.9cm of kkt] (loss) {Decision loss\\$\sum_i p_i (D_i{+}1)(B_i{+}\rstar_i - r_i)^+$\\$+\ \beta\,$pinball};
+    \draw[->] (hist) -- (patch);
+    \draw[->] (patch) -- (enc);
+    \draw[->] (feat.east) -| ([xshift=-0.15cm]enc.south);
+    \draw[->] (enc) -- (film);
+    \draw[->] (film) -- (cross);
+    \draw[->] (cross) -- (head);
+    \draw[->] (head.south) |- (bayes.east);
+    \draw[->] (bayes) -- (kkt);
+    \draw[->, dashed, accent] (kkt) -- node[below, font=\tiny, yshift=-2pt]{$\partial\lambda^\ast$} (loss);
+  \end{tikzpicture}\\[6pt]
+  \footnotesize
+  \begin{tabular}{lll}
+    \toprule
+    Parameters & 63\,k (44\,k without cross-cell layer) & vs.\ $6\times300$ GBM trees \\
+    Training & 40 epochs, AdamW + OneCycle, early stop on \textbf{validation} pinball & $\approx$6\,min, 4-core CPU \\
+    Data & same train / val / test seeds and target as the GBM & test seeds never seen \\
+    \bottomrule
+  \end{tabular}
+\end{frame}
+
+\begin{frame}{The two non-standard layers}
+  \footnotesize
+  \begin{columns}[T]
+    \begin{column}{0.49\textwidth}
+      \begin{block}{Bayesian mixture layer}
+        Posterior samples $s = 1..M S$ (members $\times$ dropout passes) give quantile functions $Q_i^{(s)}$. The KKT rule gets the \textbf{mixture}
+        \[ \hat F_i(x) = \tfrac{1}{MS}\textstyle\sum_s F_i^{(s)}(x), \]
+        not the averaged quantiles. Averaging quantiles throws away the disagreement between samples. With the mixture, a cell whose forecast the posterior is unsure about gets a \textbf{wider} margin at the same $\lambda^\ast$.\\[3pt]
+        Dropout seeded per decision slot $\Rightarrow$ runs stay reproducible.
+      \end{block}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \begin{block}{Differentiable KKT layer}
+        Forward: bisection for $\lambda^\ast$ (no gradient). Backward: implicit function theorem on the binding link
+        \[ g(\lambda,q) = \textstyle\sum_i r_i(\lambda,q) - C = 0 \;\Rightarrow\; \frac{\partial\lambda^\ast}{\partial q} = -\frac{\partial g/\partial q}{\partial g/\partial \lambda}, \]
+        implemented as one Newton step from the detached root. Loss = the pathwise \textbf{shortfall-sandwich} lower bound on dropped bits.\\[3pt]
+        Contexts $(B_i, w_i)$ depend on the policy: logged closed-loop on training seeds, then one \textbf{DAgger} round.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{2pt}
+  \centering\footnotesize Unit tests: the layer matches the numpy allocator to $10^{-6}$; $\partial\sum_i r_i/\partial q = 0$ when the link is full (budget only moves between cells).
+\end{frame}
+
+\begin{frame}{Forecast quality (same validation rows for every model)}
+  \scriptsize
+  \centering
+  \begin{tabular}{lcccccc}
+    \toprule
+    & \multicolumn{4}{c}{Validation (in distribution)} & \multicolumn{2}{c}{Shift (held out, OOD)} \\
+    \cmidrule(lr){2-5}\cmidrule(lr){6-7}
+    Model & Pinball & Pinball LL & 90\,\% cov. & 90\,\% width & 90\,\% cov. & LL $q_{0.95}$ cov. \\
+    \midrule
+    GBM (before) & 0.0224 & 0.0259 & 0.894 & 1.51 & --- & --- \\
+    LCQT & \best{0.0214} & \best{0.0251} & 0.902 & \best{1.36} & 0.795 & 0.855 \\
+    \quad without cross-cell layer & 0.0213 & 0.0249 & 0.903 & 1.38 & & \\
+    \quad unweighted pinball & 0.0213 & 0.0250 & 0.922 & 1.38 & & \\
+    LCQT + MC dropout (16) & 0.0214 & 0.0251 & 0.911 & 1.41 & 0.802 & 0.870 \\
+    Deep ensemble (3) & \best{0.0212} & \best{0.0248} & 0.912 & 1.37 & 0.806 & 0.864 \\
+    \rowcolor{good!10} Ensemble $\times$ MC (3$\times$8) & 0.0213 & 0.0249 & \best{0.919} & 1.40 & \best{0.808} & \best{0.873} \\
+    DF-LCQT (decision-focused) & 0.0224 & 0.0273 & 0.907 & 1.38 & 0.830 & 0.822 \\
+    \bottomrule
+  \end{tabular}
+  \normalsize
+  \begin{itemize}\footnotesize
+    \item The Transformer cuts pinball by \textbf{4.5\,\%} and the 90\,\% interval by \textbf{8\,\%} \emph{at higher coverage} than GBM.
+    \item The cross-cell layer and priority weighting do \textbf{not} improve the forecast (ablations equal within noise).
+    \item The Bayesian layer moves coverage towards nominal under shift (LL $q_{0.95}$: 0.855 $\to$ 0.873), but cannot remove under-coverage there: the shift is outside training.
+    \item DF-LCQT gives up forecast accuracy on purpose: it shades the LL upper tail (LL $q_{0.95}$ coverage 0.88).
+  \end{itemize}
+  \vspace{-2pt}{\tiny Transformer rows read through the mixture layer (1 sample for LCQT); the direct read-out of LCQT gives 0.909 / 1.38. Ablation rows: direct read-out.}
+\end{frame}
+
+\begin{frame}{Closed loop: $V_w$ [\%] on Family S (mean of 20 test seeds)}
+  \scriptsize
+  \centering
+  \begin{tabular}{lccccc}
+    \toprule
+    Controller & low 0.50 & moderate 0.65 & high 0.80 & flash crowd & shift \\
+    \midrule
+    GBM + KKT (proposed, before) & 0.15 & 2.15 & 8.00 & 11.76 & 10.04 \\
+    LCQT median + water-fill & 0.25 & 3.14 & 9.76 & 13.47 & 11.51 \\
+    LCQT + KKT & 0.13 & 2.05 & 7.91 & 11.81 & 10.06 \\
+    \quad without cross-cell layer & 0.13 & 2.05 & 7.94 & 11.83 & 10.00 \\
+    \quad unweighted pinball & 0.13 & 2.05 & 7.85 & 11.71 & 9.95 \\
+    MC-dropout LCQT + KKT & 0.12 & 2.04 & 7.93 & 11.82 & 10.03 \\
+    \rowcolor{good!10} \textbf{Bayesian LCQT + KKT} (3$\times$8) & \best{0.12} & \best{2.02} & \best{7.89} & 11.78 & 10.02 \\
+    DF-LCQT + KKT & 0.18 & 2.26 & 7.93 & 11.62 & 10.15 \\
+    \midrule
+    CEM policy (extended study) & 0.13 & 1.77 & 6.57 & 10.20 & 9.73 \\
+    Predictive MaxWeight & 0.14 & 1.62 & 6.15 & 9.69 & 10.25 \\
+    Oracle + KKT (true $\rstar$) & 0.05 & 0.88 & 4.77 & 8.10 & 5.84 \\
+    \bottomrule
+  \end{tabular}
+  \normalsize
+  \vspace{2pt}
+  \begin{itemize}\footnotesize
+    \item Same traces and seeds for every row; GBM rows re-run and match the stored runs exactly (deterministic simulator).
+    \item Best \emph{KKT-rule} variant: \textbf{Bayesian LCQT}. Back-pressure and policy search remain better at moderate--flash load.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Paired per-seed statistics and what carries the gain}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[width=\linewidth]{fig_transformer_delta.png}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \scriptsize
+      \textbf{Bayesian LCQT vs.\ GBM + KKT} (95\,\% bootstrap CI, wins /20, Holm--Wilcoxon)\\[2pt]
+      \begin{tabular}{lcc}
+        \toprule
+        Scenario & Reduction & Wins \\
+        \midrule
+        low & \best{$-20.8\%$} [16.0, 28.3] & 20 \\
+        moderate & \best{$-6.1\%$} [5.1, 7.0] & 20 \\
+        high & \best{$-1.4\%$} [1.0, 1.8] & 20 \\
+        flash & $+0.2\%$ (n.s.) & 9 \\
+        shift & $-0.2\%$ (n.s.) & 14 \\
+        \bottomrule
+      \end{tabular}\\[3pt]
+      vs.\ plain LCQT: $-0.2$ to $-5.3\%$, all 5 scenarios, $p < 0.03$.
+      \begin{itemize}\scriptsize
+        \item \textbf{Patch Transformer}: the main gain.
+        \item \textbf{Bayesian mixture}: small, consistent extra gain.
+        \item \textbf{Cross-cell layer}, \textbf{priority loss}: no gain.
+        \item \textbf{DF-LCQT}: $-1.2\%$ in flash ($p<10^{-3}$) but $+14\%$ at low load: the one-horizon surrogate ignores queue carry-over.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Part B2: honest assessment}
+  \small
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{exampleblock}{What improved}
+        \begin{itemize}\footnotesize
+          \item The Bayesian LCQT improves the proposed method on \textbf{every} seed at low--high load and never loses significantly.
+          \item The Bayesian mixture layer is the best KKT variant and gives the best calibration under shift.
+          \item LCQT is cheaper per decision than GBM (2.7 vs 3.4\,ms).
+          \item The differentiable KKT layer works and is unit-tested; validation decision loss $-9\,\%$ after DAgger (each model under its own policy).
+        \end{itemize}
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{alertblock}{What did not}
+        \begin{itemize}\footnotesize
+          \item Gains are small at high load ($-1.4\,\%$). The gap to CEM / predictive MaxWeight (14--28\,\%) is \textbf{structural}, not forecast error. This confirms the extended-study diagnosis.
+          \item The decision-focused model's validation gain did not transfer to the test seeds at low/moderate load.
+          \item The Bayesian layer costs 17--21\,ms in Python ($>$10\,ms interval): it needs batched / compiled inference on an O-DU.
+          \item Synthetic Family S only; G and M not yet run.
+        \end{itemize}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+  \vspace{2pt}
+  \footnotesize\textbf{Next}: a multi-interval differentiable fluid-queue loss (captures carry-over), and the Bayesian LCQT as the forecaster inside CEM / predictive MaxWeight.
+\end{frame}
+
+% =====================================================================
 \section{Conclusions and Future Work}
 % =====================================================================
 
 \begin{frame}{What we do \emph{not} claim}
-  \small
+  \footnotesize
   \begin{itemize}
     \item \textbf{No real-world validation}: three simulated families. Family G uses standard 3GPP models but our own round-robin scheduler and single-link fronthaul.
     \item \textbf{Part A} compression figures are from the earlier run (the \texttt{src/} package is not in the repository); the inversion benchmark uses random well-conditioned matrices, not channel matrices.
@@ -1332,6 +1550,7 @@ gcc -O3 -march=native -fopenmp -ffast-math
     \item \textbf{No universal superiority}: only $-4$\,\% vs.\ proportional under flash crowds; loses at $T = 20$\,ms, at $\ge 0.86$ load, near-tie at $\tau = 5$\,ms; ML adds $\approx 2$\,\% under shift.
     \item \textbf{Priority trade}: the claim holds for LL weight $\ge$ 2--3.
     \item In the extended comparison, CEM policy search and predictive MaxWeight beat the KKT rule in 9/10 scenarios.
+    \item \textbf{Transformer (B2)}: Family S only; gains at high load are small ($-1.4\,\%$); the Bayesian layer is too slow in Python for a 10\,ms interval; decision-focused training did not transfer. ``No prior paper'' means none found in our search, not a proof.
   \end{itemize}
 \end{frame}
 
@@ -1341,12 +1560,12 @@ gcc -O3 -march=native -fopenmp -ffast-math
     Structure-aware encoders: \textbf{13--16$\times$} at $\approx -20$\,dB (BFP $\sim 4\times$), \textbf{3--6$\times$ faster} than SVD. A learned \emph{iteration} works where a direct neural inverse fails. A \textbf{fused C/AVX-512 RZF kernel} runs the whole precoder 10--15$\times$ faster than numpy+LAPACK, fitting $K \le 16$ in a 0.5\,ms slot; RU-side precoding cuts fronthaul by $\approx 72\,\%$.
   \end{block}
   \begin{block}{Part B}
-    Forecasting the \textbf{deadline-feasible rate} as a \textbf{range} and splitting the link with a closed-form \textbf{KKT rule} is the best of 12 controllers in all scenarios of two families: \textbf{$-11$ to $-43$\,\%} vs.\ the forecast median, \textbf{$-19$ to $-70$\,\%} vs.\ deadline-aware reactive, every seed, $p < 0.01$.
+    Forecasting the \textbf{deadline-feasible rate} as a \textbf{range} and splitting the link with a closed-form \textbf{KKT rule} is the best of 12 controllers in all scenarios of two families: \textbf{$-11$ to $-43$\,\%} vs.\ the forecast median, \textbf{$-19$ to $-70$\,\%} vs.\ deadline-aware reactive, every seed, $p < 0.01$. \textbf{B2}: a Bayesian patch Transformer adds \textbf{$-21$/$-6$/$-1.4$\,\%} (low/mod./high, 20/20 seeds).
   \end{block}
   \begin{columns}[T]
     \begin{column}{0.5\textwidth}
   \begin{block}{Extended study}
-    $\rstar$ linked to effective bandwidth (bounds valid but loose). Reward-learned class levels and predictive back-pressure go further: the gap is \textbf{structural}. Short interval $\to$ reservation; long interval, short bursts $\to$ back-pressure.
+    $\rstar$ linked to effective bandwidth (bounds valid, loose). Learned class levels and predictive back-pressure go further: the gap is \textbf{structural} (B2 confirms it).
   \end{block}
     \end{column}
     \begin{column}{0.48\textwidth}
@@ -1384,6 +1603,7 @@ gcc -O3 -march=native -fopenmp -ffast-math
         \item Skill-weighted mix of learned and window quantiles as fallback
         \item Switch-level queue model; compiled implementation for an O-DU
         \item Stronger policy search (neural policy, more episodes)
+        \item B2: multi-interval fluid-queue loss; Bayesian LCQT inside CEM / pred.\ MaxWeight
       \end{itemize}
     \end{column}
   \end{columns}
@@ -1394,13 +1614,15 @@ gcc -O3 -march=native -fopenmp -ffast-math
   \begin{columns}[T]
     \begin{column}{0.5\textwidth}
       \textbf{Repository}
+      \scriptsize
       \begin{itemize}
         \item \texttt{matinv\_bench/} --- inversion benchmark, InverseNets
         \item \texttt{cmatinv/}, \texttt{experiments\_v2/} --- complex inversion, RMT-WS, 38.901 channels, Exp.\ 5--18
         \item \texttt{kernels/} --- fused C/AVX-512/OpenMP precoder
         \item \texttt{experiments/} --- Part A Exp.\ 1--4, extended pipeline
         \item \texttt{fhlm/} --- simulator, traffic (S, G, M), forecasters, 19 controllers, theory, figures, tables
-        \item \texttt{tests/} --- 16 + 14 + 8 tests (capacity every slot, no future leakage, bound validity, \dots)
+        \item \texttt{fhlm/transformer.py}, \texttt{decision\_focused.py} --- Part B2
+        \item \texttt{tests/} --- 16 + 14 + 8 + 4 tests (capacity every slot, no future leakage, bound validity, KKT-layer gradients, \dots)
         \item \texttt{results/} --- all CSVs / logs / figures
       \end{itemize}
       \textbf{Papers}
@@ -1411,11 +1633,13 @@ gcc -O3 -march=native -fopenmp -ffast-math
       \scriptsize
 \begin{verbatim}
 python -m pytest tests -q
-python -m fhlm.train \
-  --out models/fhlm_quantile_gbm_T20_d2.pkl
+python -m fhlm.train
 python -m fhlm.run_experiments tune
 python -m fhlm.run_experiments main
 python -m fhlm.make_figures
+python -m fhlm.train_transformer
+python -m fhlm.decision_focused
+python -m fhlm.run_transformer_study
 bash experiments/run_extended.sh
 sh kernels/build.sh
 python experiments_v2/run_all.py
@@ -1443,6 +1667,9 @@ python experiments_v2/run_all.py
     \item G.\ Hadley, T.\,M.\ Whitin, \emph{Analysis of Inventory Systems} (multi-item newsvendor), 1963.
     \item W.\ Willinger et al., self-similar ON/OFF traffic, \emph{IEEE/ACM ToN}, 1997.
     \item D.\ Anick, D.\ Mitra, M.\,M.\ Sondhi, Markov fluid sources, \emph{BSTJ}, 1982.
+    \item Y.\ Nie et al., PatchTST, ICLR 2023;\ Y.\ Liu et al., iTransformer, ICLR 2024;\ B.\ Lim et al., Temporal Fusion Transformer, \emph{IJF} 2021.
+    \item Y.\ Gal, Z.\ Ghahramani, MC dropout, ICML 2016;\ B.\ Lakshminarayanan et al., deep ensembles, NeurIPS 2017.
+    \item P.\ Donti, B.\ Amos, J.\,Z.\ Kolter, task-based end-to-end learning, NeurIPS 2017;\ A.\ Elmachtoub, P.\ Grigas, ``Smart predict-then-optimize,'' \emph{Mgmt.\ Sci.} 2022.
   \end{itemize}
 \end{frame}
 
