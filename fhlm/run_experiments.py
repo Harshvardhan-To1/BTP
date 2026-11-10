@@ -48,7 +48,8 @@ PRIMARY_METRIC = "weighted_violation_ratio"
 METHOD_ORDER = ["static_equal", "reactive_prop", "maxweight", "pred_maxweight", "queue_aware", "point_forecast",
                 "fixed_quantile", "cem_policy", "eb_kkt", "markov_kkt", "proposed_window", "proposed", "proposed_vc", "proposed_tw", "proposed_cal",
                 "proposed_transfer", "proposed_tf", "proposed_tf_nocross", "proposed_tf_unw", "point_forecast_tf",
-                "proposed_tf_mc", "proposed_tf_bayes", "proposed_tf_dfl", "proposed_tf_dfl_bayes", "markov_oracle_kkt", "oracle", "oracle_kkt"]
+                "proposed_tf_mc", "proposed_tf_bayes", "proposed_tf_dfl", "proposed_tf_dfl_bayes",
+                "pred_maxweight_cem", "pred_maxweight_cem_tf", "cem_policy_v2", "cem_policy_v2_tf", "bpn", "bpn_tf", "bpn_tf_bayes", "markov_oracle_kkt", "oracle", "oracle_kkt"]
 METHOD_LABELS = {
     "static_equal": "Static equal share",
     "reactive_prop": "Reactive proportional (EWMA)",
@@ -75,6 +76,13 @@ METHOD_LABELS = {
     "proposed_tf_bayes": "Proposed KKT rule with Bayesian LCQT: 3-member deep ensemble x 8 MC-dropout samples",
     "proposed_tf_dfl": "Proposed KKT rule with decision-focused LCQT (trained through the differentiable KKT layer)",
     "proposed_tf_dfl_bayes": "Decision-focused LCQT + MC-dropout posterior (16 samples, mixture quantiles) + KKT rule",
+    "pred_maxweight_cem": "Predictive MaxWeight with (margin, lookahead) learned by CEM on training seeds",
+    "pred_maxweight_cem_tf": "Predictive MaxWeight (CEM-tuned) with the LCQT forecaster",
+    "cem_policy_v2": "Class-level policy re-searched by CEM with the same budget as BPN (GBM)",
+    "cem_policy_v2_tf": "Class-level policy re-searched by CEM with the LCQT forecaster",
+    "bpn": "Back-pressure newsvendor: back-pressure base fill + KKT margins, 6 parameters by CEM (GBM)",
+    "bpn_tf": "Back-pressure newsvendor with the LCQT forecaster",
+    "bpn_tf_bayes": "Back-pressure newsvendor with the Bayesian LCQT forecaster (parameters of bpn_tf)",
     "oracle": "Oracle water-fill (true r*, not implementable; reference, not a bound)",
     "oracle_kkt": "Oracle + KKT rule (true r*, priority-ordered fill; the proposed rule with a perfect forecast)",
 }
@@ -245,7 +253,34 @@ def build_controller(name: str, params: Dict[str, Any], interval: int, delay: in
         return OracleWaterfill(w_min=p.get("w_min", 0.25))
     if name == "oracle_kkt":
         return OracleKKT(w_min=p.get("w_min", 0.25))
+    if name in HYBRID_METHODS:
+        from . import hybrid
+        policy, fc_kind = HYBRID_METHODS[name]
+        if fc_kind == "gbm":
+            fc = ensure_forecaster(interval, delay, family)
+        elif fc_kind == "lcqt":
+            fc = ensure_tf_forecaster(interval, delay, family)
+        else:
+            fc = ensure_bayes_forecaster("proposed_tf_bayes", interval, delay, family)
+        if name.endswith("__search"):
+            hp = {k: v for k, v in p.items() if not k.startswith("_")}
+        else:
+            hp = hybrid.load_params(policy, "gbm" if fc_kind == "gbm" else "lcqt", family)
+        return hybrid.build(policy, fc, hp, name)
     raise ValueError(name)
+
+
+# name -> (policy class in fhlm.hybrid, forecaster). The Bayesian variants reuse the parameters learned with
+# the single LCQT (CEM through the Bayesian forecaster is too slow) and swap only the forecaster.
+HYBRID_METHODS = {
+    "bpn": ("bpn", "gbm"), "bpn_tf": ("bpn", "lcqt"), "bpn_tf_bayes": ("bpn", "bayes"),
+    "pred_maxweight_cem": ("pred_maxweight_cem", "gbm"), "pred_maxweight_cem_tf": ("pred_maxweight_cem", "lcqt"),
+    "bpn__search": ("bpn", "gbm"), "bpn_tf__search": ("bpn", "lcqt"),
+    "pred_maxweight_cem__search": ("pred_maxweight_cem", "gbm"),
+    "pred_maxweight_cem_tf__search": ("pred_maxweight_cem", "lcqt"),
+    "cem_policy_v2": ("cem_policy_v2", "gbm"), "cem_policy_v2_tf": ("cem_policy_v2", "lcqt"),
+    "cem_policy_v2__search": ("cem_policy_v2", "gbm"), "cem_policy_v2_tf__search": ("cem_policy_v2", "lcqt"),
+}
 
 
 def with_compression(cfg, trace, mantissa_bits: int):

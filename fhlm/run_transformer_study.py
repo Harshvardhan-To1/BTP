@@ -18,7 +18,7 @@ import pandas as pd
 
 from .scenarios import TEST_SEEDS, scenarios_of
 from .run_experiments import (run_jobs, tuned_params, paired_analysis, tf_method_available, RESULTS_DIR,
-                              PRIMARY_METRIC, METHOD_ORDER)
+                              PRIMARY_METRIC, METHOD_ORDER, TF_VARIANTS, BAYES_VARIANTS)
 
 NEW_METHODS = ["proposed", "proposed_tf", "point_forecast_tf", "proposed_tf_nocross", "proposed_tf_unw",
                "proposed_tf_mc", "proposed_tf_bayes", "proposed_tf_dfl", "proposed_tf_dfl_bayes"]
@@ -41,7 +41,8 @@ def main(argv=None):
 
     scenarios = args.scenarios or scenarios_of(args.family)
     methods = [m for m in (args.methods or NEW_METHODS)
-               if m == "proposed" or tf_method_available(m, args.interval, args.delay, args.family)]
+               if m not in TF_VARIANTS and m not in BAYES_VARIANTS
+               or tf_method_available(m, args.interval, args.delay, args.family)]
     jobs = [(sc, seed, m, tuned_params(m, sc) if m == "proposed" else {}, args.interval, args.delay, args.slots,
              args.warmup, "") for sc in scenarios for seed in TEST_SEEDS for m in methods]
     df = run_jobs(jobs, args.workers)
