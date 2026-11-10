@@ -222,3 +222,16 @@ compression width a second knob of the allocation rule; real or public traffic
 traces; a skill-weighted mix of trained and simple quantiles as the fallback;
 a switch-level packet queue; uplink; a compiled implementation of the
 decision (currently 3.5 ms in Python).
+
+## v2: complex-matrix inversion for split-RAN precoding
+
+New package `cmatinv/` and `experiments_v2/` study **complex Hermitian Gram inversion for RZF precoding** under
+3GPP TR 38.901 channels, with a proposed random-matrix-theory-guided warm-start inverter ("RMT-WS") and an O-RAN
+fronthaul model. Read [`docs/CRITICAL_REVIEW.md`](docs/CRITICAL_REVIEW.md) for what is and is not novel, then
+[`docs/NOVELTY_AND_RESULTS.md`](docs/NOVELTY_AND_RESULTS.md).
+
+```bash
+pip install numpy scipy matplotlib pandas tqdm pytest
+python experiments_v2/run_all.py     # ~1 min, writes results/v2/
+pytest tests
+```

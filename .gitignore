@@ -32,3 +32,6 @@ paper/extended/*.log
 paper/extended/*.out
 paper/extended/*.bbl
 paper/extended/*.blg
+
+# cmatinv C kernels
+kernels/libcmat.so

@@ -1,0 +1,263 @@
+{
+ "rows": [
+  {
+   "scenario": "i.i.d., equal gains",
+   "M": 64,
+   "K": 4,
+   "speed": 3,
+   "measured": 0.008071221032413974,
+   "predicted": 0.007891465460810243,
+   "beta": 0.0625
+  },
+  {
+   "scenario": "i.i.d., equal gains",
+   "M": 64,
+   "K": 4,
+   "speed": 10,
+   "measured": 0.026505757899989983,
+   "predicted": 0.02629712114320711,
+   "beta": 0.0625
+  },
+  {
+   "scenario": "i.i.d., equal gains",
+   "M": 64,
+   "K": 8,
+   "speed": 3,
+   "measured": 0.01191403404332696,
+   "predicted": 0.01155192257831332,
+   "beta": 0.125
+  },
+  {
+   "scenario": "i.i.d., equal gains",
+   "M": 64,
+   "K": 8,
+   "speed": 10,
+   "measured": 0.039364008227065914,
+   "predicted": 0.03849504366298835,
+   "beta": 0.125
+  },
+  {
+   "scenario": "i.i.d., equal gains",
+   "M": 64,
+   "K": 16,
+   "speed": 3,
+   "measured": 0.01931156762869207,
+   "predicted": 0.017645853212463408,
+   "beta": 0.25
+  },
+  {
+   "scenario": "i.i.d., equal gains",
+   "M": 64,
+   "K": 16,
+   "speed": 10,
+   "measured": 0.06451403382736384,
+   "predicted": 0.05880215048875808,
+   "beta": 0.25
+  },
+  {
+   "scenario": "i.i.d., equal gains",
+   "M": 64,
+   "K": 32,
+   "speed": 3,
+   "measured": 0.03808501455059972,
+   "predicted": 0.030563514306889115,
+   "beta": 0.5
+  },
+  {
+   "scenario": "i.i.d., equal gains",
+   "M": 64,
+   "K": 32,
+   "speed": 10,
+   "measured": 0.12673031968944748,
+   "predicted": 0.1018483122408401,
+   "beta": 0.5
+  },
+  {
+   "scenario": "i.i.d., equal gains",
+   "M": 128,
+   "K": 16,
+   "speed": 3,
+   "measured": 0.012144912895095028,
+   "predicted": 0.01155192257831332,
+   "beta": 0.125
+  },
+  {
+   "scenario": "i.i.d., equal gains",
+   "M": 128,
+   "K": 16,
+   "speed": 10,
+   "measured": 0.04045171823006824,
+   "predicted": 0.03849504366298835,
+   "beta": 0.125
+  },
+  {
+   "scenario": "i.i.d., equal gains",
+   "M": 128,
+   "K": 32,
+   "speed": 3,
+   "measured": 0.01959522448201113,
+   "predicted": 0.017645853212463408,
+   "beta": 0.25
+  },
+  {
+   "scenario": "i.i.d., equal gains",
+   "M": 128,
+   "K": 32,
+   "speed": 10,
+   "measured": 0.06536000147890482,
+   "predicted": 0.05880215048875808,
+   "beta": 0.25
+  },
+  {
+   "scenario": "i.i.d., equal gains",
+   "M": 128,
+   "K": 64,
+   "speed": 3,
+   "measured": 0.038392810324821475,
+   "predicted": 0.030563514306889115,
+   "beta": 0.5
+  },
+  {
+   "scenario": "i.i.d., equal gains",
+   "M": 128,
+   "K": 64,
+   "speed": 10,
+   "measured": 0.12803769442832175,
+   "predicted": 0.1018483122408401,
+   "beta": 0.5
+  },
+  {
+   "scenario": "38.901 near-far + 12 deg spread",
+   "M": 64,
+   "K": 4,
+   "speed": 3,
+   "measured": 0.010163479914468088,
+   "predicted": 0.007891465460810243,
+   "beta": 0.0625
+  },
+  {
+   "scenario": "38.901 near-far + 12 deg spread",
+   "M": 64,
+   "K": 4,
+   "speed": 10,
+   "measured": 0.0335716415106443,
+   "predicted": 0.02629712114320711,
+   "beta": 0.0625
+  },
+  {
+   "scenario": "38.901 near-far + 12 deg spread",
+   "M": 64,
+   "K": 8,
+   "speed": 3,
+   "measured": 0.015472779660041725,
+   "predicted": 0.01155192257831332,
+   "beta": 0.125
+  },
+  {
+   "scenario": "38.901 near-far + 12 deg spread",
+   "M": 64,
+   "K": 8,
+   "speed": 10,
+   "measured": 0.05202706922272864,
+   "predicted": 0.03849504366298835,
+   "beta": 0.125
+  },
+  {
+   "scenario": "38.901 near-far + 12 deg spread",
+   "M": 64,
+   "K": 16,
+   "speed": 3,
+   "measured": 0.021533522436961237,
+   "predicted": 0.017645853212463408,
+   "beta": 0.25
+  },
+  {
+   "scenario": "38.901 near-far + 12 deg spread",
+   "M": 64,
+   "K": 16,
+   "speed": 10,
+   "measured": 0.07155890512863775,
+   "predicted": 0.05880215048875808,
+   "beta": 0.25
+  },
+  {
+   "scenario": "38.901 near-far + 12 deg spread",
+   "M": 64,
+   "K": 32,
+   "speed": 3,
+   "measured": 0.04546086238165213,
+   "predicted": 0.030563514306889115,
+   "beta": 0.5
+  },
+  {
+   "scenario": "38.901 near-far + 12 deg spread",
+   "M": 64,
+   "K": 32,
+   "speed": 10,
+   "measured": 0.1511629204266468,
+   "predicted": 0.1018483122408401,
+   "beta": 0.5
+  },
+  {
+   "scenario": "38.901 near-far + 12 deg spread",
+   "M": 128,
+   "K": 16,
+   "speed": 3,
+   "measured": 0.013863798299434297,
+   "predicted": 0.01155192257831332,
+   "beta": 0.125
+  },
+  {
+   "scenario": "38.901 near-far + 12 deg spread",
+   "M": 128,
+   "K": 16,
+   "speed": 10,
+   "measured": 0.04607689348812874,
+   "predicted": 0.03849504366298835,
+   "beta": 0.125
+  },
+  {
+   "scenario": "38.901 near-far + 12 deg spread",
+   "M": 128,
+   "K": 32,
+   "speed": 3,
+   "measured": 0.021715344160103255,
+   "predicted": 0.017645853212463408,
+   "beta": 0.25
+  },
+  {
+   "scenario": "38.901 near-far + 12 deg spread",
+   "M": 128,
+   "K": 32,
+   "speed": 10,
+   "measured": 0.07225714867195497,
+   "predicted": 0.05880215048875808,
+   "beta": 0.25
+  },
+  {
+   "scenario": "38.901 near-far + 12 deg spread",
+   "M": 128,
+   "K": 64,
+   "speed": 3,
+   "measured": 0.04753738631737657,
+   "predicted": 0.030563514306889115,
+   "beta": 0.5
+  },
+  {
+   "scenario": "38.901 near-far + 12 deg spread",
+   "M": 128,
+   "K": 64,
+   "speed": 10,
+   "measured": 0.15861358061425174,
+   "predicted": 0.1018483122408401,
+   "beta": 0.5
+  }
+ ],
+ "vmax_kmh": {
+  "M=64,K=8": 59.928334626110995,
+  "M=64,K=16": 39.232304242399536,
+  "M=128,K=16": 59.928334626110995,
+  "M=128,K=32": 39.232304242399536,
+  "M=64,K=32": 22.65078141527867
+ }
+}

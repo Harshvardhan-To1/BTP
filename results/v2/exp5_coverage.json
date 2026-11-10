@@ -1,0 +1,52 @@
+{
+ "iid, equal gain | fixed-ratio MP+Weyl": {
+  "P_lmin_ge_a": 0.9888888888888889,
+  "P_lmax_le_b": 0.9930555555555556,
+  "kappa_est_over_true": 1.4748224940416546
+ },
+ "iid, equal gain | moment-matched MP (0.5,1.1)": {
+  "P_lmin_ge_a": 1.0,
+  "P_lmax_le_b": 1.0,
+  "kappa_est_over_true": 2.9300489748290457
+ },
+ "iid + UMa near-far | fixed-ratio MP+Weyl": {
+  "P_lmin_ge_a": 0.9958333333333333,
+  "P_lmax_le_b": 0.9986111111111111,
+  "kappa_est_over_true": 2.0029370045007755
+ },
+ "iid + UMa near-far | moment-matched MP (0.5,1.1)": {
+  "P_lmin_ge_a": 1.0,
+  "P_lmax_le_b": 1.0,
+  "kappa_est_over_true": 2.9228172245319994
+ },
+ "AS 12deg + near-far | fixed-ratio MP+Weyl": {
+  "P_lmin_ge_a": 0.9680555555555556,
+  "P_lmax_le_b": 0.9944444444444445,
+  "kappa_est_over_true": 1.8847012360507824
+ },
+ "AS 12deg + near-far | moment-matched MP (0.5,1.1)": {
+  "P_lmin_ge_a": 1.0,
+  "P_lmax_le_b": 1.0,
+  "kappa_est_over_true": 2.6850543496906307
+ },
+ "AS 3deg + near-far | fixed-ratio MP+Weyl": {
+  "P_lmin_ge_a": 0.6111111111111112,
+  "P_lmax_le_b": 0.9472222222222222,
+  "kappa_est_over_true": 1.507970449835858
+ },
+ "AS 3deg + near-far | moment-matched MP (0.5,1.1)": {
+  "P_lmin_ge_a": 0.9055555555555556,
+  "P_lmax_le_b": 1.0,
+  "kappa_est_over_true": 2.111213630686255
+ },
+ "Rician 6 dB + AS 12deg | fixed-ratio MP+Weyl": {
+  "P_lmin_ge_a": 0.4125,
+  "P_lmax_le_b": 0.9069444444444444,
+  "kappa_est_over_true": 1.291086148775051
+ },
+ "Rician 6 dB + AS 12deg | moment-matched MP (0.5,1.1)": {
+  "P_lmin_ge_a": 0.8402777777777778,
+  "P_lmax_le_b": 1.0,
+  "kappa_est_over_true": 1.8098896185912399
+ }
+}

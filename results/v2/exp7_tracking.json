@@ -1,0 +1,167 @@
+{
+ "3 km/h | exact every slot": {
+  "rate_loss_pct": 0.0,
+  "gemms_per_slot": 1.0,
+  "refresh_frac": 0.0
+ },
+ "3 km/h | exact every 2": {
+  "rate_loss_pct": 1.2030999223453402,
+  "gemms_per_slot": 0.5,
+  "refresh_frac": 0.0
+ },
+ "3 km/h | exact every 4": {
+  "rate_loss_pct": 2.873567710560437,
+  "gemms_per_slot": 0.25,
+  "refresh_frac": 0.0
+ },
+ "3 km/h | exact every 8": {
+  "rate_loss_pct": 5.2418279551445845,
+  "gemms_per_slot": 0.1,
+  "refresh_frac": 0.0
+ },
+ "3 km/h | cold d0=3,ns=1": {
+  "rate_loss_pct": 6.786607701876858,
+  "gemms_per_slot": 4.0,
+  "refresh_frac": 0.0
+ },
+ "3 km/h | cold d0=3,ns=2": {
+  "rate_loss_pct": 0.12406487938393078,
+  "gemms_per_slot": 6.0,
+  "refresh_frac": 0.0
+ },
+ "3 km/h | cold d0=4,ns=2": {
+  "rate_loss_pct": 0.0075976195325028195,
+  "gemms_per_slot": 7.0,
+  "refresh_frac": 0.0
+ },
+ "3 km/h | warm NS x1": {
+  "rate_loss_pct": 0.006138128897010819,
+  "gemms_per_slot": 2.0,
+  "refresh_frac": 0.0
+ },
+ "3 km/h | warm NS x2": {
+  "rate_loss_pct": 7.471987238660827e-07,
+  "gemms_per_slot": 4.0,
+  "refresh_frac": 0.0
+ },
+ "3 km/h | warm NS x3": {
+  "rate_loss_pct": 1.2150003225741557e-12,
+  "gemms_per_slot": 6.0,
+  "refresh_frac": 0.0
+ },
+ "3 km/h | Proposed RMT-WS (adaptive)": {
+  "rate_loss_pct": 0.006138128897010819,
+  "gemms_per_slot": 2.25,
+  "refresh_frac": 0.0
+ },
+ "30 km/h | exact every slot": {
+  "rate_loss_pct": 0.0,
+  "gemms_per_slot": 1.0,
+  "refresh_frac": 0.0
+ },
+ "30 km/h | exact every 2": {
+  "rate_loss_pct": 16.089671407928492,
+  "gemms_per_slot": 0.5,
+  "refresh_frac": 0.0
+ },
+ "30 km/h | exact every 4": {
+  "rate_loss_pct": 30.205338556209618,
+  "gemms_per_slot": 0.25,
+  "refresh_frac": 0.0
+ },
+ "30 km/h | exact every 8": {
+  "rate_loss_pct": 44.269226287313394,
+  "gemms_per_slot": 0.1,
+  "refresh_frac": 0.0
+ },
+ "30 km/h | cold d0=3,ns=1": {
+  "rate_loss_pct": 6.972628059581785,
+  "gemms_per_slot": 4.0,
+  "refresh_frac": 0.0
+ },
+ "30 km/h | cold d0=3,ns=2": {
+  "rate_loss_pct": 0.13806317261557566,
+  "gemms_per_slot": 6.0,
+  "refresh_frac": 0.0
+ },
+ "30 km/h | cold d0=4,ns=2": {
+  "rate_loss_pct": 0.005301955525076757,
+  "gemms_per_slot": 7.0,
+  "refresh_frac": 0.0
+ },
+ "30 km/h | warm NS x1": {
+  "rate_loss_pct": 10.945795504625494,
+  "gemms_per_slot": 2.0,
+  "refresh_frac": 0.0
+ },
+ "30 km/h | warm NS x2": {
+  "rate_loss_pct": 0.9851324495022068,
+  "gemms_per_slot": 4.0,
+  "refresh_frac": 0.0
+ },
+ "30 km/h | warm NS x3": {
+  "rate_loss_pct": 0.009739440536185168,
+  "gemms_per_slot": 6.0,
+  "refresh_frac": 0.0
+ },
+ "30 km/h | Proposed RMT-WS (adaptive)": {
+  "rate_loss_pct": 0.4457067804329612,
+  "gemms_per_slot": 5.194791666666667,
+  "refresh_frac": 0.033234126984126984
+ },
+ "120 km/h | exact every slot": {
+  "rate_loss_pct": 0.0,
+  "gemms_per_slot": 1.0,
+  "refresh_frac": 0.0
+ },
+ "120 km/h | exact every 2": {
+  "rate_loss_pct": 37.855525973699955,
+  "gemms_per_slot": 0.5,
+  "refresh_frac": 0.0
+ },
+ "120 km/h | exact every 4": {
+  "rate_loss_pct": 63.45649670552375,
+  "gemms_per_slot": 0.25,
+  "refresh_frac": 0.0
+ },
+ "120 km/h | exact every 8": {
+  "rate_loss_pct": 81.63032274805497,
+  "gemms_per_slot": 0.1,
+  "refresh_frac": 0.0
+ },
+ "120 km/h | cold d0=3,ns=1": {
+  "rate_loss_pct": 6.9112818128680455,
+  "gemms_per_slot": 4.0,
+  "refresh_frac": 0.0
+ },
+ "120 km/h | cold d0=3,ns=2": {
+  "rate_loss_pct": 0.12615327969035847,
+  "gemms_per_slot": 6.0,
+  "refresh_frac": 0.0
+ },
+ "120 km/h | cold d0=4,ns=2": {
+  "rate_loss_pct": 0.0047144189144218696,
+  "gemms_per_slot": 7.0,
+  "refresh_frac": 0.0
+ },
+ "120 km/h | warm NS x1": {
+  "rate_loss_pct": 99.07475513654008,
+  "gemms_per_slot": 2.0,
+  "refresh_frac": 0.0
+ },
+ "120 km/h | warm NS x2": {
+  "rate_loss_pct": 99.71403991324787,
+  "gemms_per_slot": 4.0,
+  "refresh_frac": 0.0
+ },
+ "120 km/h | warm NS x3": {
+  "rate_loss_pct": 99.84691065069836,
+  "gemms_per_slot": 6.0,
+  "refresh_frac": 0.0
+ },
+ "120 km/h | Proposed RMT-WS (adaptive)": {
+  "rate_loss_pct": 0.12615327969035847,
+  "gemms_per_slot": 6.25,
+  "refresh_frac": 1.0
+ }
+}
