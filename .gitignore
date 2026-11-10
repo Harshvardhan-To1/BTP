@@ -36,6 +36,7 @@ paper/extended/*.blg
 # cmatinv C kernels
 kernels/libcmat.so
 kernels/libiq.so
+kernels/librzfbase.so
 kernels/*_bench
 
 # Beamer build files
