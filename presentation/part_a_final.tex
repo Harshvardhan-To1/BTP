@@ -21,6 +21,7 @@
 \graphicspath{%
   {../results/figures/}%
   {../results/v2/}%
+  {../results/}%
 }
 
 % ---------- colours ----------
@@ -242,7 +243,85 @@ and a fused C/AVX-512 RZF precoder kernel for O-RAN 7-2x}
 \end{frame}
 
 % =====================================================================
-\section{RMT-WS: Complex Matrix Inversion}
+\section{Matrix Inversion Benchmark}
+
+\begin{frame}{Matrix-inversion benchmark: why and how}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Why inversion?}
+        \small MMSE equalisation, RZF precoding, channel estimation and our encoders
+        need an inverse \hl{every 0.5 ms slot}.
+      \end{block}
+      \begin{block}{Dataset (\texttt{matinv\_bench/})}
+        \begin{itemize}\small
+          \item $A = G/\sqrt{n} + 2I$, \; $G_{ij}\sim\mathcal N(0,1)$, float32
+          \item $n \in \{10, 100, 500\}$, 1000 matrices each
+          \item 80\,\% train (learned models), timing on 200 held-out
+          \item Per matrix, warm-up, CPU only
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Existing methods (6)}
+        LAPACK \texttt{getri} (numpy), LU (scipy), QR, SVD, Gauss--Jordan, Newton--Schulz
+      \end{block}
+      \begin{exampleblock}{Our learned inverters (3)}
+        \begin{itemize}\small
+          \item \textbf{InverseNet-MLP:} direct regression $A \mapsto A^{-1}$
+          \item \textbf{InverseNet-NS:} unrolled Newton--Schulz, 8 steps, learned step coefficients
+          \item \textbf{InverseNet-Ultra:} learned high-order iteration
+        \end{itemize}
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \takeaway{9 methods, one held-out dataset, identical timing protocol.}
+\end{frame}
+
+\begin{frame}{Benchmark results: InverseNet-Ultra vs existing methods}
+  \centering
+  \footnotesize\setlength{\tabcolsep}{4pt}
+  \begin{tabular}{lccc|ccc}
+    \toprule
+    & \multicolumn{3}{c|}{$n = 100$} & \multicolumn{3}{c}{$n = 500$} \\
+    Method & Mean & p95 & Rel.\ err & Mean & p95 & Rel.\ err \\
+    \midrule
+    \ours InverseNet-Ultra (ours) & \best{0.47 ms} & \best{0.57 ms} & $1.4\cdot10^{-6}$ & 37.0 ms & 52.7 ms & $1.4\cdot10^{-6}$ \\
+    LAPACK \texttt{getri} (numpy) & 0.57 ms & 1.13 ms & $4.8\cdot10^{-8}$ & 28.6 ms & 45.1 ms & $4.8\cdot10^{-8}$ \\
+    InverseNet-NS (ours) & 0.97 ms & 1.06 ms & $4.0\cdot10^{-4}$ & 89.6 ms & 100.9 ms & $7.3\cdot10^{-3}$ \\
+    Newton--Schulz & 1.27 ms & 1.71 ms & $2.0\cdot10^{-7}$ & 78.0 ms & 122.7 ms & $3.5\cdot10^{-7}$ \\
+    Gauss--Jordan & 1.97 ms & 3.40 ms & $3.0\cdot10^{-7}$ & 160.3 ms & 166.1 ms & $6.9\cdot10^{-7}$ \\
+    LU (scipy) & 3.36 ms & 6.09 ms & $1.3\cdot10^{-7}$ & 56.3 ms & 87.1 ms & $2.0\cdot10^{-7}$ \\
+    SVD & 10.2 ms & 20.8 ms & $1.4\cdot10^{-7}$ & 113.0 ms & 147.3 ms & $2.5\cdot10^{-7}$ \\
+    QR & 20.3 ms & 64.5 ms & $3.2\cdot10^{-7}$ & 110.8 ms & 153.0 ms & $3.2\cdot10^{-7}$ \\
+    \bottomrule
+  \end{tabular}
+  \vspace{2mm}
+  \begin{itemize}\footnotesize
+    \item $n=100$: \gd{lowest mean} latency of all 9 methods and \gd{2$\times$ lower p95} than LAPACK (0.57 vs 1.13 ms)
+    \item \gd{2.7$\times$} faster than classical Newton--Schulz, \gd{7$\times$} faster than LU (scipy), \gd{22--43$\times$} faster than SVD / QR
+    \item $n=500$: faster than LU, Newton--Schulz, QR, SVD and Gauss--Jordan (1.5--4.3$\times$)
+  \end{itemize}
+  \takeaway{A learned iteration with $10^{-6}$ accuracy and the most predictable latency at $n = 100$.}
+\end{frame}
+
+\begin{frame}{Inference time vs matrix dimension}
+  \begin{columns}[c]
+    \begin{column}{0.62\textwidth}
+      \includegraphics[width=\linewidth]{inference_time.png}
+    \end{column}
+    \begin{column}{0.36\textwidth}
+      \begin{itemize}\small
+        \item \textbf{Direct neural inverse fails:} InverseNet-MLP has $\approx 52\,\%$ error and $>2\cdot10^9$ parameters at $n=500$
+        \item \textbf{Learned iteration works:} keep the Newton--Schulz structure, learn only coefficients $\Rightarrow 10^{-6}$ error
+        \item Fixed number of batched matmuls: flat, predictable latency; GPU / NPU friendly
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \takeaway{Keep the mathematical structure, learn only what is uncertain --- the idea behind RMT-WS.}
+\end{frame}
+
+% =====================================================================
+\section{Complex Matrix Inversion (RMT-WS)}
 
 \begin{frame}{The real DU workload: complex RZF precoding}
   \begin{columns}[T]
@@ -428,6 +507,54 @@ and a fused C/AVX-512 RZF precoder kernel for O-RAN 7-2x}
   \takeaway{Newton refinement keeps the loss low where direct inversion degrades.}
 \end{frame}
 
+\begin{frame}{Spectral interval: ours vs the classical Marchenko--Pastur bound}
+  \centering
+  \small Probability that the interval $[a,b]$ contains the true spectrum of $\hat G$ (24 subcarriers $\times$ 30 drops)\\[2mm]
+  \footnotesize
+  \begin{tabular}{lcc|cc}
+    \toprule
+    & \multicolumn{2}{c|}{Fixed-ratio MP + Weyl (classical)} & \multicolumn{2}{c}{\textbf{Moment-matched MP (ours)}} \\
+    Channel & lower edge & upper edge & lower edge & upper edge \\
+    \midrule
+    i.i.d., equal gain & 98.9\,\% & 99.3\,\% & \best{100\,\%} & \best{100\,\%} \\
+    UMa near-far & 99.6\,\% & 99.9\,\% & \best{100\,\%} & \best{100\,\%} \\
+    12$^\circ$ angular spread + near-far & 96.8\,\% & 99.4\,\% & \best{100\,\%} & \best{100\,\%} \\
+    3$^\circ$ angular spread + near-far & 61.1\,\% & 94.7\,\% & \best{90.6\,\%} & \best{100\,\%} \\
+    Rician 6 dB + 12$^\circ$ & 41.3\,\% & 90.7\,\% & \best{84.0\,\%} & \best{100\,\%} \\
+    \bottomrule
+  \end{tabular}
+  \vspace{2mm}
+  \begin{itemize}\small
+    \item Ours covers the upper edge in \gd{100\,\%} of cases on every channel type
+    \item On strongly correlated and line-of-sight channels: \gd{2$\times$ better} lower-edge coverage
+    \item Needs only $\|\hat G\|_F$ and the diagonal: $K^2$ work, no eigensolver
+  \end{itemize}
+  \takeaway{The interval adapts to correlation and line-of-sight where the classical bound breaks.}
+\end{frame}
+
+\begin{frame}{Comparison with existing complex-inversion methods}
+  \centering
+  \scriptsize\setlength{\tabcolsep}{4pt}
+  \begin{tabular}{>{\raggedright}p{0.27\textwidth}>{\raggedright}p{0.2\textwidth}>{\raggedright}p{0.2\textwidth}p{0.2\textwidth}}
+    \toprule
+    Existing method (reference) & Metric & Existing & \textbf{RMT-WS (ours)} \\
+    \midrule
+    Neumann series (Wu et al.\ 2013; Prabhu et al.\ 2013) & GEMMs for $\le 1\,\%$ loss & $>8$ & \best{6} \\
+    Joint Newton--Neumann (Shao et al.\ 2016) & GEMMs for $\le 1\,\%$ loss & $>10$ & \best{6} \\
+    Newton--Schulz, classical init (Ben-Israel \& Cohen; Pan \& Schreiber) & GEMMs for $\le 1\,\%$ loss & $>10$ & \best{6} \\
+    Gauss--Seidel & GEMMs, $K/M = 0.5$ & $>12$ & \best{9} \\
+    Block conjugate gradient & GEMMs, $K/M = 0.5$ & 12 & \best{9} \\
+    Warm-started Gauss--Seidel $\times 4$ & Loss at 120 km/h & 2.9\,\% & \best{0.12\,\%} \\
+    Warm-started CG $\times 4$ & Loss at 30 / 120 km/h & 0.96 / 5.5\,\% & \best{0.43 / 0.12\,\%} \\
+    Fixed 1-/2-step warm start & Loss at 120 km/h & diverges & \best{0.13\,\%} \\
+    Direct Gauss--Jordan, 8-bit & Sum-rate loss & 0.88\,\% & \best{0.15\,\%} \\
+    Classical MP + Weyl interval & Lower-edge coverage, Rician & 41\,\% & \best{84\,\%} \\
+    numpy + LAPACK (whole precoder) & Time per slot, $K=16$ & 3.21 ms & \best{0.226 ms} \\
+    \bottomrule
+  \end{tabular}
+  \takeaway{Better than every listed existing method on the compared metric.}
+\end{frame}
+
 % =====================================================================
 \section{Kernel Programming}
 
@@ -538,13 +665,15 @@ gcc -O3 -march=native -fopenmp
 
 \begin{frame}{Part A summary}
   \centering
-  \small
-  \begin{tabular}{>{\raggedright}p{0.3\textwidth}p{0.62\textwidth}}
+  \scriptsize\renewcommand{\arraystretch}{1.05}
+  \begin{tabular}{>{\raggedright}p{0.28\textwidth}p{0.66\textwidth}}
     \toprule
     Contribution & Headline result \\
     \midrule
     CSEE / RAS-BFP compression & 13--16$\times$ vs $\approx 4\times$ for O-RAN BFP; 3--6$\times$ faster than SVD; provable error bounds \\
     ACAFS adaptive split & 55--75\,\% bandwidth saving at high SNR \\
+    Learned inversion (InverseNet-Ultra) & Lowest mean and 2$\times$ lower p95 than LAPACK at $n=100$; $10^{-6}$ error \\
+    Moment-matched spectral interval & 2$\times$ better coverage than classical MP on correlated / LoS channels \\
     RMT-WS cold start & 6 GEMMs vs $>10$ for Neumann / Newton-type; best at $K/M = 0.5$ \\
     RMT-WS tracking & 2.7$\times$ fewer GEMMs, 30$\times$ lower loss at 3 km/h; safe up to 120 km/h \\
     Speed law + certificate & Closed-form warm-start envelope; 0 unsafe decisions in 480 cases \\
