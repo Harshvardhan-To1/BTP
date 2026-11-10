@@ -35,3 +35,14 @@ paper/extended/*.blg
 
 # cmatinv C kernels
 kernels/libcmat.so
+
+# Beamer build files
+presentation/*.aux
+presentation/*.log
+presentation/*.out
+presentation/*.nav
+presentation/*.snm
+presentation/*.toc
+presentation/*.vrb
+presentation/*.fls
+presentation/*.fdb_latexmk
