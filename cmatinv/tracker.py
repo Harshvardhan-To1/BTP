@@ -16,6 +16,29 @@ def cold_start(G, Gh, alpha, ctx, d0=3, steps=2):
     return cheb_ns(Gh, ctx, a, b, d0, steps)
 
 
+def schur_swap(X, G, out):
+    """Previous inverse X -> inverse estimate after the users at positions `out` are replaced.
+
+    Downdate: inv(old G_RR) = X_RR - X_Ro X_oo^-1 X_oR. Update: append the new users' rows of the current G
+    with the block (Schur-complement) inverse. Cost O(s K^2).
+    """
+    S, K, _ = X.shape
+    R = np.setdiff1d(np.arange(K), out)
+    h = lambda A: np.conj(np.swapaxes(A, -1, -2))
+    Xo = X[:, R][:, :, out]
+    Ai = X[:, R][:, :, R] - Xo @ np.linalg.solve(X[:, out][:, :, out], h(Xo))
+    B, D = G[:, R][:, :, out], G[:, out][:, :, out]
+    AiB = Ai @ B
+    Si = np.linalg.inv(D - h(B) @ AiB)
+    s = np.arange(S)
+    Y = np.empty_like(X)
+    Y[np.ix_(s, R, R)] = Ai + AiB @ Si @ h(AiB)
+    Y[np.ix_(s, R, out)] = -AiB @ Si
+    Y[np.ix_(s, out, R)] = -Si @ h(AiB)
+    Y[np.ix_(s, out, out)] = Si
+    return Y
+
+
 class WarmStartTracker:
     """mode: 'fixed' -> always `steps` warm NS iterations; 'adaptive' -> certificate-driven."""
 
@@ -27,6 +50,16 @@ class WarmStartTracker:
         self.Ginv = None
         self.rng = np.random.default_rng(seed)
         self.stats = dict(refresh=0, total=0)
+
+    def reschedule(self, G, out):
+        """Users at positions `out` were replaced; G is the new Gram. Rank-s block update of the stored
+        inverse (returns its cost in GEMM-equivalents). Needed because the probe certificate reads a
+        residual of only ~sqrt(s / K) when s users change, so it would not trigger a refresh."""
+        out = np.atleast_1d(out)
+        if self.Ginv is None or out.size == 0:
+            return 0.0
+        self.Ginv = schur_swap(self.Ginv, G, out)
+        return 4.0 * out.size / G.shape[-1]
 
     def update(self, G):
         """Return (Ginv, gemm_cost_per_subcarrier_array)."""

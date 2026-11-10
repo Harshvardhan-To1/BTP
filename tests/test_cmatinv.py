@@ -103,3 +103,28 @@ def test_fp16_kernel_accuracy_if_available():
     H = ((rng.standard_normal((8, 16, 64)) + 1j * rng.standard_normal((8, 16, 64))) / np.sqrt(2)).astype(np.complex64)
     a, b = rzf_fp16(H, 1.6, 10.0), rzf_chol(H, 1.6, 10.0)
     assert np.linalg.norm(a - b) / np.linalg.norm(b) < 5e-3
+
+
+def test_schur_swap_is_exact_for_static_channel():
+    from cmatinv.tracker import schur_swap
+    cfg, ch, G, al = _gram(M=64, K=24, S=8)
+    old = np.arange(16)
+    new = old.copy(); new[[3, 9]] = [20, 22]
+    sub = lambda idx: G[:, idx][:, :, idx]
+    Y = schur_swap(np.linalg.inv(sub(old)), sub(new), np.array([3, 9]))
+    assert np.allclose(Y, np.linalg.inv(sub(new)), atol=1e-8)
+
+
+def test_reschedule_keeps_tracker_warm():
+    cfg = ChannelConfig(seed=1, M=64, K=24, speed_kmh=3)
+    ch = MassiveMIMOChannel(cfg)
+    al = 1.6
+    trk = WarmStartTracker(al, "adaptive")
+    sched = np.arange(16)
+    for t, H in enumerate(ch.sequence(6)):
+        if t:
+            sched = sched.copy(); sched[t] = 16 + t
+            trk.reschedule(gram(H[:, sched], al), [t])
+        G = gram(H[:, sched], al)
+        X, c = trk.update(G)
+    assert trk.stats["refresh"] == 0 and np.abs(X @ G - np.eye(16)).max() < 1e-2
