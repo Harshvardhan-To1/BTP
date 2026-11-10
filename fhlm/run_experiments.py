@@ -47,7 +47,8 @@ PRIMARY_METRIC = "weighted_violation_ratio"
 # method name -> (constructor, needs_forecaster)
 METHOD_ORDER = ["static_equal", "reactive_prop", "maxweight", "pred_maxweight", "queue_aware", "point_forecast",
                 "fixed_quantile", "cem_policy", "eb_kkt", "markov_kkt", "proposed_window", "proposed", "proposed_vc", "proposed_tw", "proposed_cal",
-                "proposed_transfer", "markov_oracle_kkt", "oracle", "oracle_kkt"]
+                "proposed_transfer", "proposed_tf", "proposed_tf_nocross", "proposed_tf_unw", "point_forecast_tf",
+                "markov_oracle_kkt", "oracle", "oracle_kkt"]
 METHOD_LABELS = {
     "static_equal": "Static equal share",
     "reactive_prop": "Reactive proportional (EWMA)",
@@ -66,11 +67,32 @@ METHOD_LABELS = {
     "proposed_tw": "Proposed with a TUNED internal LL weight (operator priority kept in the metric)",
     "proposed_cal": "Proposed + online (ACI) calibration",
     "proposed_transfer": "Proposed with the forecaster trained on the OTHER traffic family (transfer)",
+    "proposed_tf": "Proposed KKT rule with the link-aware cross-cell quantile Transformer (LCQT)",
+    "proposed_tf_nocross": "Proposed KKT rule with LCQT without the cross-cell attention layer (ablation)",
+    "proposed_tf_unw": "Proposed KKT rule with LCQT trained on the plain (unweighted) pinball loss (ablation)",
+    "point_forecast_tf": "Point forecast (LCQT median) + water-fill",
     "oracle": "Oracle water-fill (true r*, not implementable; reference, not a bound)",
     "oracle_kkt": "Oracle + KKT rule (true r*, priority-ordered fill; the proposed rule with a perfect forecast)",
 }
 
 _FORECASTER_CACHE: Dict[str, QuantileGBMForecaster] = {}
+_TF_CACHE: Dict[str, Any] = {}
+TF_VARIANTS = {"proposed_tf": "", "point_forecast_tf": "", "proposed_tf_nocross": "_nocross", "proposed_tf_unw": "_unw"}
+
+
+def tf_model_path(interval: int, delay: int, family: str = "synthetic", variant: str = "") -> str:
+    return os.path.join(MODEL_DIR, f"fhlm_lcqt_T{interval}_d{delay}{_fam_suffix(family)}{variant}.pt")
+
+
+def ensure_tf_forecaster(interval: int, delay: int, family: str = "synthetic", variant: str = ""):
+    """Loaded lazily inside each worker (torch thread pools do not survive fork)."""
+    from .transformer import TransformerQuantileForecaster
+    path = tf_model_path(interval, delay, family, variant)
+    if path not in _TF_CACHE:
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"{path}: train it with python3 -m fhlm.train_transformer --out {path}")
+        _TF_CACHE[path] = TransformerQuantileForecaster.load(path, threads=1)
+    return _TF_CACHE[path]
 
 
 def _fam_suffix(family: str) -> str:
@@ -157,6 +179,12 @@ def build_controller(name: str, params: Dict[str, Any], interval: int, delay: in
     if name == "proposed":
         return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, family), calibrate=False,
                                          w_min=p.get("w_min", 0.25), name="proposed")
+    if name in ("proposed_tf", "proposed_tf_nocross", "proposed_tf_unw"):
+        return UncertaintyAwareAllocator(ensure_tf_forecaster(interval, delay, family, TF_VARIANTS[name]),
+                                         calibrate=False, w_min=p.get("w_min", 0.25), name=name)
+    if name == "point_forecast_tf":
+        return PointForecastWaterfill(ensure_tf_forecaster(interval, delay, family), margin=p.get("margin", 0.0),
+                                      w_min=p.get("w_min", 0.25))
     if name == "proposed_sus":
         return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, family, "sustain"), calibrate=False,
                                          w_min=p.get("w_min", 0.25), name="proposed_sus")
