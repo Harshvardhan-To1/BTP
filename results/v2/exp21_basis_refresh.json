@@ -1,0 +1,128 @@
+{
+ "3 km/h | round-robin Tb=1": {
+  "loss_db": 2.5512680625516384,
+  "evm": 0.018392342646155604,
+  "cr": 5.738894614374825,
+  "refresh_fraction": 1.0
+ },
+ "3 km/h | round-robin Tb=2": {
+  "loss_db": 2.665566253621342,
+  "evm": 0.01864004120410649,
+  "cr": 6.64382873007983,
+  "refresh_fraction": 0.5
+ },
+ "3 km/h | round-robin Tb=4": {
+  "loss_db": 2.7950393456437093,
+  "evm": 0.018924382375008864,
+  "cr": 7.217581087482188,
+  "refresh_fraction": 0.25
+ },
+ "3 km/h | round-robin Tb=8": {
+  "loss_db": 2.994337280913073,
+  "evm": 0.019358219210691394,
+  "cr": 7.548816140108794,
+  "refresh_fraction": 0.125
+ },
+ "3 km/h | certificate thr=1.1": {
+  "loss_db": 2.766391838843055,
+  "evm": 0.018854039473582766,
+  "cr": 6.807601166704857,
+  "refresh_fraction": 0.43402777777777773
+ },
+ "3 km/h | certificate thr=1.25": {
+  "loss_db": 2.848870396884392,
+  "evm": 0.01903526839441371,
+  "cr": 7.083769150144353,
+  "refresh_fraction": 0.3113425925925926
+ },
+ "3 km/h | certificate thr=1.5": {
+  "loss_db": 2.96022165597875,
+  "evm": 0.01928148927804343,
+  "cr": 7.406054469540156,
+  "refresh_fraction": 0.18055555555555555
+ },
+ "30 km/h | round-robin Tb=1": {
+  "loss_db": 2.5741987153387957,
+  "evm": 0.01837447522487847,
+  "cr": 5.738544484007278,
+  "refresh_fraction": 1.0
+ },
+ "30 km/h | round-robin Tb=2": {
+  "loss_db": 9.09032109323394,
+  "evm": 0.038951234483767076,
+  "cr": 6.643766832084127,
+  "refresh_fraction": 0.5
+ },
+ "30 km/h | round-robin Tb=4": {
+  "loss_db": 15.694875940960928,
+  "evm": 0.08335610188041027,
+  "cr": 7.215779848313907,
+  "refresh_fraction": 0.25
+ },
+ "30 km/h | round-robin Tb=8": {
+  "loss_db": 21.183840212977596,
+  "evm": 0.15711956987630418,
+  "cr": 7.547748377184053,
+  "refresh_fraction": 0.125
+ },
+ "30 km/h | certificate thr=1.1": {
+  "loss_db": 2.5630895686852275,
+  "evm": 0.018353497532038215,
+  "cr": 5.737962149160672,
+  "refresh_fraction": 1.0
+ },
+ "30 km/h | certificate thr=1.25": {
+  "loss_db": 2.5630895686852275,
+  "evm": 0.018353497532038215,
+  "cr": 5.737962149160672,
+  "refresh_fraction": 1.0
+ },
+ "30 km/h | certificate thr=1.5": {
+  "loss_db": 2.5630895686852275,
+  "evm": 0.018353497532038215,
+  "cr": 5.737962149160672,
+  "refresh_fraction": 1.0
+ },
+ "120 km/h | round-robin Tb=1": {
+  "loss_db": 2.5306585880517134,
+  "evm": 0.018189471483090962,
+  "cr": 5.741245191976787,
+  "refresh_fraction": 1.0
+ },
+ "120 km/h | round-robin Tb=2": {
+  "loss_db": 27.729328519575006,
+  "evm": 0.3316324366263621,
+  "cr": 6.651645495683376,
+  "refresh_fraction": 0.5
+ },
+ "120 km/h | round-robin Tb=4": {
+  "loss_db": 31.717922333771924,
+  "evm": 0.5249561280369458,
+  "cr": 7.221628165661778,
+  "refresh_fraction": 0.25
+ },
+ "120 km/h | round-robin Tb=8": {
+  "loss_db": 33.349896988379356,
+  "evm": 0.6334056663256685,
+  "cr": 7.544565073976218,
+  "refresh_fraction": 0.125
+ },
+ "120 km/h | certificate thr=1.1": {
+  "loss_db": 2.528784335280987,
+  "evm": 0.018232673638705583,
+  "cr": 5.74134241499003,
+  "refresh_fraction": 1.0
+ },
+ "120 km/h | certificate thr=1.25": {
+  "loss_db": 2.528784335280987,
+  "evm": 0.018232673638705583,
+  "cr": 5.74134241499003,
+  "refresh_fraction": 1.0
+ },
+ "120 km/h | certificate thr=1.5": {
+  "loss_db": 2.528784335280987,
+  "evm": 0.018232673638705583,
+  "cr": 5.74134241499003,
+  "refresh_fraction": 1.0
+ }
+}
