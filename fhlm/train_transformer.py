@@ -35,6 +35,7 @@ def main(argv=None):
     ap.add_argument("--no-cross", action="store_true", help="ablation: no cross-cell attention layer")
     ap.add_argument("--unweighted", action="store_true", help="ablation: plain (not priority-weighted) pinball loss")
     ap.add_argument("--threads", type=int, default=4)
+    ap.add_argument("--seed", type=int, default=0, help="initialisation/shuffling seed (deep-ensemble members)")
     args = ap.parse_args(argv)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     os.makedirs(os.path.dirname(args.report), exist_ok=True)
@@ -57,11 +58,13 @@ def main(argv=None):
     model = TransformerQuantileForecaster(d_model=args.d_model, layers=args.layers, cross_cell=not args.no_cross,
                                           priority_weighted=not args.unweighted)
     priorities = np.array([c.priority for c in net.cells], dtype=float)
-    info = model.fit(train, val, cell_conditioning(net, ctrl), priorities, epochs=args.epochs, threads=args.threads)
+    info = model.fit(train, val, cell_conditioning(net, ctrl), priorities, epochs=args.epochs, threads=args.threads,
+                     seed=args.seed)
     model.meta.update({"interval_slots": args.interval, "telemetry_delay_slots": args.delay, "family": args.family})
     model.save(args.out)
 
     report = {"interval_slots": args.interval, "telemetry_delay_slots": args.delay, "family": args.family,
+              "seed": args.seed,
               "hyperparameters": model.hp, "train_rows_epochs": int(len(train[2])), "val_rows_epochs": int(len(val[2])),
               "n_params": info["n_params"], "train_time_s": info["train_time_s"], "epochs_run": info["epochs_run"],
               "lcqt_validation": info["val"], "history": info["history"]}

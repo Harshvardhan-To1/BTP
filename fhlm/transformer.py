@@ -248,3 +248,88 @@ class TransformerQuantileForecaster:
         obj._cond = d["cond"]
         obj.meta = d.get("meta", {})
         return obj
+
+
+def mixture_quantiles(q: np.ndarray, levels, grid: int = 99) -> np.ndarray:
+    """Quantiles of the equal-weight mixture of S quantile functions.
+
+    q: [S, ..., K] quantiles of each posterior sample at `levels`. Each sample's
+    quantile function is interpolated (linearly extrapolated into the tails) on a
+    uniform level grid, the grid values of all samples are pooled, and the pooled
+    sample is read at `levels`. Unlike averaging the quantiles, this keeps the
+    disagreement between samples (epistemic spread) in the predictive interval.
+    """
+    lv = np.asarray(levels, dtype=float)
+    u = (np.arange(grid) + 0.5) / grid
+    j = np.clip(np.searchsorted(lv, u), 1, len(lv) - 1)
+    frac = (u - lv[j - 1]) / (lv[j] - lv[j - 1])
+    vals = q[..., j - 1] + frac * (q[..., j] - q[..., j - 1])           # [S, ..., G]
+    pooled = np.moveaxis(vals, 0, -2).reshape(*vals.shape[1:-1], -1)   # [..., S*G]
+    return np.maximum(np.quantile(pooled, lv, axis=-1).transpose(*range(1, pooled.ndim), 0), 0.0)
+
+
+class BayesianTransformerForecaster:
+    """Approximate Bayesian LCQT: deep ensemble x Monte-Carlo dropout, Bayesian model averaging.
+
+    Each member is an LCQT trained from a different seed (Lakshminarayanan et al.
+    2017); at inference dropout in every attention and feed-forward block is kept
+    ON and `mc_samples` stochastic passes are drawn per member (Gal & Ghahramani
+    2016). The M x S quantile functions are posterior samples of the forecast
+    distribution of r*; the KKT rule receives the quantiles of their mixture, so
+    epistemic uncertainty (e.g. under traffic shift) widens the reservation of the
+    cells whose forecasts the posterior disagrees on. The S passes of all members
+    are batched into one forward call per member.
+    """
+
+    def __init__(self, members: List[TransformerQuantileForecaster], mc_samples: int = 16, seed: int = 0):
+        self.members = members
+        self.quantiles = members[0].quantiles
+        self.mc_samples = mc_samples
+        self._seed = seed
+        self.last_epistemic = None
+
+    @property
+    def median_index(self) -> int:
+        return self.members[0].median_index
+
+    @classmethod
+    def load(cls, paths: List[str], mc_samples: int = 16, threads: int = 1) -> "BayesianTransformerForecaster":
+        return cls([TransformerQuantileForecaster.load(p, threads=threads) for p in paths], mc_samples)
+
+    def _samples(self, xp: np.ndarray, xf: np.ndarray) -> np.ndarray:
+        """[M*S, B, N, K] posterior quantile samples (normalised) for a batch of rows."""
+        import torch
+        out = []
+        for m in self.members:
+            m.net.train() if self.mc_samples > 1 else m.net.eval()
+            S = max(self.mc_samples, 1)
+            c = torch.from_numpy(m._cond)
+            B = xp.shape[0]
+            with torch.no_grad():
+                tp = torch.from_numpy(xp).repeat(S, 1, 1, 1, 1).reshape(S * B, *xp.shape[1:])
+                tf = torch.from_numpy(xf).repeat(S, 1, 1).reshape(S * B, *xf.shape[1:])
+                q = m.net(tp, tf, c.expand(S * B, -1, -1)).numpy()
+            m.net.eval()
+            out.append(q.reshape(S, B, *q.shape[1:]))
+        return np.concatenate(out, axis=0)
+
+    def predict_batch(self, Xp: np.ndarray, Xf: np.ndarray, batch: int = 64) -> np.ndarray:
+        import torch
+        torch.manual_seed(self._seed)
+        res = []
+        for s in range(0, len(Xp), batch):
+            res.append(mixture_quantiles(self._samples(Xp[s:s + batch], Xf[s:s + batch]), self.quantiles))
+        return np.concatenate(res)
+
+    def predict_quantiles(self, obs: Observation) -> np.ndarray:
+        import torch
+        torch.manual_seed(self._seed * 1_000_003 + obs.slot)       # reproducible runs under any job scheduling
+        m0 = self.members[0]
+        H = obs.ctrl.interval_slots + obs.ctrl.telemetry_delay_slots
+        scale = _scale(obs.net)
+        xp = build_patches(obs.history_fh_demand, obs.deadlines, scale, H, m0.hp["patches"])[None]
+        xf = build_features(obs.history_fh_demand, obs.se, obs.net, obs.ctrl).astype(np.float32)[None]
+        samp = self._samples(xp, xf)[:, 0]                                  # [M*S, N, K]
+        med = samp[..., self.median_index]
+        self.last_epistemic = med.std(0) / np.maximum(med.mean(0), 1e-6)
+        return mixture_quantiles(samp, self.quantiles) * scale[:, None]
