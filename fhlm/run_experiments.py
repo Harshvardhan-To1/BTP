@@ -48,7 +48,7 @@ PRIMARY_METRIC = "weighted_violation_ratio"
 METHOD_ORDER = ["static_equal", "reactive_prop", "maxweight", "pred_maxweight", "queue_aware", "point_forecast",
                 "fixed_quantile", "cem_policy", "eb_kkt", "markov_kkt", "proposed_window", "proposed", "proposed_vc", "proposed_tw", "proposed_cal",
                 "proposed_transfer", "proposed_tf", "proposed_tf_nocross", "proposed_tf_unw", "point_forecast_tf",
-                "markov_oracle_kkt", "oracle", "oracle_kkt"]
+                "proposed_tf_mc", "proposed_tf_bayes", "proposed_tf_dfl", "proposed_tf_dfl_bayes", "markov_oracle_kkt", "oracle", "oracle_kkt"]
 METHOD_LABELS = {
     "static_equal": "Static equal share",
     "reactive_prop": "Reactive proportional (EWMA)",
@@ -71,13 +71,18 @@ METHOD_LABELS = {
     "proposed_tf_nocross": "Proposed KKT rule with LCQT without the cross-cell attention layer (ablation)",
     "proposed_tf_unw": "Proposed KKT rule with LCQT trained on the plain (unweighted) pinball loss (ablation)",
     "point_forecast_tf": "Point forecast (LCQT median) + water-fill",
+    "proposed_tf_mc": "Proposed KKT rule with MC-dropout Bayesian LCQT (16 posterior samples, mixture quantiles)",
+    "proposed_tf_bayes": "Proposed KKT rule with Bayesian LCQT: 3-member deep ensemble x 8 MC-dropout samples",
+    "proposed_tf_dfl": "Proposed KKT rule with decision-focused LCQT (trained through the differentiable KKT layer)",
+    "proposed_tf_dfl_bayes": "Decision-focused LCQT + MC-dropout posterior (16 samples, mixture quantiles) + KKT rule",
     "oracle": "Oracle water-fill (true r*, not implementable; reference, not a bound)",
     "oracle_kkt": "Oracle + KKT rule (true r*, priority-ordered fill; the proposed rule with a perfect forecast)",
 }
 
 _FORECASTER_CACHE: Dict[str, QuantileGBMForecaster] = {}
 _TF_CACHE: Dict[str, Any] = {}
-TF_VARIANTS = {"proposed_tf": "", "point_forecast_tf": "", "proposed_tf_nocross": "_nocross", "proposed_tf_unw": "_unw"}
+TF_VARIANTS = {"proposed_tf": "", "point_forecast_tf": "", "proposed_tf_nocross": "_nocross", "proposed_tf_unw": "_unw",
+               "proposed_tf_dfl": "_dfl"}
 
 
 def tf_model_path(interval: int, delay: int, family: str = "synthetic", variant: str = "") -> str:
@@ -93,6 +98,26 @@ def ensure_tf_forecaster(interval: int, delay: int, family: str = "synthetic", v
             raise FileNotFoundError(f"{path}: train it with python3 -m fhlm.train_transformer --out {path}")
         _TF_CACHE[path] = TransformerQuantileForecaster.load(path, threads=1)
     return _TF_CACHE[path]
+
+
+# Bayesian LCQT variants: (member model variants, MC-dropout samples per member)
+BAYES_VARIANTS = {"proposed_tf_mc": ([""], 16), "proposed_tf_bayes": (["", "_s1", "_s2"], 8),
+                  "proposed_tf_dfl_bayes": (["_dfl"], 16)}
+
+
+def tf_method_available(method: str, interval: int, delay: int, family: str = "synthetic") -> bool:
+    variants = BAYES_VARIANTS[method][0] if method in BAYES_VARIANTS else [TF_VARIANTS[method]]
+    return all(os.path.exists(tf_model_path(interval, delay, family, v)) for v in variants)
+
+
+def ensure_bayes_forecaster(method: str, interval: int, delay: int, family: str = "synthetic"):
+    from .transformer import BayesianTransformerForecaster
+    key = f"{method}:{interval}:{delay}:{family}"
+    if key not in _TF_CACHE:
+        variants, mc = BAYES_VARIANTS[method]
+        _TF_CACHE[key] = BayesianTransformerForecaster(
+            [ensure_tf_forecaster(interval, delay, family, v) for v in variants], mc_samples=mc)
+    return _TF_CACHE[key]
 
 
 def _fam_suffix(family: str) -> str:
@@ -179,8 +204,11 @@ def build_controller(name: str, params: Dict[str, Any], interval: int, delay: in
     if name == "proposed":
         return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, family), calibrate=False,
                                          w_min=p.get("w_min", 0.25), name="proposed")
-    if name in ("proposed_tf", "proposed_tf_nocross", "proposed_tf_unw"):
+    if name in TF_VARIANTS and name != "point_forecast_tf":
         return UncertaintyAwareAllocator(ensure_tf_forecaster(interval, delay, family, TF_VARIANTS[name]),
+                                         calibrate=False, w_min=p.get("w_min", 0.25), name=name)
+    if name in BAYES_VARIANTS:
+        return UncertaintyAwareAllocator(ensure_bayes_forecaster(name, interval, delay, family),
                                          calibrate=False, w_min=p.get("w_min", 0.25), name=name)
     if name == "point_forecast_tf":
         return PointForecastWaterfill(ensure_tf_forecaster(interval, delay, family), margin=p.get("margin", 0.0),
