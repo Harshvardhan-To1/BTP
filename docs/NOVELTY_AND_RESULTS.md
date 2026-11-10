@@ -287,6 +287,9 @@ through `MassiveMIMOChannel`'s interface (H of shape [S, K, M]).
 
 ## 5. Other limitations
 
+**Update:** most of the limitations below are now addressed in `docs/PART_A_IMPROVEMENTS.md` (exp19-exp25). In particular, the per-PRB-group weight claim in section 4 (iv) does not hold for frequency-selective channels; delay-domain weights are needed (exp25).
+
+
 Fixed user set (no scheduling changes between slots), perfect CSI (no estimation error), per-PRB-group weights
 without frequency interpolation, single seed family with 3 to 12 drops per point (no confidence intervals yet),
 CPU-only timing, the lower spectral edge is not always covered, and the fronthaul model ignores C-plane signalling

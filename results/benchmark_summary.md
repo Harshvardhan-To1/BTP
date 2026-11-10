@@ -1,5 +1,7 @@
 # Matrix inversion benchmark
 
+> Superseded for the RAN use case: these are single real-valued matrices (batch 1). The Part A precoder needs batched complex Hermitian Grams; see `experiments_v2/exp15`, `exp17` and `exp24` and `docs/PART_A_IMPROVEMENTS.md`.
+
 - Host: x86_64, 6 torch threads, CPU only
 - Dataset: random well-conditioned matrices `A = G/sqrt(n) + 2I`, float32
 - Timing: per matrix (batch size 1), warmup 5, held-out split
