@@ -1,0 +1,77 @@
+dataset: train (101376, 28), val (50688, 28)  (4.7s)
+trained 6 quantile models in 18.4s
+validation: {
+ "coverage_q05": 0.057173295454545456,
+ "coverage_q25": 0.25475457702020204,
+ "coverage_q50": 0.5046559343434344,
+ "coverage_q75": 0.7513218118686869,
+ "coverage_q90": 0.9010022095959596,
+ "coverage_q95": 0.94888336489899,
+ "pinball_mean": 0.021392502628779148,
+ "median_mae": 0.07216763283747815,
+ "median_mae_rel": 0.37613047986285575,
+ "interval90_coverage": 0.8917100694444444,
+ "interval90_width_rel": 1.5114022829343303
+}
+saved model -> models/fhlm_quantile_gbm_T20_d0.pkl
+report -> results/fhlm/forecast_training_T20_d0.json
+window-quantile val pinball 0.0284 vs GBM 0.0214; median MAE: persistence 0.1006, window 0.0959, GBM 0.0722
+dataset: train (101120, 28), val (50560, 28)  (5.5s)
+trained 6 quantile models in 19.4s
+validation: {
+ "coverage_q05": 0.05771360759493671,
+ "coverage_q25": 0.2566257911392405,
+ "coverage_q50": 0.5053599683544304,
+ "coverage_q75": 0.7563884493670886,
+ "coverage_q90": 0.8982001582278482,
+ "coverage_q95": 0.9496439873417721,
+ "pinball_mean": 0.023591848041361777,
+ "median_mae": 0.07962834645024064,
+ "median_mae_rel": 0.370808286663606,
+ "interval90_coverage": 0.8919303797468354,
+ "interval90_width_rel": 1.4872499721221433
+}
+saved model -> models/fhlm_quantile_gbm_T20_d5.pkl
+report -> results/fhlm/forecast_training_T20_d5.json
+window-quantile val pinball 0.0305 vs GBM 0.0236; median MAE: persistence 0.1128, window 0.1041, GBM 0.0796
+dataset: train (100864, 28), val (50432, 28)  (7.1s)
+trained 6 quantile models in 18.6s
+validation: {
+ "coverage_q05": 0.055540133248730965,
+ "coverage_q25": 0.2551554568527919,
+ "coverage_q50": 0.5076736992385786,
+ "coverage_q75": 0.7602315989847716,
+ "coverage_q90": 0.899270304568528,
+ "coverage_q95": 0.9483264593908629,
+ "pinball_mean": 0.025051275567313208,
+ "median_mae": 0.08581973339784806,
+ "median_mae_rel": 0.36716789229084773,
+ "interval90_coverage": 0.8927863261421319,
+ "interval90_width_rel": 1.4439084367304034
+}
+saved model -> models/fhlm_quantile_gbm_T20_d10.pkl
+report -> results/fhlm/forecast_training_T20_d10.json
+window-quantile val pinball 0.0320 vs GBM 0.0251; median MAE: persistence 0.1229, window 0.1107, GBM 0.0858
+[runner] training forecaster for T=20, tau=0 -> models/fhlm_quantile_gbm_T20_d0.pkl
+[runner] training forecaster for T=20, tau=5 -> models/fhlm_quantile_gbm_T20_d5.pkl
+[runner] training forecaster for T=20, tau=10 -> models/fhlm_quantile_gbm_T20_d10.pkl
+[runner] 160 runs in 119s
+                                     weighted_violation_ratio           violation_ratio_ll           violation_ratio_embb          
+                                                         mean       std               mean       std                 mean       std
+telemetry_delay_slots method                                                                                                       
+0                     point_forecast                 0.084503  0.013785           0.029169  0.005060             0.136507  0.025189
+                      proposed                       0.068509  0.013239           0.030965  0.004129             0.103789  0.022711
+                      queue_aware                    0.098889  0.013674           0.055008  0.005446             0.140052  0.024296
+                      reactive_prop                  0.081626  0.008274           0.133786  0.010822             0.032112  0.008220
+2                     point_forecast                 0.094606  0.013792           0.029713  0.005026             0.155652  0.023681
+                      proposed                       0.077104  0.013325           0.032698  0.003771             0.118865  0.022771
+                      queue_aware                    0.107801  0.014095           0.051518  0.005353             0.160753  0.024079
+                      reactive_prop                  0.089110  0.008723           0.145732  0.011603             0.035375  0.008485
+5                     point_forecast                 0.105065  0.013832           0.029700  0.003929             0.176046  0.024287
+                      proposed                       0.087651  0.013586           0.036532  0.004536             0.135737  0.022664
+                      queue_aware                    0.118970  0.013665           0.049826  0.004660             0.184145  0.023081
+                      reactive_prop                  0.098626  0.009133           0.158682  0.011927             0.041655  0.009242
+10                    point_forecast                 0.124545  0.014017           0.029754  0.002947             0.213953  0.024666
+                      proposed                       0.110675  0.013185           0.040731  0.003847             0.176646  0.021481
+                      queue_aware                    0.139284  0.013503           0.046925  0.004394             0.226480  0.022316
+                      reactive_prop                  0.112965  0.009531           0.169155  0.011298             0.059628  0.011483

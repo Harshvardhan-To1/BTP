@@ -1,0 +1,17 @@
+\begin{tabular}{lcccccccl}
+\hline
+Scenario & Proposed (GBM + KKT) & \multicolumn{2}{c}{Predictive MaxWeight} & \multicolumn{2}{c}{Policy search (CEM)} & \multicolumn{2}{c}{Markov MC quantiles + KKT} & best implementable \\
+ & $V_w$ & $V_w$ & $\Delta$ [95\,\% CI], wins & $V_w$ & $\Delta$ [95\,\% CI], wins & $V_w$ & $\Delta$ [95\,\% CI], wins & \\
+\hline
+S Low 0.50 & 0.15 & 0.14 & +8 [-11, +31] 7/20 & 0.13 & +15 [+3, +31]$^{\ast}$ 6/20 & 0.25 & -39 [-49, -29]$^{\ast\ast}$ 20/20 & Policy search (CEM) \\
+S Mod. 0.65 & 2.15 & 1.62 & +33 [+27, +39]$^{\ast\ast}$ 0/20 & 1.77 & +22 [+18, +25]$^{\ast\ast}$ 0/20 & 2.65 & -19 [-21, -17]$^{\ast\ast}$ 20/20 & Predictive MaxWeight \\
+S High 0.80 & 8.00 & 6.15 & +30 [+27, +34]$^{\ast\ast}$ 0/20 & 6.57 & +22 [+20, +24]$^{\ast\ast}$ 0/20 & 8.64 & -7 [-8, -7]$^{\ast\ast}$ 20/20 & Predictive MaxWeight \\
+S Flash & 11.76 & 9.69 & +21 [+20, +23]$^{\ast\ast}$ 0/20 & 10.20 & +15 [+13, +17]$^{\ast\ast}$ 0/20 & 12.44 & -6 [-6, -5]$^{\ast\ast}$ 20/20 & Predictive MaxWeight \\
+S Shift & 10.04 & 10.25 & -2 [-4, 0]$^{\ast}$ 15/20 & 9.73 & +3 [+2, +4]$^{\ast\ast}$ 3/20 & 10.22 & -2 [-3, -1]$^{\ast\ast}$ 16/20 & Policy search (CEM) \\
+G Mod. 0.65 & 5.08 & 7.57 & -33 [-36, -30]$^{\ast\ast}$ 20/20 & 4.58 & +11 [+9, +13]$^{\ast\ast}$ 0/20 & 6.44 & -21 [-25, -17]$^{\ast\ast}$ 20/20 & Policy search (CEM) \\
+G High 0.80 & 8.01 & 11.36 & -29 [-32, -27]$^{\ast\ast}$ 20/20 & 7.17 & +12 [+10, +14]$^{\ast\ast}$ 0/20 & 8.77 & -9 [-10, -7]$^{\ast\ast}$ 20/20 & Policy search (CEM) \\
+M Mod. 0.65 & 0.92 & 1.64 & -44 [-46, -41]$^{\ast\ast}$ 20/20 & 0.88 & +4 [+1, +7]$^{\ast\ast}$ 5/20 & 1.24 & -26 [-29, -23]$^{\ast\ast}$ 20/20 & Proposed, tuned LL weight \\
+M High 0.80 & 4.94 & 4.79 & +3 [+1, +5]$^{\ast}$ 8/20 & 3.93 & +26 [+24, +27]$^{\ast\ast}$ 0/20 & 5.12 & -3 [-5, -2]$^{\ast\ast}$ 19/20 & Policy search (CEM) \\
+M Shift 0.80 & 5.52 & 4.80 & +15 [+13, +17]$^{\ast\ast}$ 0/20 & 4.17 & +33 [+31, +35]$^{\ast\ast}$ 0/20 & 5.39 & +2 [+1, +4]$^{\ast\ast}$ 4/20 & Policy search (CEM) \\
+\hline
+\end{tabular}

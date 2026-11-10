@@ -1,0 +1,25 @@
+\begin{tabular}{lcccc}
+\hline
+Controller & Mod. 0.65 & High 0.80 & Shift 0.80 & $\Delta$ (wins) \\
+\hline
+Static equal share & 4.88$\pm$0.37 & 12.15$\pm$0.59 & 11.62$\pm$0.75 & -59 (20)$^{\ast\ast}$ \\
+Reactive proportional & 3.17$\pm$0.24 & 6.97$\pm$0.41 & 7.17$\pm$0.72 & -29 (20)$^{\ast\ast}$ \\
+MaxWeight (drift) & 3.29$\pm$0.27 & 8.40$\pm$0.60 & 8.73$\pm$0.86 & -41 (20)$^{\ast\ast}$ \\
+Predictive MaxWeight & 1.64$\pm$0.17 & 4.79$\pm$0.42 & 4.80$\pm$0.63 & +3 (8)$^{\ast}$ \\
+Deadline-aware react. & 1.98$\pm$0.25 & 7.37$\pm$0.64 & 7.84$\pm$0.95 & -33 (20)$^{\ast\ast}$ \\
+Point forecast + WF & 1.68$\pm$0.20 & 6.04$\pm$0.56 & 6.92$\pm$0.85 & -18 (20)$^{\ast\ast}$ \\
+Fixed quantile + WF & 1.43$\pm$0.18 & 6.52$\pm$0.64 & 6.73$\pm$0.75 & -24 (20)$^{\ast\ast}$ \\
+Policy search (CEM) & 0.88$\pm$0.13 & 3.93$\pm$0.46 & 4.17$\pm$0.65 & +26 (0)$^{\ast\ast}$ \\
+Bound quantiles + KKT & 1.48$\pm$0.24 & 9.94$\pm$0.94 & 9.92$\pm$1.33 & -50 (20)$^{\ast\ast}$ \\
+Markov MC quantiles + KKT & 1.24$\pm$0.13 & 5.12$\pm$0.57 & 5.39$\pm$0.80 & -3 (19)$^{\ast\ast}$ \\
+Proposed, window q. & 1.26$\pm$0.13 & 5.40$\pm$0.60 & 5.65$\pm$0.89 & -8 (20)$^{\ast\ast}$ \\
+Proposed (GBM + KKT) & 0.92$\pm$0.17 & 4.94$\pm$0.58 & 5.52$\pm$0.77 & -- \\
+Proposed, volume weights & 0.97$\pm$0.17 & 5.02$\pm$0.56 & 5.82$\pm$0.78 & -2 (17)$^{\ast\ast}$ \\
+Proposed, tuned LL weight & 0.85$\pm$0.17 & 4.88$\pm$0.58 & 5.31$\pm$0.76 & +1 (4)$^{\ast\ast}$ \\
+Proposed + ACI & 0.97$\pm$0.17 & 4.97$\pm$0.58 & 5.66$\pm$1.01 & -1 (11) \\
+Proposed, transferred & 1.59$\pm$0.15 & 5.54$\pm$0.56 & 5.27$\pm$0.83 & -11 (20)$^{\ast\ast}$ \\
+True Markov model + KKT & 0.88$\pm$0.16 & 4.89$\pm$0.56 & 5.42$\pm$0.77 & +1 (6)$^{\ast\ast}$ \\
+Oracle water-fill & 0.07$\pm$0.04 & 2.49$\pm$0.44 & 3.05$\pm$0.57 & +99 (0)$^{\ast\ast}$ \\
+Oracle + KKT rule & 0.03$\pm$0.03 & 1.84$\pm$0.39 & 2.31$\pm$0.55 & +168 (0)$^{\ast\ast}$ \\
+\hline
+\end{tabular}

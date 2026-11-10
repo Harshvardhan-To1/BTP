@@ -1,0 +1,31 @@
+{
+ "LL-0": {
+  "deadline_slots": 4,
+  "mean_rate": 855882.3529411766,
+  "peak_phase_rate": 3138235.2941176347,
+  "sandwich_violations": 0,
+  "sandwich_lower_over_drops_mean": 0.29836507642141885,
+  "sandwich_drops_over_upper_mean": 0.7202717029553451,
+  "rstar_over_mean_median": 1.0027019600333082
+ }
+}
+  tail probs   [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
+  empirical    [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
+  union bound  [1.0, 1.0, 1.0, 1.0, 1.0, 0.8922, 0.4165, 0.1666, 0.1005]
+  doob bound   [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+{
+ "eMBB-0": {
+  "deadline_slots": 20,
+  "mean_rate": 1426470.5882352944,
+  "peak_phase_rate": 3201633.986928108,
+  "sandwich_violations": 0,
+  "sandwich_lower_over_drops_mean": 0.5072818091022906,
+  "sandwich_drops_over_upper_mean": 0.5323530267446415,
+  "rstar_over_mean_median": 0.6134624231990073
+ }
+}
+  tail probs   [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
+  empirical    [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
+  union bound  [1.0, 1.0, 1.0, 1.0, 0.5582, 0.2639, 0.1337, 0.0511, 0.0258]
+  doob bound   [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+figure -> results/fhlm/figures/paper_fig_theory.pdf

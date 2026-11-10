@@ -1,0 +1,21 @@
+[runner] 64 runs in 31s
+[cem] iter 0: best 0.02664 mean [0.757, 0.458, 0.952] std [0.1, 0.15, 0.5]
+[runner] 64 runs in 31s
+[cem] iter 1: best 0.02489 mean [0.744, 0.467, 0.738] std [0.075, 0.152, 0.375]
+[runner] 64 runs in 31s
+[cem] iter 2: best 0.02611 mean [0.711, 0.506, 0.649] std [0.061, 0.087, 0.281]
+[runner] 64 runs in 30s
+[cem] iter 3: best 0.02430 mean [0.718, 0.504, 0.403] std [0.042, 0.063, 0.211]
+[runner] 64 runs in 29s
+[cem] iter 4: best 0.02131 mean [0.768, 0.495, 0.307] std [0.035, 0.052, 0.176]
+[runner] 64 runs in 29s
+[cem] iter 5: best 0.02137 mean [0.8, 0.493, 0.246] std [0.034, 0.044, 0.119]
+[runner] 64 runs in 29s
+[cem] iter 6: best 0.02175 mean [0.816, 0.489, 0.251] std [0.018, 0.027, 0.089]
+[runner] 64 runs in 30s
+[cem] iter 7: best 0.02112 mean [0.835, 0.496, 0.19] std [0.013, 0.02, 0.067]
+{
+ "p_ll": 0.8464175210243624,
+ "p_embb": 0.5051177318085905,
+ "w_ll": 1.1214137723045043
+}
