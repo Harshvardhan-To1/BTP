@@ -168,8 +168,10 @@ def finetune(model: TransformerQuantileForecaster, train: Dict[str, np.ndarray],
 
     opt = torch.optim.AdamW(model.net.parameters(), lr=lr, weight_decay=1e-4)
     base = evaluate(V)
-    best, best_state, bad, hist = base[0] + beta * base[1], None, 0, [{"epoch": -1, "val_dfl": base[0],
-                                                                         "val_pinball": base[1]}]
+    best, bad = base[0] + beta * base[1], 0
+    init_state = {k: v.detach().clone() for k, v in model.net.state_dict().items()}
+    best_state = None
+    hist = [{"epoch": -1, "val_dfl": base[0], "val_pinball": base[1]}]
     print(f"[dfl] pretrained  val dfl {base[0]:.5f} pinball {base[1]:.5f}", flush=True)
     t0 = time.perf_counter()
     for ep in range(epochs):
@@ -194,8 +196,7 @@ def finetune(model: TransformerQuantileForecaster, train: Dict[str, np.ndarray],
             bad += 1
             if bad >= patience:
                 break
-    if best_state is not None:
-        model.net.load_state_dict(best_state)
+    model.net.load_state_dict(best_state if best_state is not None else init_state)
     model.net.eval()
     return {"history": hist, "train_time_s": time.perf_counter() - t0, "pretrained_val": base,
             "improved": best_state is not None}
