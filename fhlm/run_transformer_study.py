@@ -55,7 +55,9 @@ def main(argv=None):
     df.to_csv(path, index=False)
 
     stored = pd.read_csv(os.path.join(RESULTS_DIR, "main_runs.csv"))
-    stored = stored[stored.scenario.isin(df.scenario.unique()) & stored.method.isin(STORED_BASELINES)
+    have = set(zip(df.scenario, df.method))
+    stored = stored[stored.scenario.isin(df.scenario.unique()) & stored.method.isin(STORED_BASELINES + ["proposed"])
+                    & ~pd.Series([k in have for k in zip(stored.scenario, stored.method)], index=stored.index)
                     & (stored.interval_slots == args.interval) & (stored.telemetry_delay_slots == args.delay)]
     allruns = pd.concat([df, stored], ignore_index=True)
     metrics = [PRIMARY_METRIC, "violation_ratio", "violation_ratio_ll", "violation_ratio_embb", "fh_utilisation",

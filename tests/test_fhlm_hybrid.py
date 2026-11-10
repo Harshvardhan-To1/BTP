@@ -55,6 +55,16 @@ def test_bpn_reduces_to_predictive_maxweight_when_the_base_fill_saturates_the_li
     assert np.allclose(r, pmw)
 
 
+def test_bpn2_reduces_to_the_class_level_policy_under_shortage():
+    from fhlm.controllers_ext import ClassLevelPolicy
+    rng = np.random.default_rng(2)
+    obs = _obs(5e6, rng)
+    q = _quantiles(obs, 0.9, rng)
+    cls = ClassLevelPolicy(FixedForecaster(q), p_ll=0.9, p_embb=0.6, w_ll=1.7).decide(obs)
+    bpn = BackpressureNewsvendor(FixedForecaster(q), p0_ll=0.9, p0_embb=0.6, v_ll=1.7, a=0.0, eta=0.0)
+    assert np.allclose(bpn.decide(obs), cls)
+
+
 def test_bpn_runs_closed_loop():
     cfg = SimConfig(num_slots=3000, warmup_slots=200, seed=3, network=NetworkConfig(),
                     traffic=TrafficConfig(load=0.8), control=ControlConfig(20, 2))

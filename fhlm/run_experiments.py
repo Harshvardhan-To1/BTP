@@ -49,7 +49,8 @@ METHOD_ORDER = ["static_equal", "reactive_prop", "maxweight", "pred_maxweight", 
                 "fixed_quantile", "cem_policy", "eb_kkt", "markov_kkt", "proposed_window", "proposed", "proposed_vc", "proposed_tw", "proposed_cal",
                 "proposed_transfer", "proposed_tf", "proposed_tf_nocross", "proposed_tf_unw", "point_forecast_tf",
                 "proposed_tf_mc", "proposed_tf_bayes", "proposed_tf_dfl", "proposed_tf_dfl_bayes",
-                "pred_maxweight_cem", "pred_maxweight_cem_tf", "cem_policy_v2", "cem_policy_v2_tf", "bpn", "bpn_tf", "bpn_tf_bayes", "markov_oracle_kkt", "oracle", "oracle_kkt"]
+                "pred_maxweight_cem", "pred_maxweight_cem_tf", "cem_policy_v2", "cem_policy_v2_tf", "bpn", "bpn_tf", "bpn_tf_bayes",
+                "bpn2", "bpn2_tf", "bpn2_tf_bayes", "markov_oracle_kkt", "oracle", "oracle_kkt"]
 METHOD_LABELS = {
     "static_equal": "Static equal share",
     "reactive_prop": "Reactive proportional (EWMA)",
@@ -83,6 +84,9 @@ METHOD_LABELS = {
     "bpn": "Back-pressure newsvendor: back-pressure base fill + KKT margins, 6 parameters by CEM (GBM)",
     "bpn_tf": "Back-pressure newsvendor with the LCQT forecaster",
     "bpn_tf_bayes": "Back-pressure newsvendor with the Bayesian LCQT forecaster (parameters of bpn_tf)",
+    "bpn2": "BPN v2: + sharing exponent and margin; contains both tuned baselines; CEM from both optima (GBM)",
+    "bpn2_tf": "BPN v2 with the LCQT forecaster",
+    "bpn2_tf_bayes": "BPN v2 with the Bayesian LCQT forecaster (parameters of bpn2_tf)",
     "oracle": "Oracle water-fill (true r*, not implementable; reference, not a bound)",
     "oracle_kkt": "Oracle + KKT rule (true r*, priority-ordered fill; the proposed rule with a perfect forecast)",
 }
@@ -276,6 +280,8 @@ HYBRID_METHODS = {
     "bpn": ("bpn", "gbm"), "bpn_tf": ("bpn", "lcqt"), "bpn_tf_bayes": ("bpn", "bayes"),
     "pred_maxweight_cem": ("pred_maxweight_cem", "gbm"), "pred_maxweight_cem_tf": ("pred_maxweight_cem", "lcqt"),
     "bpn__search": ("bpn", "gbm"), "bpn_tf__search": ("bpn", "lcqt"),
+    "bpn2": ("bpn2", "gbm"), "bpn2_tf": ("bpn2", "lcqt"), "bpn2_tf_bayes": ("bpn2", "bayes"),
+    "bpn2__search": ("bpn2", "gbm"), "bpn2_tf__search": ("bpn2", "lcqt"),
     "pred_maxweight_cem__search": ("pred_maxweight_cem", "gbm"),
     "pred_maxweight_cem_tf__search": ("pred_maxweight_cem", "lcqt"),
     "cem_policy_v2": ("cem_policy_v2", "gbm"), "cem_policy_v2_tf": ("cem_policy_v2", "lcqt"),
