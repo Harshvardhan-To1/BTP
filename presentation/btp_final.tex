@@ -24,6 +24,7 @@
   {../results/}%
   {../paper/extended/figures/}%
   {../paper/figures/}%
+  {../results/v2/}%
 }
 
 % ---------- colours ----------
@@ -126,8 +127,8 @@ Deadline-Feasible, Uncertainty-Aware Budget Allocation on a Shared 7-2x Link}
       \quad (low rank, delay-domain sparsity)\\
       \textbullet\ Truncated SVD, RAS-BFP (sketch + QR), CSEE\\
       \textbullet\ Rank-adaptive functional split (ACAFS)\\
-      \textbullet\ Benchmark of the matrix inversions /\\
-      \quad decompositions that must run in a 0.5\,ms slot};
+      \textbullet\ Inversion benchmark + RZF precoder\\
+      \quad \textbf{C/AVX-512/OpenMP kernels} for a 0.5\,ms slot};
     \node[lever,fill=accent!6] (B) at (7,0) {%
       \textbf{\textcolor{accent}{Part B: share one link well}}\\[3pt]
       \textbullet\ Several cells share a link smaller than their peak\\
@@ -150,6 +151,7 @@ Deadline-Feasible, Uncertainty-Aware Budget Allocation on a Shared 7-2x Link}
         \item Two structure-aware IQ encoders (\textbf{CSEE}, \textbf{RAS-BFP}) with error bounds, compared to O-RAN BFP and truncated SVD on 3GPP TDL-A channels.
         \item A rank-adaptive split controller (\textbf{ACAFS}).
         \item CPU benchmark of 9 matrix-inversion methods incl.\ learned inverters.
+        \item Complex RZF precoding: RMT-guided warm-start inversion and a \textbf{fused C/AVX-512/OpenMP precoder kernel} (10--15$\times$ over numpy+LAPACK).
       \end{itemize}
     \item \textbf{Part B --- Shared-link budget allocation} (main work)
       \begin{itemize}
@@ -158,7 +160,7 @@ Deadline-Feasible, Uncertainty-Aware Budget Allocation on a Shared 7-2x Link}
         \item Fair evaluation: 12 controllers, 2 traffic families, 20 test seeds, paired statistics.
       \end{itemize}
     \item \textbf{Extended study} --- MDP formulation, Markov-fluid theory of $\rstar$, a 3rd traffic family, 7 more controllers.
-    \item \textbf{Outputs} --- NCC 2027 paper (6 pp.), 11-page extended manuscript, fully reproducible code (28 tests).
+    \item \textbf{Outputs} --- NCC 2027 paper (6 pp.), 11-page extended manuscript, fully reproducible code (38 tests).
   \end{enumerate}
 \end{frame}
 
@@ -375,6 +377,247 @@ Deadline-Feasible, Uncertainty-Aware Budget Allocation on a Shared 7-2x Link}
   \begin{exampleblock}{Theme carried into Part B}
     Keep the mathematical structure and \textbf{learn only what is uncertain}.
   \end{exampleblock}
+\end{frame}
+
+% =====================================================================
+\section{Part A2: Precoding Inversion and Kernel Programming}
+% =====================================================================
+
+\begin{frame}{From real benchmarks to the real workload: RZF precoding}
+  \footnotesize
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \textbf{Gaps in the first benchmark}
+      \begin{itemize}\footnotesize
+        \item Real, i.i.d., well-conditioned $A = G/\sqrt n + 2I$; precoding needs \textbf{complex Hermitian} Grams of \textbf{correlated, near-far} channels.
+        \item ``InverseNet-Ultra beats LAPACK'' holds only for the mean, not the median.
+        \item The slot-to-slot warm start proposed in \texttt{REPORT.md} was never measured.
+        \item No link from inversion to the fronthaul.
+      \end{itemize}
+      \textbf{New study} (\texttt{cmatinv/}, \texttt{experiments\_v2/})
+      \begin{itemize}\footnotesize
+        \item 38.901 UMa near-far, TDL-A, spatial correlation, Rician LoS, Jakes aging
+        \item $M{=}64$, $K{=}16$, 273 PRBs, 0.5\,ms slots, 3.5\,GHz
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Per-PRB RZF precoder (every slot)}
+        \[
+          G = HH^H + \alpha I \in \mathbb{C}^{K\times K}
+        \]
+        \[
+          W = H^H G^{-1} \in \mathbb{C}^{M\times K}
+        \]
+        $\times\,273$ PRBs inside a \textbf{0.5\,ms} slot.
+      \end{block}
+      \begin{alertblock}{Question}
+        Can the whole precoder (Gram + inverse + $W$) fit in a slot on a CPU, and can a warm-started iteration make the inverse cheaper?
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{RMT-WS: random-matrix-guided warm-start inversion}
+  \footnotesize
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \begin{enumerate}
+        \item \textbf{Equilibrate} $\hat G = D^{-1/2} G D^{-1/2}$ (removes the near-far spread).
+        \item \textbf{Eigensolve-free spectral interval} (Marchenko--Pastur + moment match): $v = \|\hat G\|_F^2/K - 1$,\
+          $[a,b] = 1 + v/\bar s \mp 2\sqrt v$ (cost $K^2$).
+        \item \textbf{Cold start}: Chebyshev polynomial on $[a,b]$, then Newton--Schulz $X \leftarrow X(2I - \hat G X)$.
+        \item \textbf{Tracking}: next slot starts from the previous inverse.
+        \item \textbf{Residual certificate} $\|(I - \hat G X)z\|/\|z\|$ (2 probes, $4K^2$ MACs) picks the number of Newton steps, or falls back to a cold start when $r > 0.3$.
+      \end{enumerate}
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \begin{block}{Doppler-to-warm-start law}
+        \[
+          r_0 \approx c\cdot 2\sqrt{\tfrac{K}{M-K}}\sqrt{1-\rho},\quad 1-\rho \approx (\pi f_D T)^2
+        \]
+        $r_0$ grows \textbf{linearly with speed} (measured slope 1.00). Warm start valid up to $\approx$ \textbf{39\,km/h} ($M{=}64$, $K{=}16$), 60\,km/h ($K{=}8$), 23\,km/h ($K{=}32$).
+      \end{block}
+      \begin{block}{Certificate safety}
+        Tail bound $\Pr(\hat r^2 \le (1-d)r^2) \le e^{-pd^2 s/2}$; audit of 480 cases: \textbf{0} accepted-but-non-contractive at $\hat r \le 0.3$.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Inversion results: operation count and tracking}
+  \footnotesize
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{GEMMs for $\le 1\,\%$ sum-rate loss} (cold start)\\[2pt]
+      \begin{tabular}{lccc}
+        \toprule
+        Method & 64/16 & 128/16 & 64/32 \\
+        \midrule
+        Neumann (Wu/Prabhu) & $>8$ & $>8$ & $>8$ \\
+        Joint Newton-Neumann & $>10$ & $>10$ & $>10$ \\
+        Newton--Schulz, classic & $>10$ & $>10$ & $>10$ \\
+        \textbf{Cheb-MP + NS (ours)} & \textbf{6} & 5 & \textbf{9} \\
+        Gauss--Seidel & \textbf{6} & \textbf{4} & $>12$ \\
+        Block CG & 7 & 5 & 12 \\
+        \bottomrule
+      \end{tabular}\\[3pt]
+      Beats Neumann-type schemes; \hl{ties or loses} to Gauss--Seidel/CG at $K/M \le 0.25$. An exact Cholesky/LU inverse costs $\approx 1$ GEMM.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Tracking}, $K{=}16$, $M{=}64$, 95\,\% CI over 16 drops\\[2pt]
+      \begin{tabular}{lcc}
+        \toprule
+        Speed & Cold start (6 GEMM) & \textbf{RMT-WS} \\
+        \midrule
+        3\,km/h & 0.41\,\% & \best{0.011\,\% @ 2.25} \\
+        30\,km/h & 0.41\,\% & 0.62\,\% @ 5.4 \\
+        120\,km/h & 0.39\,\% & 0.39\,\% @ 6.25 \\
+        \bottomrule
+      \end{tabular}\\[3pt]
+      \begin{itemize}
+        \item 3\,km/h: \textbf{2.7$\times$ fewer GEMMs}, 30$\times$ lower loss.
+        \item 30\,km/h: a wash; 120\,km/h: becomes a cold start (never diverges, unlike fixed warm starts).
+        \item Low precision (8-bit mantissa, wide accumulate): 0.15\,\% vs 0.88\,\% for direct Gauss--Jordan.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Where should precoding run? Fronthaul impact}
+  \small
+  \centering
+  \includegraphics[width=0.92\linewidth]{exp10_fronthaul.png}\\[2pt]
+  \footnotesize
+  \begin{tabular}{lcc}
+    \toprule
+    Architecture (100\,MHz, $M{=}64$, $K{=}16$, BFP-9 IQ) & Fronthaul & Sum-rate vs exact RZF \\
+    \midrule
+    DU precodes, sends $M = 64$ streams & 118.4\,Gbit/s & 100\,\% \\
+    RU precodes, $K = 16$ layers + 8-bit weights every slot & \textbf{32.8\,Gbit/s ($-72$\,\%)} & 99.7\,\% \\
+    RU precodes, $K = 16$ layers + 6-bit weights every slot & 32.0\,Gbit/s ($-73$\,\%) & 96.7\,\% \\
+    \bottomrule
+  \end{tabular}\\[3pt]
+  \raggedright
+  At mobility the weights must be refreshed \textbf{every slot} (every 4 slots: 70\,\% rate at 30\,km/h) --- exactly the workload a fast per-slot precoder kernel serves. Caveat: saving assumes 3-PRB weight groups; per-subcarrier weights would exceed the DU-side rate.
+\end{frame}
+
+\begin{frame}[fragile]{Kernel programming: a fused RZF precoder in C}
+  \scriptsize
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{\texttt{kernels/cmat\_kernels.c}} (batched complex64, Python binding \texttt{cmatinv/fastkernels.py})
+      \begin{itemize}
+        \item \textbf{One pass per PRB}: load $H$ once $\to$ Gram (lower triangle) $\to$ inverse $\to$ $W^T$ + power scaling; all stack/L1-resident, no DRAM intermediates.
+        \item \textbf{Split re/im planes} (SoA) so complex arithmetic vectorises.
+        \item \textbf{OpenMP} \texttt{parallel for} across the 273 PRBs; \texttt{omp simd} inner loops.
+        \item \textbf{Gauss--Jordan sweep inverse}: $K$ rank-1 updates, contiguous fully-vectorised rows, no sqrt/divide chains; no pivoting needed since $G \succ 0$ (Cholesky kept behind \texttt{-DUSE\_CHOL}).
+        \item \textbf{Register-blocked} $W = H^H X$; \textbf{AVX-512} codegen; \texttt{rdtsc} profiling.
+        \item \textbf{Fused Newton step} returns the \emph{exact} residual $\|I - GX\|_F/\sqrt K$ for free.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Inner loop of the sweep inverse}
+\begin{verbatim}
+for (int i = 0; i < K; i++) {
+  if (i == k) continue;
+  float fr = ckr[i]*piv, fi = cki[i]*piv;
+  float *ar = xr + i*K, *ai = xi + i*K;
+  #pragma omp simd
+  for (int j = 0; j < K; j++) {
+    ar[j] -= fr*rkr[j] - fi*rki[j];
+    ai[j] -= fr*rki[j] + fi*rkr[j];
+  }
+  ar[k] = -fr; ai[k] = -fi;
+}
+\end{verbatim}
+      \textbf{Build} (\texttt{kernels/build.sh})
+\begin{verbatim}
+gcc -O3 -march=native -fopenmp -ffast-math
+    -mprefer-vector-width=512 -shared -fPIC
+\end{verbatim}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Kernel optimisation log (profiling-driven)}
+  \small
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      Per-stage cycles per PRB ($K{=}16$, $M{=}64$, 1 thread):
+      \begin{enumerate}
+        \item \textbf{Fusion + Hermitian symmetry}: Gram on lower triangle only.
+        \item \textbf{Register-blocked axpy} $W = H^H X$, output $W^T[S,K,M]$: 0.81 $\to$ \textbf{0.42\,ms}/slot.
+        \item \textbf{GJ sweep instead of Cholesky}: inverse 6.4k $\to$ \textbf{2.9k} cycles ($K{=}16$); 21k $\to$ 11k ($K{=}32$).
+        \item \textbf{AVX-512} (\texttt{-mprefer-vector-width=512}; gcc uses 256-bit by default): 1.3--1.5$\times$ single-thread, 2$\times$ on 4 threads.
+        \item 4-column blocked Gram: \hl{slower, reverted}.
+      \end{enumerate}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Where the cycles go after tuning}
+        \begin{itemize}
+          \item \texttt{form\_w} ($K\!\times\!K$ by $K\!\times\!M$): \textbf{44--58\,\%}, $\approx$30 flops/cycle ($\sim$half AVX-512 peak)
+          \item Gram: 20--24\,\%, $\approx$28 flops/cycle
+          \item Inverse: the rest
+        \end{itemize}
+      \end{block}
+      \begin{block}{Accuracy}
+        float32 kernel vs float64 exact: element error $\approx 3\cdot10^{-7}$, sum-rate loss $< 10^{-5}\,\%$ (incl.\ ill-conditioned, $K{=}32$, 30\,dB).
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Kernel results: whole precoder per slot (273 PRBs)}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \centering
+      \includegraphics[width=\linewidth]{exp17_pipeline_kernel.png}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      4-core AVX-512 Xeon, complex64, median of 40 runs\\[2pt]
+      \setlength{\tabcolsep}{3pt}
+      \begin{tabular}{lcccc}
+        \toprule
+        $K$,$M$ & numpy+LAPACK & C 1\,thr & C 4\,thr & gain \\
+        \midrule
+        8, 64 & 1.08\,ms & 0.27 & \best{0.070} & 15$\times$ \\
+        16, 64 & 3.21\,ms & 0.92 & \best{0.226} & 14$\times$ \\
+        32, 64 & 12.2\,ms & 3.75 & 0.97 & 12.5$\times$ \\
+        16, 128 & 4.71\,ms & 1.61 & \best{0.41} & 11.6$\times$ \\
+        32, 128 & 16.3\,ms & 6.43 & 1.60 & 10$\times$ \\
+        \bottomrule
+      \end{tabular}
+      \normalsize
+      \begin{itemize}\small
+        \item $K = 8, 16$ ($M{=}64$) and $K{=}16$, $M{=}128$ now \textbf{fit a 0.5\,ms slot} for the \emph{entire} precoder (none did before).
+        \item Near-linear thread scaling: 0.92 $\to$ 0.45 $\to$ 0.23\,ms (1/2/4 threads).
+        \item The Newton-step path (0.31\,ms) is slower than the exact GJ sweep (0.23\,ms) inside the fused pipeline.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Kernel programming: honest corrections and negative results}
+  \small
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[width=\linewidth]{exp15_kernel_bench.png}\\
+      \footnotesize Inverse only: tuned C Cholesky vs fused NS step (4 threads)
+      \begin{exampleblock}{Verdict}
+        \footnotesize Solid kernel engineering (10--15$\times$, slot-feasible precoder), not research novelty. Recommended CPU path: the \textbf{fused exact kernel}.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{itemize}\footnotesize
+        \item \textbf{Speed-up is mostly threading}: single-thread gain is 2.5--4$\times$; batched \texttt{numpy.linalg.inv} is single-threaded. MKL batched / Eigen not compared.
+        \item \textbf{A good exact inverse wins on CPU}: NS step 0.115 vs Cholesky 0.124\,ms ($K{=}16$), 0.66 vs 0.58\,ms ($K{=}32$), and tracking needs 2.25--6.25 steps. Newton/certificate only pays on GEMM-engine hardware (GPU/NPU/systolic), not measured.
+        \item \textbf{AVX512-FP16 weight formation} (\texttt{\_mm512\_fcmadd\_pch}): \hl{not faster} (0.78--1.30$\times$) and costs 0.50\,\% sum-rate at 30\,dB $\Rightarrow$ rejected, kept as documented negative result.
+        \item AMX, cache-blocking for $K > 32$, NUMA pinning, real-time OS settings: not done.
+      \end{itemize}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 % =====================================================================
@@ -1080,24 +1323,25 @@ Deadline-Feasible, Uncertainty-Aware Budget Allocation on a Shared 7-2x Link}
 % =====================================================================
 
 \begin{frame}{What we do \emph{not} claim}
+  \small
   \begin{itemize}
     \item \textbf{No real-world validation}: three simulated families. Family G uses standard 3GPP models but our own round-robin scheduler and single-link fronthaul.
     \item \textbf{Part A} compression figures are from the earlier run (the \texttt{src/} package is not in the repository); the inversion benchmark uses random well-conditioned matrices, not channel matrices.
+    \item \textbf{Kernels}: 10--15$\times$ is vs.\ single-threaded numpy+LAPACK (2.5--4$\times$ per thread); no MKL/Eigen comparison; on CPU the Newton tracker loses to a tuned exact inverse; RMT-WS components are largely prior art.
     \item \textbf{No closed-loop optimality or stability claim}: propositions cover feasibility, equal weighted risk, backlog-first and a linear miscalibration bound.
     \item \textbf{No universal superiority}: only $-4$\,\% vs.\ proportional under flash crowds; loses at $T = 20$\,ms, at $\ge 0.86$ load, near-tie at $\tau = 5$\,ms; ML adds $\approx 2$\,\% under shift.
     \item \textbf{Priority trade}: the claim holds for LL weight $\ge$ 2--3.
     \item In the extended comparison, CEM policy search and predictive MaxWeight beat the KKT rule in 9/10 scenarios.
-    \item Not modelled: NMSE cost of fewer BFP bits in Part B, switch queues, HARQ, uplink.
   \end{itemize}
 \end{frame}
 
 \begin{frame}{Conclusions}
   \footnotesize
   \begin{block}{Part A}
-    Structure-aware IQ encoders reach \textbf{13--16$\times$} compression at $\approx -20$\,dB (vs.\ $\sim 4\times$ BFP) and run \textbf{3--6$\times$ faster} than SVD. LU via LAPACK is the fastest exact inverter; a learned \emph{iteration} works where a direct neural inverse fails.
+    Structure-aware encoders: \textbf{13--16$\times$} at $\approx -20$\,dB (BFP $\sim 4\times$), \textbf{3--6$\times$ faster} than SVD. A learned \emph{iteration} works where a direct neural inverse fails. A \textbf{fused C/AVX-512 RZF kernel} runs the whole precoder 10--15$\times$ faster than numpy+LAPACK, fitting $K \le 16$ in a 0.5\,ms slot; RU-side precoding cuts fronthaul by $\approx 72\,\%$.
   \end{block}
   \begin{block}{Part B}
-    Forecasting the \textbf{deadline-feasible rate} as a \textbf{range} and splitting the link with a closed-form \textbf{KKT rule} is the best implementable controller among 12 in all scenarios of two families: \textbf{$-11$ to $-43$\,\%} vs.\ the same forecast's median, \textbf{$-19$ to $-70$\,\%} vs.\ deadline-aware reactive, every seed, $p < 0.01$.
+    Forecasting the \textbf{deadline-feasible rate} as a \textbf{range} and splitting the link with a closed-form \textbf{KKT rule} is the best of 12 controllers in all scenarios of two families: \textbf{$-11$ to $-43$\,\%} vs.\ the forecast median, \textbf{$-19$ to $-70$\,\%} vs.\ deadline-aware reactive, every seed, $p < 0.01$.
   \end{block}
   \begin{columns}[T]
     \begin{column}{0.5\textwidth}
@@ -1114,23 +1358,26 @@ Deadline-Feasible, Uncertainty-Aware Budget Allocation on a Shared 7-2x Link}
 \end{frame}
 
 \begin{frame}{Future work}
+  \footnotesize
   \begin{columns}[T]
     \begin{column}{0.5\textwidth}
       \textbf{Part A}
-      \begin{itemize}\small
+      \begin{itemize}
         \item Restore the \texttt{src/} package and regenerate Exp.\ 1--4
         \item Benchmark on realistic channel matrices
         \item SIMD / GPU real-time encode path ($<100\,\mu$s)
         \item ACAFS as a near-RT RIC xApp (E2SM)
+        \item Kernels: compare vs MKL batched / Eigen; AMX; GPU/NPU for the Newton path; cache-blocking for $K > 32$
+        \item Benchmark vs ChebI-NS, Chebyshev-RZF, TPE
       \end{itemize}
       \textbf{A + B}
-      \begin{itemize}\small
+      \begin{itemize}
         \item Make the compression width a \textbf{per-cell knob} of the allocation rule (trade signal quality for load)
       \end{itemize}
     \end{column}
     \begin{column}{0.5\textwidth}
       \textbf{Part B}
-      \begin{itemize}\small
+      \begin{itemize}
         \item Validation on measured per-cell PRB traces
         \item Controller that \textbf{switches} between reservation and back-pressure from estimated burst length vs.\ interval
         \item Coupled calibration (adjust $\lambda$, or calibrate on unconstrained error)
@@ -1143,21 +1390,21 @@ Deadline-Feasible, Uncertainty-Aware Budget Allocation on a Shared 7-2x Link}
 \end{frame}
 
 \begin{frame}[fragile]{Deliverables and reproducibility}
+  \footnotesize
   \begin{columns}[T]
     \begin{column}{0.5\textwidth}
       \textbf{Repository}
-      \begin{itemize}\small
+      \begin{itemize}
         \item \texttt{matinv\_bench/} --- inversion benchmark, InverseNets
+        \item \texttt{cmatinv/}, \texttt{experiments\_v2/} --- complex inversion, RMT-WS, 38.901 channels, Exp.\ 5--18
+        \item \texttt{kernels/} --- fused C/AVX-512/OpenMP precoder
         \item \texttt{experiments/} --- Part A Exp.\ 1--4, extended pipeline
         \item \texttt{fhlm/} --- simulator, traffic (S, G, M), forecasters, 19 controllers, theory, figures, tables
-        \item \texttt{tests/} --- 14 + 14 tests (capacity every slot, no future leakage, bound validity, \dots)
+        \item \texttt{tests/} --- 16 + 14 + 8 tests (capacity every slot, no future leakage, bound validity, \dots)
         \item \texttt{results/} --- all CSVs / logs / figures
       \end{itemize}
       \textbf{Papers}
-      \begin{itemize}\small
-        \item NCC 2027 submission (6 pp., double-blind)
-        \item 11-page extended journal manuscript
-      \end{itemize}
+      NCC 2027 submission (6 pp.); 11-page extended manuscript.
     \end{column}
     \begin{column}{0.5\textwidth}
       \textbf{Reproduce}
@@ -1168,12 +1415,10 @@ python -m fhlm.train \
   --out models/fhlm_quantile_gbm_T20_d2.pkl
 python -m fhlm.run_experiments tune
 python -m fhlm.run_experiments main
-python -m fhlm.run_experiments sweep
-python -m fhlm.run_experiments \
-  compression --scenario moderate
 python -m fhlm.make_figures
-python -m fhlm.make_paper_tables
 bash experiments/run_extended.sh
+sh kernels/build.sh
+python experiments_v2/run_all.py
 \end{verbatim}
       \normalsize
       \small Every number in the papers is a macro generated from the CSVs.
