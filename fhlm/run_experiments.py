@@ -47,7 +47,10 @@ PRIMARY_METRIC = "weighted_violation_ratio"
 # method name -> (constructor, needs_forecaster)
 METHOD_ORDER = ["static_equal", "reactive_prop", "maxweight", "pred_maxweight", "queue_aware", "point_forecast",
                 "fixed_quantile", "cem_policy", "eb_kkt", "markov_kkt", "proposed_window", "proposed", "proposed_vc", "proposed_tw", "proposed_cal",
-                "proposed_transfer", "markov_oracle_kkt", "oracle", "oracle_kkt"]
+                "proposed_transfer", "proposed_tf", "proposed_tf_nocross", "proposed_tf_unw", "point_forecast_tf",
+                "proposed_tf_mc", "proposed_tf_bayes", "proposed_tf_dfl", "proposed_tf_dfl_bayes",
+                "pred_maxweight_cem", "pred_maxweight_cem_tf", "cem_policy_v2", "cem_policy_v2_tf", "bpn", "bpn_tf", "bpn_tf_bayes",
+                "bpn2", "bpn2_tf", "bpn2_tf_bayes", "markov_oracle_kkt", "oracle", "oracle_kkt"]
 METHOD_LABELS = {
     "static_equal": "Static equal share",
     "reactive_prop": "Reactive proportional (EWMA)",
@@ -66,11 +69,67 @@ METHOD_LABELS = {
     "proposed_tw": "Proposed with a TUNED internal LL weight (operator priority kept in the metric)",
     "proposed_cal": "Proposed + online (ACI) calibration",
     "proposed_transfer": "Proposed with the forecaster trained on the OTHER traffic family (transfer)",
+    "proposed_tf": "Proposed KKT rule with the link-aware cross-cell quantile Transformer (LCQT)",
+    "proposed_tf_nocross": "Proposed KKT rule with LCQT without the cross-cell attention layer (ablation)",
+    "proposed_tf_unw": "Proposed KKT rule with LCQT trained on the plain (unweighted) pinball loss (ablation)",
+    "point_forecast_tf": "Point forecast (LCQT median) + water-fill",
+    "proposed_tf_mc": "Proposed KKT rule with MC-dropout Bayesian LCQT (16 posterior samples, mixture quantiles)",
+    "proposed_tf_bayes": "Proposed KKT rule with Bayesian LCQT: 3-member deep ensemble x 8 MC-dropout samples",
+    "proposed_tf_dfl": "Proposed KKT rule with decision-focused LCQT (trained through the differentiable KKT layer)",
+    "proposed_tf_dfl_bayes": "Decision-focused LCQT + MC-dropout posterior (16 samples, mixture quantiles) + KKT rule",
+    "pred_maxweight_cem": "Predictive MaxWeight with (margin, lookahead) learned by CEM on training seeds",
+    "pred_maxweight_cem_tf": "Predictive MaxWeight (CEM-tuned) with the LCQT forecaster",
+    "cem_policy_v2": "Class-level policy re-searched by CEM with the same budget as BPN (GBM)",
+    "cem_policy_v2_tf": "Class-level policy re-searched by CEM with the LCQT forecaster",
+    "bpn": "Back-pressure newsvendor: back-pressure base fill + KKT margins, 6 parameters by CEM (GBM)",
+    "bpn_tf": "Back-pressure newsvendor with the LCQT forecaster",
+    "bpn_tf_bayes": "Back-pressure newsvendor with the Bayesian LCQT forecaster (parameters of bpn_tf)",
+    "bpn2": "BPN v2: + sharing exponent and margin; contains both tuned baselines; CEM from both optima (GBM)",
+    "bpn2_tf": "BPN v2 with the LCQT forecaster",
+    "bpn2_tf_bayes": "BPN v2 with the Bayesian LCQT forecaster (parameters of bpn2_tf)",
     "oracle": "Oracle water-fill (true r*, not implementable; reference, not a bound)",
     "oracle_kkt": "Oracle + KKT rule (true r*, priority-ordered fill; the proposed rule with a perfect forecast)",
 }
 
 _FORECASTER_CACHE: Dict[str, QuantileGBMForecaster] = {}
+_TF_CACHE: Dict[str, Any] = {}
+TF_VARIANTS = {"proposed_tf": "", "point_forecast_tf": "", "proposed_tf_nocross": "_nocross", "proposed_tf_unw": "_unw",
+               "proposed_tf_dfl": "_dfl"}
+
+
+def tf_model_path(interval: int, delay: int, family: str = "synthetic", variant: str = "") -> str:
+    return os.path.join(MODEL_DIR, f"fhlm_lcqt_T{interval}_d{delay}{_fam_suffix(family)}{variant}.pt")
+
+
+def ensure_tf_forecaster(interval: int, delay: int, family: str = "synthetic", variant: str = ""):
+    """Loaded lazily inside each worker (torch thread pools do not survive fork)."""
+    from .transformer import TransformerQuantileForecaster
+    path = tf_model_path(interval, delay, family, variant)
+    if path not in _TF_CACHE:
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"{path}: train it with python3 -m fhlm.train_transformer --out {path}")
+        _TF_CACHE[path] = TransformerQuantileForecaster.load(path, threads=1)
+    return _TF_CACHE[path]
+
+
+# Bayesian LCQT variants: (member model variants, MC-dropout samples per member)
+BAYES_VARIANTS = {"proposed_tf_mc": ([""], 16), "proposed_tf_bayes": (["", "_s1", "_s2"], 8),
+                  "proposed_tf_dfl_bayes": (["_dfl"], 16)}
+
+
+def tf_method_available(method: str, interval: int, delay: int, family: str = "synthetic") -> bool:
+    variants = BAYES_VARIANTS[method][0] if method in BAYES_VARIANTS else [TF_VARIANTS[method]]
+    return all(os.path.exists(tf_model_path(interval, delay, family, v)) for v in variants)
+
+
+def ensure_bayes_forecaster(method: str, interval: int, delay: int, family: str = "synthetic"):
+    from .transformer import BayesianTransformerForecaster
+    key = f"{method}:{interval}:{delay}:{family}"
+    if key not in _TF_CACHE:
+        variants, mc = BAYES_VARIANTS[method]
+        _TF_CACHE[key] = BayesianTransformerForecaster(
+            [ensure_tf_forecaster(interval, delay, family, v) for v in variants], mc_samples=mc)
+    return _TF_CACHE[key]
 
 
 def _fam_suffix(family: str) -> str:
@@ -157,6 +216,15 @@ def build_controller(name: str, params: Dict[str, Any], interval: int, delay: in
     if name == "proposed":
         return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, family), calibrate=False,
                                          w_min=p.get("w_min", 0.25), name="proposed")
+    if name in TF_VARIANTS and name != "point_forecast_tf":
+        return UncertaintyAwareAllocator(ensure_tf_forecaster(interval, delay, family, TF_VARIANTS[name]),
+                                         calibrate=False, w_min=p.get("w_min", 0.25), name=name)
+    if name in BAYES_VARIANTS:
+        return UncertaintyAwareAllocator(ensure_bayes_forecaster(name, interval, delay, family),
+                                         calibrate=False, w_min=p.get("w_min", 0.25), name=name)
+    if name == "point_forecast_tf":
+        return PointForecastWaterfill(ensure_tf_forecaster(interval, delay, family), margin=p.get("margin", 0.0),
+                                      w_min=p.get("w_min", 0.25))
     if name == "proposed_sus":
         return UncertaintyAwareAllocator(ensure_forecaster(interval, delay, family, "sustain"), calibrate=False,
                                          w_min=p.get("w_min", 0.25), name="proposed_sus")
@@ -189,7 +257,36 @@ def build_controller(name: str, params: Dict[str, Any], interval: int, delay: in
         return OracleWaterfill(w_min=p.get("w_min", 0.25))
     if name == "oracle_kkt":
         return OracleKKT(w_min=p.get("w_min", 0.25))
+    if name in HYBRID_METHODS:
+        from . import hybrid
+        policy, fc_kind = HYBRID_METHODS[name]
+        if fc_kind == "gbm":
+            fc = ensure_forecaster(interval, delay, family)
+        elif fc_kind == "lcqt":
+            fc = ensure_tf_forecaster(interval, delay, family)
+        else:
+            fc = ensure_bayes_forecaster("proposed_tf_bayes", interval, delay, family)
+        if name.endswith("__search"):
+            hp = {k: v for k, v in p.items() if not k.startswith("_")}
+        else:
+            hp = hybrid.load_params(policy, "gbm" if fc_kind == "gbm" else "lcqt", family)
+        return hybrid.build(policy, fc, hp, name)
     raise ValueError(name)
+
+
+# name -> (policy class in fhlm.hybrid, forecaster). The Bayesian variants reuse the parameters learned with
+# the single LCQT (CEM through the Bayesian forecaster is too slow) and swap only the forecaster.
+HYBRID_METHODS = {
+    "bpn": ("bpn", "gbm"), "bpn_tf": ("bpn", "lcqt"), "bpn_tf_bayes": ("bpn", "bayes"),
+    "pred_maxweight_cem": ("pred_maxweight_cem", "gbm"), "pred_maxweight_cem_tf": ("pred_maxweight_cem", "lcqt"),
+    "bpn__search": ("bpn", "gbm"), "bpn_tf__search": ("bpn", "lcqt"),
+    "bpn2": ("bpn2", "gbm"), "bpn2_tf": ("bpn2", "lcqt"), "bpn2_tf_bayes": ("bpn2", "bayes"),
+    "bpn2__search": ("bpn2", "gbm"), "bpn2_tf__search": ("bpn2", "lcqt"),
+    "pred_maxweight_cem__search": ("pred_maxweight_cem", "gbm"),
+    "pred_maxweight_cem_tf__search": ("pred_maxweight_cem", "lcqt"),
+    "cem_policy_v2": ("cem_policy_v2", "gbm"), "cem_policy_v2_tf": ("cem_policy_v2", "lcqt"),
+    "cem_policy_v2__search": ("cem_policy_v2", "gbm"), "cem_policy_v2_tf__search": ("cem_policy_v2", "lcqt"),
+}
 
 
 def with_compression(cfg, trace, mantissa_bits: int):
