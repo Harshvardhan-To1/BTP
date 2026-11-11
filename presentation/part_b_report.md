@@ -3,16 +3,35 @@
 **What this is.** Everything you need to know before presenting Part B of the
 B.Tech. project, starting from zero. It assumes no background in mobile
 networks, forecasting or optimisation. Read Sections 1 to 7 once from top to
-bottom; they build on each other. Section 8 covers the results, Section 9 the
-extended study, Section 10 the limitations, Section 11 a slide-by-slide
-speaking guide for the Part B slides of `presentation/btp_final.tex`, Section 12
-the likely questions, and Section 13 a one-page cheat sheet of numbers for the
-last ten minutes before you go on.
+bottom; they build on each other. Section 8 covers the results of the main
+method (B1), Section 9 the extended study, Section 10 the Bayesian Transformer
+forecaster (Part B2), Section 11 the back-pressure newsvendor (Part B3),
+Section 12 the limitations, Section 13 a slide-by-slide speaking guide for the
+Part B deck (`presentation/part_b_final.pptx`), Section 14 the likely
+questions, and Section 15 a one-page cheat sheet of numbers for the last ten
+minutes before you go on.
+
+**How Part B fits together.** Part B has grown in steps, each answering the
+question the previous one raised:
+
+1. **B1, the KKT newsvendor rule** (Sections 2–8): forecast each cell's
+   deadline-feasible rate as a range and split the link at equal weighted risk.
+   Best of 12 controllers in two traffic families; the NCC 2027 submission.
+2. **The extended study** (Section 9): two stronger controllers (a policy
+   learned with the cross-entropy method, and predictive MaxWeight) beat B1 in
+   9 of 10 scenarios.
+3. **B2, a Bayesian Transformer forecaster** (Section 10): a much better
+   forecaster helps only a little, so the gap is in the decision structure,
+   not the forecast.
+4. **B3, the back-pressure newsvendor** (Section 11): a new decision rule that
+   contains both strongest baselines and beats them in all 10 scenarios of
+   three traffic families.
 
 Every number here comes from files in this repository (mainly
-`results/fhlm/*.csv`, `docs/fhlm/results_summary.md` and
-`docs/fhlm/extended_study.md`). Nothing has been rounded in a way that changes
-its meaning.
+`results/fhlm/*.csv`, `results/fhlm/hybrid_*.json`,
+`docs/fhlm/results_summary.md`, `docs/fhlm/extended_study.md` and the Part B2/B3
+slides of `presentation/btp_final.tex`). Nothing has been rounded in a way that
+changes its meaning.
 
 ---
 
@@ -25,15 +44,16 @@ its meaning.
 5. [Key idea 2: forecast a range, not a number](#5-key-idea-2-forecast-a-range-not-a-number)
 6. [Key idea 3: the KKT (newsvendor) allocation rule](#6-key-idea-3-the-kkt-newsvendor-allocation-rule)
 7. [How the experiments were run](#7-how-the-experiments-were-run)
-8. [Results](#8-results)
+8. [Results (B1)](#8-results)
 9. [The extended study](#9-the-extended-study-theory-and-stronger-controllers)
-10. [Limitations and what we do NOT claim](#10-limitations-and-what-we-do-not-claim)
-11. [Slide-by-slide speaking guide](#11-slide-by-slide-speaking-guide)
-12. [Likely questions and honest answers](#12-likely-questions-and-honest-answers)
-13. [Cheat sheet: the numbers to remember](#13-cheat-sheet-the-numbers-to-remember)
-14. [Glossary](#14-glossary)
-15. [Where things live in the repository, and a live demo](#15-where-things-live-in-the-repository-and-a-live-demo)
-
+10. [Part B2: a Bayesian, decision-focused Transformer forecaster](#10-part-b2-a-bayesian-decision-focused-transformer-forecaster)
+11. [Part B3: the back-pressure newsvendor (BPN)](#11-part-b3-the-back-pressure-newsvendor-bpn)
+12. [Limitations and what we do NOT claim](#12-limitations-and-what-we-do-not-claim)
+13. [Slide-by-slide speaking guide](#13-slide-by-slide-speaking-guide)
+14. [Likely questions and honest answers](#14-likely-questions-and-honest-answers)
+15. [Cheat sheet: the numbers to remember](#15-cheat-sheet-the-numbers-to-remember)
+16. [Glossary](#16-glossary)
+17. [Where things live in the repository, and a live demo](#17-where-things-live-in-the-repository-and-a-live-demo)
 ---
 
 ## 1. The background, from zero
@@ -157,6 +177,12 @@ future. That is where forecasting comes in.
 3. Split the link with a closed-form **KKT rule** that cuts every cell at the
    **same priority-weighted risk** of needing one more bit, so safety margins
    are **derived** from the forecast, not tuned by hand.
+
+That is B1, the main method. Later steps (Sections 9–11) keep the same r\*
+target and the same quantile forecasts but change the forecaster (B2) and then
+the decision rule (B3): **fill a base in back-pressure order, then spend the
+leftover capacity on newsvendor margins.** B3 is the strongest controller in
+the project.
 
 ---
 
@@ -923,9 +949,348 @@ classes' levels instead of tying them through one λ.
 
 ![Regime](../results/fhlm/figures/paper_fig_regime.png)
 
+**Where this leads.** The extended study leaves two open questions: is the gap
+to CEM and predictive MaxWeight caused by forecast error (B2 tests this with a
+much better forecaster), and can one controller combine reservation and
+back-pressure and beat both (B3)?
+
 ---
 
-## 10. Limitations and what we do NOT claim
+## 10. Part B2: a Bayesian, decision-focused Transformer forecaster
+
+**The question B2 asks.** The extended study showed that two controllers beat
+the KKT rule. Is that because our **forecast** is not good enough, or because
+the **decision rule** itself has the wrong structure? B2 builds the best
+forecaster we could and plugs it into the unchanged KKT rule. If the gap
+closes, the forecast was the problem. (Spoiler: it barely closes, so the gap is
+structural. That is what motivates B3.) B2 was run on **Family S only**.
+
+### 10.1 Background from zero: Transformers and uncertainty
+
+| Term | Meaning in one line |
+|---|---|
+| **Transformer** | A neural network built from "attention" layers; the standard model for sequences (text, time series). |
+| **Attention** | Each element of the input looks at all the others and decides how much each one matters for its own output. |
+| **Patch (PatchTST)** | Instead of feeding single time steps, cut the history into chunks ("patches") and treat each chunk as one token. Fewer, richer tokens. |
+| **Cross-variate attention (iTransformer)** | Attention between different series (here: different cells) instead of between time steps. |
+| **FiLM** | "Feature-wise linear modulation": scale and shift a layer's output using side information (here: deadline and priority), so one network serves both cell classes. |
+| **Pinball loss** | The loss used to train a model to predict a quantile (same as for the GBM). |
+| **Non-crossing quantiles** | The 5 % quantile must never exceed the 25 % one, and so on. Building each quantile as the previous one plus a positive amount guarantees it. |
+| **Epistemic uncertainty** | Uncertainty because the model itself is unsure (not enough data, new situation), as opposed to randomness in the traffic. |
+| **MC dropout** | Run the network several times with random neurons switched off; the spread of the outputs estimates epistemic uncertainty. |
+| **Deep ensemble** | Train a few copies with different random seeds; their disagreement estimates epistemic uncertainty. |
+| **Decision-focused learning** | Train the forecaster on the cost of the **decision** made with it, not on forecast accuracy. |
+| **DAgger** | A training trick: re-collect training situations using the new model's own decisions, then retrain. |
+
+### 10.2 The model: LCQT (link-aware cross-cell quantile Transformer)
+
+It is a **drop-in replacement** for the GBM: same target (r\* of the coming
+horizon), same six quantile levels, same train/validation/test seeds, and the
+KKT rule is used unchanged. Pipeline:
+
+1. **Deadline-aware patch tokens.** Each cell's history is cut into 16 patches
+   of 22 slots (one horizon, T + τ). Each patch also carries its own r\* at the
+   cell's deadline, plus its mean and max. A summary token carries the 28 GBM
+   features.
+2. **Temporal encoder.** 2 Transformer layers, width 48, 4 attention heads,
+   shared by all cells.
+3. **FiLM on (deadline, priority).** One network for LL and eMBB cells.
+4. **Link-aware cross-cell attention.** One attention layer whose tokens are
+   the 8 cells sharing the link. Idea: coinciding bursts across cells cause the
+   shortages, and a per-cell model cannot see them.
+5. **Non-crossing quantile head.** q₁ = softplus(a₁), q_k = q_{k−1} + softplus(a_k).
+
+Size and cost: **63k parameters** (44k without the cross-cell layer), 40
+epochs, early stopping on validation, about **6 minutes** on a 4-core CPU.
+
+**What is new and what is not.** Every block is prior art (PatchTST,
+iTransformer, Temporal Fusion Transformer, MC dropout, deep ensembles,
+decision-focused learning). We found no paper that combines them for a shared,
+deadline-constrained link. Say "we found none in our search", not "none
+exists".
+
+### 10.3 The two non-standard layers
+
+**Bayesian mixture layer.** Three ensemble members × 8 dropout passes give 24
+sampled forecasts per cell. The KKT rule receives their **mixture**
+distribution (the average of the 24 CDFs), **not** the average of the
+quantiles. Averaging quantiles throws away the disagreement between samples.
+With the mixture, a cell whose forecast the model is unsure about gets a wider
+margin at the same λ. Dropout is seeded per decision slot, so runs stay
+reproducible.
+
+**Differentiable KKT layer (DF-LCQT).** The KKT rule becomes the last layer of
+the network, so the Transformer can be trained on the cost of the allocation
+itself:
+
+* Forward pass: bisection finds λ\* as usual.
+* Backward pass: the implicit function theorem on the binding link,
+  $\partial\lambda^\ast/\partial q = -(\partial g/\partial q)/(\partial g/\partial\lambda)$
+  with $g = \sum_i r_i - C$, implemented as one Newton step.
+* Loss: $\sum_i p_i (D_i + 1)(B_i + r^*_i - r_i)^+$ (the shortfall-sandwich lower
+  bound on dropped bits from the extended study) plus a small pinball term.
+* Training situations are logged by running the rule closed-loop on training
+  seeds, then one DAgger round.
+* Unit tests: matches the numpy allocator to 10⁻⁶, and the total budget does
+  not change with the forecast when the link is full (budget only moves
+  between cells).
+
+### 10.4 Forecast quality (same validation rows for every model)
+
+| Model | Pinball | Pinball LL | 90 % coverage | 90 % width | Shift: 90 % cov. | Shift: LL q95 cov. |
+|---|---|---|---|---|---|---|
+| GBM (B1) | 0.0224 | 0.0259 | 0.894 | 1.51 | — | — |
+| LCQT | **0.0214** | 0.0251 | 0.902 | **1.36** | 0.795 | 0.855 |
+| LCQT + MC dropout (16) | 0.0214 | 0.0251 | 0.911 | 1.41 | 0.802 | 0.870 |
+| Deep ensemble (3) | **0.0212** | **0.0248** | 0.912 | 1.37 | 0.806 | 0.864 |
+| **Ensemble × MC (3 × 8)** | 0.0213 | 0.0249 | **0.919** | 1.40 | **0.808** | **0.873** |
+| DF-LCQT (decision-focused) | 0.0224 | 0.0273 | 0.907 | 1.38 | 0.830 | 0.822 |
+
+* The Transformer cuts pinball loss by **4.5 %** and the 90 % interval width
+  by **8 %**, at **higher** coverage than the GBM.
+* The cross-cell layer and the priority-weighted loss do **not** improve the
+  forecast (ablations equal within noise). An honest negative.
+* The Bayesian layer moves coverage towards nominal under the held-out shift
+  (LL 95 % quantile: 0.855 → 0.873) but cannot remove the under-coverage
+  there: the shift is outside the training data.
+* DF-LCQT gives up forecast accuracy **on purpose**: it shades the LL upper
+  tail because that is cheaper for the decision.
+
+### 10.5 Closed-loop results ($V_w$ %, Family S, 20 test seeds)
+
+| Controller | low | moderate | high | flash | shift |
+|---|---|---|---|---|---|
+| GBM + KKT (B1) | 0.15 | 2.15 | 8.00 | 11.76 | 10.04 |
+| LCQT median + water-fill | 0.25 | 3.14 | 9.76 | 13.47 | 11.51 |
+| LCQT + KKT | 0.13 | 2.05 | 7.91 | 11.81 | 10.06 |
+| MC-dropout LCQT + KKT | 0.12 | 2.04 | 7.93 | 11.82 | 10.03 |
+| **Bayesian LCQT + KKT (3 × 8)** | **0.12** | **2.02** | **7.89** | 11.78 | 10.02 |
+| DF-LCQT + KKT | 0.18 | 2.26 | 7.93 | 11.62 | 10.15 |
+| CEM policy (extended study) | 0.13 | 1.77 | 6.57 | 10.20 | 9.73 |
+| Predictive MaxWeight | 0.14 | 1.62 | 6.15 | 9.69 | 10.25 |
+| Oracle + KKT (true r\*) | 0.05 | 0.88 | 4.77 | 8.10 | 5.84 |
+
+**Bayesian LCQT vs GBM + KKT, paired:** −20.8 % (low), −6.1 % (moderate),
+−1.4 % (high), each **20/20 seeds**; flash +0.2 % and shift −0.2 % are not
+significant. Against plain LCQT, the Bayesian layer adds −0.2 % to −5.3 % in
+all 5 scenarios (p < 0.03).
+
+What carries the gain: the **patch Transformer** (main gain), the **Bayesian
+mixture** (small but consistent). The **cross-cell layer** and
+**priority-weighted loss** add nothing. **DF-LCQT** is −1.2 % under flash
+crowds (p < 10⁻³) but +14 % at low load: its one-horizon training cost ignores
+how queues carry over between intervals.
+
+![Transformer change vs GBM](../results/fhlm/figures/fig_transformer_delta.png)
+
+### 10.6 B2: honest assessment
+
+**What improved**
+
+* The Bayesian LCQT improves the proposed method on **every seed** at low to
+  high load and never loses significantly.
+* Best calibration under the shift.
+* LCQT alone is **cheaper per decision** than the GBM (2.7 ms vs 3.5 ms).
+* The differentiable KKT layer works and is unit-tested; the validation
+  decision loss fell 9 % after DAgger.
+
+**What did not**
+
+* Gains are small at high load (−1.4 %), while CEM and predictive MaxWeight
+  are still 14–28 % better. **The gap is structural, not forecast error**,
+  confirming the extended-study diagnosis.
+* The decision-focused gain on validation did not carry over to test seeds at
+  low and moderate load.
+* The Bayesian layer costs **17–21 ms** per decision in Python, longer than the
+  10 ms interval. It needs batched or compiled inference on a real O-DU.
+* Family S only; Families G and M were not run for B2.
+
+**The sentence to say:** "A better forecaster helps a little; to beat the
+strongest baselines we have to change the decision structure. That is B3."
+
+---
+
+## 11. Part B3: the back-pressure newsvendor (BPN)
+
+**The question B3 asks.** Keep the forecaster, change the decision rule: can
+one controller beat **both** strongest baselines (predictive MaxWeight and the
+CEM class-level policy) everywhere?
+
+### 11.1 Background from zero: back-pressure
+
+**Back-pressure** (the idea behind MaxWeight) serves first the queues with the
+largest "pressure", roughly priority × queue length. It is a classic,
+provably stable way to schedule queues (Lyapunov drift theory). **Predictive
+MaxWeight** adds a look-ahead: pressure = queue + a few horizons of the
+forecast median. It uses a single forecast number and ignores deadlines.
+
+### 11.2 Why the KKT rule loses to back-pressure (S high, 20 seeds)
+
+| Controller | $V_w$ | LL viol. | eMBB viol. | Link util. |
+|---|---|---|---|---|
+| KKT rule (GBM) | 8.00 | 3.4 | 12.3 | 72.2 |
+| CEM class-level | 6.57 | 6.0 | 7.1 | 74.7 |
+| Pred. MaxWeight (CEM-tuned) | 5.98 | 6.0 | 5.9 | 75.5 |
+| **BPN v1** | **5.23** | 5.5 | 4.9 | **76.1** |
+| **BPN v2** | 5.32 | 5.8 | **4.8** | **76.1** |
+| Oracle + KKT | 4.77 | 0.1 | 9.2 | 74.8 |
+
+The diagnosis in one sentence: **a budget is a per-cell cap, so capacity
+reserved for a 2 ms cell's upper quantile and then not used is lost.** The KKT
+rule over-protects LL (3.4 %), starves eMBB (12.3 %) and uses the link least
+(72.2 %). Back-pressure fills the link in queue order with median demands and
+wastes less, but it ignores deadlines and forecast uncertainty.
+
+**The idea:** fill a base in back-pressure order, **then** spend the leftover on
+newsvendor margins.
+
+### 11.3 How BPN decides (two stages, every 10 ms)
+
+**Stage 1: base, back-pressure sharing.**
+
+* Base rate: $b_i = a \cdot Q_i/T + (1-a)\cdot B_i$. It mixes MaxWeight's
+  "drain the queue" rate ($a = 1$) with the KKT rule's deadline-aware backlog
+  rate ($a = 0$).
+* Base demand: $d_i = b_i + (1+\mu)\,\hat F_i^{-1}(p^0_{\text{class}})$: the base
+  plus a class-level forecast quantile (one level for LL, one for eMBB), with a
+  margin μ.
+* Under shortage, capacity is shared in proportion to
+  $v_{\text{class}}\,(\pi_i/\bar\pi)^{\eta}$, where $\pi_i = Q_i + \ell H m_i$ is
+  the predictive back-pressure score (queue + ℓ horizons of forecast median).
+  **η = 0** means class-weighted water-fill (reservation); **η = η_max (6)**
+  means strict back-pressure order (greedy).
+
+**Stage 2: leftover capacity by the KKT rule.**
+
+$$r_i = \max\Big(r_i^{(1)},\; b_i + \hat F_i^{-1}\big(1 - \lambda/\omega_{\text{class}}\big)\Big), \qquad \sum_i r_i = C$$
+
+**Key design property:** with the right parameters BPN becomes **exactly**
+predictive MaxWeight ($a = 1$, $p^0 = 0.5$, η = η_max) or exactly the CEM
+class-level policy ($a = 0$, η = 0, class levels). This is unit-tested. So the
+policy class **contains both strongest baselines**: a search over it can only
+match or beat them on the training cost.
+
+### 11.4 How the 8 parameters are learned, fairly
+
+* Parameters: $(p^0_{LL}, p^0_{eMBB}, v_{LL}, \ell, \omega_{LL}, a, \eta, \mu)$.
+* Learned by the **cross-entropy method (CEM)** on **training seeds only**
+  (8 episodes, same budget as the baselines' search).
+* Two starting points: the tuned optimum of each contained baseline.
+* The baselines were **re-tuned with the same CEM search** ("CEM-tuned"), so
+  tuning effort is equal. Say this; it pre-empts "you tuned yours more".
+* **v1 vs v2:** BPN v1 (6 parameters) always used strict back-pressure in
+  stage 1. BPN v2 (8 parameters) adds the sharing exponent η and the margin μ
+  so it also contains the reservation policy.
+
+**What the search learned (and why that is interesting):**
+
+| Family | η | a | (p⁰_LL, p⁰_eMBB) | Reading |
+|---|---|---|---|---|
+| S (bursty, short bursts) | 6 (greedy) | 0.98 | (0.41, 0.45) | back-pressure |
+| G (3GPP: FTP files, XR frames) | 0 | 0.31 | (0.94, 0.73) | reservation |
+| M (Markov) | 0 | 0.34 | (0.84, 0.31) | reservation |
+
+The search **rediscovered the regime map** of the extended study on its own:
+back-pressure for short bursts, reservation for long ones. That makes the
+result interpretable, not a black box.
+
+### 11.5 Results, Family S ($V_w$ %, 20 test seeds)
+
+| Forecaster | Controller | low | moderate | high | flash | shift |
+|---|---|---|---|---|---|---|
+| GBM | KKT rule (B1) | 0.15 | 2.15 | 8.00 | 11.76 | 10.04 |
+| GBM | Pred. MaxWeight (grid-tuned) | 0.14 | 1.62 | 6.15 | 9.69 | 10.25 |
+| GBM | Pred. MaxWeight (CEM-tuned) | 0.16 | 1.66 | 5.98 | 9.36 | 10.46 |
+| GBM | CEM class-level (re-searched) | 0.13 | 1.73 | 6.58 | 10.23 | 9.76 |
+| GBM | BPN v1 (6 param.) | 0.10 | 1.21 | 5.23 | 8.58 | 9.23 |
+| GBM | BPN v2 (8 param.) | 0.10 | 1.21 | 5.32 | 8.70 | 9.26 |
+| LCQT | BPN v2 | 0.08 | 1.16 | 5.25 | 8.59 | 9.24 |
+| Bayesian LCQT | BPN v1 | 0.08 | **1.11** | **5.05** | **8.34** | **8.92** |
+| Bayesian LCQT | **BPN v2** | **0.07** | 1.12 | 5.21 | 8.55 | 9.12 |
+| — | Oracle + KKT (true r\*) | 0.05 | 0.88 | 4.77 | 8.10 | 5.84 |
+
+* With the **same** forecaster, BPN beats both strongest baselines in every
+  scenario. At high load it is within **6–10 %** of the oracle-informed KKT
+  rule.
+* The B2 Transformer now pays off: it helps BPN more than it helped the KKT
+  rule.
+* **Be ready for this question:** on Family S, BPN v1 is slightly better than
+  v2 (5.23 vs 5.32 at high load). v2 is the headline version because it is the
+  one that also works on Family G (next table).
+
+### 11.6 Generalisation: Families G (3GPP) and M (Markov), GBM forecaster
+
+| Controller | G moderate | G high | M moderate | M high | M shift |
+|---|---|---|---|---|---|
+| KKT rule (B1) | 5.08 | 8.01 | 0.92 | 4.94 | 5.52 |
+| Pred. MaxWeight (CEM-tuned) | 6.75 | 10.02 | 1.61 | 4.82 | 4.82 |
+| CEM class-level (extended study) | 4.58 | 7.17 | 0.88 | 3.93 | 4.17 |
+| CEM class-level (re-searched) | 4.51 | 7.05 | 0.94 | 3.94 | 4.22 |
+| BPN v1 | 5.67 | 8.92 | **0.63** | 3.71 | **3.72** |
+| **BPN v2** | **4.24** | **6.81** | 0.68 | **3.62** | 3.82 |
+| Oracle + KKT | 3.47 | 6.06 | 0.03 | 1.84 | 2.31 |
+
+* **BPN v1 lost on Family G**: its stage 1 is always strict back-pressure, so
+  it cannot represent reservation, which wins on long 3GPP bursts (whole FTP
+  files). Its training cost was also worse (0.070 vs 0.055).
+* **v2 fixes this** by containing the reservation policy. Training cost (BPN v2
+  vs best baseline): S 0.0387 vs 0.0436, G 0.0527 vs 0.0555, M 0.0196 vs
+  0.0226.
+
+### 11.7 BPN v2 vs the best baseline in each scenario (paired, 20 test seeds)
+
+"Best baseline" = the better of predictive MaxWeight and CEM class-level, each
+in its best tuning.
+
+| Scenario | Change vs best baseline | Seeds won |
+|---|---|---|
+| S low | −23.7 % | 15/20 |
+| S moderate | −25.3 % | 20/20 |
+| S high | −11.0 % | 20/20 |
+| S flash | −7.0 % | 20/20 |
+| S shift | −4.8 % | 20/20 |
+| G moderate | −5.9 % | 20/20 |
+| G high | −3.4 % | 19/20 |
+| M moderate | −23.3 % | 20/20 |
+| M high | −7.9 % | 20/20 |
+| M shift | −8.2 % | 20/20 |
+
+**Headline: 10/10 scenarios across 3 traffic families, all p ≤ 0.024
+(Holm-corrected Wilcoxon).**
+
+![BPN vs best baseline](../results/fhlm/figures/fig_bpn_vs_best.png)
+
+How to read the figure: bars are $V_w$ relative to the best baseline (below 0
+is better). Grey (original KKT rule) is above zero almost everywhere, which is
+the extended-study finding. Blue (BPN v1) wins on S and M but loses on G. Green
+(BPN v2) is below zero in all ten.
+
+### 11.8 B3: what is claimable and what is still needed
+
+**Claimable**
+
+* A controller that beats both strongest baselines, each in its best tuning,
+  in all 10 scenarios of 3 families, on paired tests.
+* Equal search effort, training seeds only; the baselines are special cases of
+  the policy class.
+* The learned exponent η explains when to reserve and when to back-pressure.
+* 2.2–3.5 ms per decision in Python, inside the 10 ms interval (with the
+  Bayesian forecaster it is about 20 ms, which is not).
+
+**Still needed (say it before you are asked)**
+
+* Real per-cell PRB or fronthaul traces.
+* More baselines: a deep-RL xApp (PPO) with the same observations; Lyapunov
+  drift-plus-penalty with deadline queues.
+* Sensitivity of BPN to T, τ and load (so far only T = 20 slots = 10 ms and
+  τ = 2 slots = 1 ms; the main deck writes these in slots).
+* The policy is learned per traffic family; transfer between families is
+  untested.
+* No optimality proof for the hybrid; the KKT optimality only covers stage 2.
+
+---
+
+## 12. Limitations and what we do NOT claim
 
 Say these **before** you are asked. Examiners respect a presenter who states
 the limits.
@@ -939,55 +1304,70 @@ the limits.
    an O-DU queueing deadline, not end-to-end latency.
 3. **No closed-loop optimality or stability claim.** The propositions cover
    feasibility, equal weighted risk, backlog-first and a linear
-   miscalibration bound, for one interval.
-4. **Not a universal win:** only −4 % against proportional under flash crowds;
-   loses at T = 20 ms and at ≥ 0.86 load; near tie at τ = 5 ms; ML adds only
-   about 2 % under the shift; calibration hurt.
-5. **Priority trade:** the claim holds for an LL weight of at least 2–3.
+   miscalibration bound, for one interval. BPN has no optimality proof.
+4. **The KKT rule is not a universal win:** only −4 % against proportional
+   under flash crowds; loses at T = 20 ms and at ≥ 0.86 load; near tie at
+   τ = 5 ms; ML adds only about 2 % under the shift; calibration hurt.
+5. **Priority trade:** the KKT-rule claim holds for an LL weight of at least
+   2–3.
 6. **Extended comparison:** CEM policy search and predictive MaxWeight beat
-   the KKT rule in 9 of 10 scenarios.
-7. **Decision time** is 3.5 ms in Python; a real O-DU needs a compiled
-   version.
-8. The "oracle" is a **reference, not an upper bound**.
+   the KKT rule in 9 of 10 scenarios; only BPN (B3) beats them, and it is
+   learned per family at T = 10 ms, τ = 1 ms only.
+7. **B2 Transformer:** Family S only; gains at high load are small (−1.4 %);
+   the Bayesian layer is too slow in Python for a 10 ms interval;
+   decision-focused training did not transfer. "No prior paper" means none
+   found in our search, not a proof.
+8. **Decision time** is 3.5 ms in Python for the KKT rule (2.2–3.5 ms for BPN);
+   a real O-DU needs a compiled version.
+9. The "oracle" is a **reference, not an upper bound**.
 
 ---
 
-## 11. Slide-by-slide speaking guide
+## 13. Slide-by-slide speaking guide
 
-These are the Part B slides of `presentation/btp_final.tex` (sections "Part B:
-Sharing One Fronthaul Link", "Part B: Results" and "Extended Study"). For each:
-what to say, and the one thing to land.
+There are now two decks you may be asked to present from:
+
+* **`presentation/part_b_final.pptx`** (and `part_b_final.pdf`): the
+  dedicated **30-slide Part B deck**, with speaker notes on every slide. Built
+  by `python presentation/make_part_b_pptx.py`. The guide below follows it.
+* **`presentation/btp_final.tex` / `.pdf`**: the whole-project Beamer deck. Its
+  Part B sections ("Part B", "Part B: Results", "Extended Study", "Part B2",
+  "Part B3") contain the same material in more detail. If you present from it,
+  the B1 slides map to slides 3–14 below, and its B2/B3 sections map to slides
+  17–28.
 
 | # | Slide | What to say (about 30–60 s each) | Land this |
 |---|---|---|---|
-| 1 | **Problem setting** | 8 cells (3 LL, 5 eMBB) share a 25GE link, C = 12.125 Mbit per slot, aggregate peak 2.44 C on purpose. Every 10 ms a coordinator sets budgets held for the interval, on 1 ms old data. Why in advance: RIC loop ≥ 10 ms, switch shaping not per slot, DUs cannot coordinate within a slot. | "We must commit before we see the traffic." |
-| 2 | **System model** | β(b) formula, β(9) = 3,387 bits, this is where Part A enters. Demand = user bits ÷ η × β. Budgets sum ≤ C, bits older than D are dropped. Metric V_w fixed before tuning. | "Load follows PRBs, not user bits." |
-| 3 | **Key idea 1: r\*** | Smallest constant rate at which no bit misses its deadline. Long deadline → mean; short → peak burst. For 2 ms it is 2–3× the mean and skewed. need = backlog rate + r\*; controllers differ only in how they estimate r\*. | "A single number is a poor basis for reserving a skewed quantity." |
-| 4 | **Quantile forecaster** | 6 GBM quantile models, 28 past-only features, 12 s training, disjoint seeds. Calibrated within a point; 37 % error vs 52 % persistence. | "Well calibrated, cheap, CPU-only." |
-| 5 | **Key idea 2: KKT rule** | Newsvendor objective; concave; KKT closed form r_i = B_i + F⁻¹(1 − λ/w_i); one λ by bisection. | "Every cell cut at the same weighted risk; margins derived, not tuned." |
-| 6 | **Properties** | Feasibility, equal weighted risk, backlog first, linear miscalibration bound 2εw_max C. | "Properties of one interval, not a closed-loop optimality claim." |
-| 7 | **Control loop** | Walk the diagram left to right. Mention the edge cases and that ACI is an ablation. | |
-| 8 | **Reference controllers** | Walk the table; stress the point-forecast ablation, the fixed-quantile test and two oracles. All tuned on validation; margin 0 best for all. | "The baselines were not handicapped." |
-| 9 | **Evaluation protocol** | Family S (bursty, Pareto, held-out shift) and Family G (pure 3GPP). 20 seeds, identical traces, paired bootstrap and Holm-Wilcoxon. | "Fair by construction." |
-| 10 | **Main result, Family S** | Best implementable in all 5. Std is shared burst timing; read the paired table next. | "Best in all five scenarios." |
-| 11 | **Paired reduction** | −11 to −43 % vs point forecast; every seed against 4 baselines. Weak: −4 % vs proportional under flash crowds. | "Every seed, p < 0.01; and here is where it is weak." |
-| 12 | **Where the gain comes from** | Unaware controllers starve LL; aware ones pay with eMBB; ours pays least eMBB with the highest utilisation; global quantile wastes 33 %. | "Margin only where the forecast is wide." |
-| 13 | **Rule in action** | Reactive is one interval late at every burst; ours raises budgets at burst onset. | |
-| 14 | **Ablations** | Range matters; per-cell level matters; ML useful, not necessary; ACI hurt and why. | "Most of the gain is the rule, not the model." |
-| 15 | **Family G** | Reproduces on traffic we did not design; also best unweighted; transfer still beats the reactive controllers. | "Not just our own traffic." |
-| 16 | **Oracle + KKT** | 24–40 % of the remaining loss at high load is forecast error; at 2 ms the rule with perfect info is 1.91 % vs 6.89 % for water-fill. | "Oracle is a reference, not a bound." |
-| 17 | **Priority trade caveat** | Unweighted: proportional wins in S. Weight sweep: tie at 1, ahead from 3. G at w = 1: worse. | "For operators who value an LL bit 2–3× or more." |
-| 18 | **Sensitivity T and τ** | Short T: beats even the oracle water-fill. T = 20 ms or τ = 5 ms: advantage over proportional vanishes. | "Intervals up to a few times the shortest deadline." |
-| 19 | **Miscalibration** | Under-reserving almost free; over-reserving degrades gradually; never worse than the point forecast. | "Degrades gracefully." |
-| 20 | **Part A × Part B** | Same traffic, BFP 6/9/12/14 → load 0.44/0.65/0.86/0.99. Compression sets the regime; allocation matters at 0.5–0.8. | "Compression sets the regime, allocation decides the loss." |
-| 21 | **Decision overhead** | 3.5 ms in Python; the rule itself < 0.1 ms; the cost is trees; compile it or use the window fallback. | |
-| 22 | **POMDP** | The real problem is intractable; three approximation families, all implemented; new Family M. | |
-| 23 | **Markov theory** | r\* linked to effective bandwidth; sandwich never violated; bound 25–100× loose → learn instead of bound. | "Theory explains it; learning is still needed." |
-| 24 | **Three families, nineteen controllers** | Overview figure; just orient the audience. | |
-| 25 | **Extended results** | Still wins the NCC set in all 10; CEM best in 6/10, predictive MaxWeight 3/10; fitted Markov chain within 3–9 %. | "Stronger controllers exist, and we found them ourselves." |
-| 26 | **Why retuning does not help** | λ\* ≥ w_eMBB in half of the intervals → eMBB already at its lowest quantile. Gap is structural. Regime: short T → reservation, long T with short bursts → back-pressure. | "Structure, not the constant." |
-| 27 | **What we do not claim** | Read the list calmly. | |
-| 28 | **Conclusions / future work** | Part B block plus the take-away: keep the structure, learn only what is uncertain. Future: real traces, a controller that switches between reservation and back-pressure, coupled calibration, compiled implementation, compression width as a per-cell knob. | |
+| 1 | **Title** | Part A made the data smaller; Part B decides who sends how much when the link is too small. | |
+| 2 | **Part B at a glance** | Four cards: B1 the KKT rule (NCC paper); the extended study found two stronger controllers; B2 tried a better forecaster and showed the gap is structural; B3 changed the structure and wins 10/10. | "Each step answers the question the previous one raised." |
+| 3 | **The problem** | 8 cells (3 LL, 5 eMBB), 25GE link, C = 12.125 Mbit/slot, peak 2.44 C on purpose. Budgets every 10 ms on 1 ms old data. Why in advance: RIC ≥ 10 ms, switch shaping, DUs cannot coordinate in a slot. | "We must commit before we see the traffic." |
+| 4 | **System model** | β(b) formula (Part A enters), demand = user bits ÷ η × β, budgets sum ≤ C, drops after D. V_w fixed before tuning. | "Load follows PRBs, not user bits." |
+| 5 | *Section: B1* | | |
+| 6 | **Key idea 1: r\*** | Smallest constant rate with no late bit. Long deadline → mean, short → peak. Example 8-unit burst: D = 1 → 4, D = 7 → 1. need = B + r\*. | "A single number is a poor basis for reserving a skewed quantity." |
+| 7 | **Quantile forecaster** | 6 GBM models, 28 past-only features, 12 s, disjoint seeds; calibrated within a point; 37 % vs 52 % error. | "Well calibrated, cheap, CPU-only." |
+| 8 | **KKT rule** | Newsvendor objective, concave, closed form r_i = B_i + F⁻¹(1 − λ/w_i); toy example λ = 0.6. | "Same weighted risk; margins derived, not tuned." |
+| 9 | **Properties and loop** | Four propositions in plain words; walk the loop. | "One interval only; no closed-loop claim." |
+| 10 | **Baselines and protocol** | Point forecast = key ablation; fixed quantile; oracles; margin 0 best for all. Families S and G; paired statistics. | "Fair by construction." |
+| 11 | **B1 result, Family S** | Best implementable in all 5; paired box: −11 to −43 % vs median, every seed; weak −4 % vs proportional in flash crowds. | "Best in all five, and here is where it is weak." |
+| 12 | **Where the gain comes from** | Unaware controllers starve LL; ours: lowest eMBB loss and highest utilisation in the deadline-aware family. | "Margin only where the forecast is wide." |
+| 13 | **Ablations + Family G** | Range matters, per-cell level matters, ML useful not necessary, ACI hurt. Family G reproduces it. | "Most of the gain is the rule." |
+| 14 | **Caveats and regime** | Weight sweep (needs w_LL ≥ 2–3), interval sweep (loses at 20 ms), A × B figure. | "Compression sets the regime; allocation decides the loss." |
+| 15 | *Section: Extended study* | | |
+| 16 | **Stronger controllers exist** | POMDP, three approximation families, Family M, theory (bounds 25–100× loose). CEM best in 6/10, predictive MaxWeight 3/10. λ\* ≥ w_eMBB in half the intervals. | "The gap is structural, not a constant." |
+| 17 | *Section: B2* | "Can a better forecaster close the gap?" | |
+| 18 | **LCQT architecture** | Walk the six blocks; red ones (cross-cell, Bayesian) are the unusual parts. Differentiable KKT layer at the bottom. 63k parameters, 6 min. | "Each block is prior art; the combination is ours." |
+| 19 | **B2 forecast quality** | −4.5 % pinball, −8 % interval width at higher coverage; cross-cell layer no gain; Bayesian improves calibration under shift. | "A better forecast, but only modestly." |
+| 20 | **B2 closed loop** | Bayesian LCQT best KKT variant: −20.8 / −6.1 / −1.4 % on 20/20 seeds; flash and shift n.s. CEM and pred. MaxWeight still 14–28 % better. | "The gap is structural." |
+| 21 | **B2 honest assessment** | Improved vs did not; Bayesian layer 17–21 ms in Python. | "Keep the forecaster, change the structure." |
+| 22 | *Section: B3* | | |
+| 23 | **Why KKT loses to back-pressure** | Per-cell cap → reserved-but-unused capacity is lost; KKT 72.2 % utilisation vs BPN 76.1 %. | "Base by back-pressure, leftover by newsvendor." |
+| 24 | **BPN design** | Two stages; η = 0 reservation, η = max back-pressure; contains both baselines exactly; CEM on training seeds, equal search effort; learned η recovers the regime map. | "The search can only match or beat the baselines." |
+| 25 | **B3 result, Family S** | Same forecaster, BPN beats both everywhere; within 6–10 % of the oracle at high load; Transformer helps BPN more. Mention v1 vs v2 if asked. | |
+| 26 | **Generalisation G and M** | v1 lost on G (cannot reserve); v2 fixes it; training costs. | "v2 generalises across all three families." |
+| 27 | **BPN v2 vs best baseline** | Figure + paired table: 10/10 scenarios, all p ≤ 0.024. | "10 out of 10, three families." |
+| 28 | **Claimable / still needed** | Read both columns. | "A controller that beats the strongest baselines, with its limits stated." |
+| 29 | **Part B summary** | Read the table top to bottom: it is the story of Part B. | "Keep the structure, learn only what is uncertain, and let the search pick the structure." |
+| 30 | **Limitations and future work** | Calmly read the limits; then next steps; thank the audience. | |
 
 **Suggested 60-second opening for Part B:**
 
@@ -996,28 +1376,30 @@ what to say, and the one thing to land.
 > rarely burst together; in our setup the peak is 2.4 times the link. When
 > bursts coincide, someone must lose data, and the controller has to decide in
 > advance, every 10 milliseconds, on telemetry that is already a millisecond
-> old, while low-latency cells can only wait 2 milliseconds. Our idea has three
-> parts: forecast each cell's deadline-feasible rate rather than its traffic
-> volume, forecast it as a range rather than a single number, and split the
-> link with a closed-form rule that cuts every cell at the same
-> priority-weighted risk. On twenty test seeds and two independent traffic
-> families it is the best of the controllers we compared in every scenario. I
-> will also show where it does not win, and two stronger controllers we found
-> in the extended study."
+> old, while low-latency cells can only wait 2 milliseconds. Our first method
+> forecasts each cell's deadline-feasible rate as a range and splits the link
+> with a closed-form rule that cuts every cell at the same priority-weighted
+> risk; it is the best of twelve controllers in two traffic families. Our
+> extended study then found two stronger controllers. We tried a better
+> forecaster, a Bayesian Transformer, which helped only a little, so we changed
+> the decision structure instead. The resulting back-pressure newsvendor beats
+> both strongest baselines in all ten scenarios of three traffic families."
 
 **Suggested 30-second close:**
 
 > "Forecasting the deadline-feasible rate as a range and splitting the link
 > with a KKT rule cut weighted violations by 11 to 43 percent against the same
-> forecaster's median, on every seed. Most of that gain comes from the rule, not
-> the machine learning. Compression sets the load regime; allocation matters
-> most between about 0.5 and 0.8 load. And a reward-learned policy with
-> decoupled class levels goes further, which tells us the next step: keep the
-> structure, learn only what is uncertain."
+> forecaster's median, and most of that came from the rule, not the machine
+> learning. When stronger baselines appeared, a better forecaster was not
+> enough; the gap was structural. A back-pressure base with newsvendor margins,
+> learned with equal search effort, now beats the strongest baselines in ten
+> out of ten scenarios, and the learned parameters tell us when to reserve and
+> when to back-pressure. Next come real traces and a reinforcement-learning
+> baseline."
 
 ---
 
-## 12. Likely questions and honest answers
+## 14. Likely questions and honest answers
 
 **The problem**
 
@@ -1104,17 +1486,65 @@ what to say, and the one thing to land.
   a closed form with provable properties; CEM needs reward-driven training per
   setting. The extended study shows exactly where and why the stronger
   controllers win (decoupled class levels, back-pressure at long intervals with
-  short bursts), which is the path forward.
+  short bursts), and B3 uses that diagnosis to build a controller that beats
+  them. The KKT rule survives inside BPN as stage 2.
 * **Q: How expensive is it?** 3.5 ms per 10 ms interval in Python; the rule is
   < 0.1 ms; the cost is 1,800 trees. Compile it, shrink the model, or use the
   window fallback.
 * **Q: How do Parts A and B connect?** β, the cost of one PRB-layer, is the
   compression setting. Compression moves the system along the load axis; the
   allocation decides the loss at that load.
-* **Q: What is next?** Measured PRB traces; a controller that switches between
-  reservation and back-pressure based on burst length vs interval; coupled
-  calibration; a compiled O-DU implementation; the compression width as a
-  per-cell knob inside the allocation rule.
+* **Q: What is next?** Measured PRB traces; a deep-RL (PPO) xApp baseline and
+  drift-plus-penalty; BPN sweeps over T, τ and load; cross-family transfer of
+  the learned BPN policy; coupled calibration; a compiled O-DU implementation;
+  the compression width as a per-cell knob inside the allocation rule.
+
+**Part B2 (Transformer)**
+
+* **Q: Why a Transformer at all, if ML was "useful, not necessary"?** To test
+  whether the gap to the stronger controllers is forecast error. If a much
+  better forecaster had closed it, the forecast was the problem. It did not
+  (−1.4 % at high load vs a 14–28 % gap), so the problem is the decision rule.
+* **Q: What is new in LCQT?** Each block is prior art (PatchTST patches,
+  iTransformer-style cross-variate attention, FiLM, non-crossing quantiles, MC
+  dropout, ensembles, decision-focused learning). The combination for a shared,
+  deadline-constrained link (deadline-aware patch tokens, cross-cell attention
+  over the cells on one link, a mixture fed to the KKT rule, and a
+  differentiable KKT layer) is ours; we found no paper combining them.
+* **Q: Did the cross-cell attention help?** No. Removing it changes neither
+  forecast quality nor closed-loop results beyond noise. Say it plainly.
+* **Q: Why feed a mixture and not averaged quantiles?** Averaging quantiles
+  throws away disagreement between posterior samples; the mixture keeps it, so
+  uncertain cells get wider margins at the same λ.
+* **Q: Why did decision-focused training not help on test?** Its training cost
+  covers one horizon and ignores how queues carry over between intervals; it
+  helped under flash crowds (−1.2 %) but hurt at low load (+14 %).
+* **Q: Is it fast enough?** LCQT alone: 2.7 ms per decision, faster than the
+  GBM. With the Bayesian layer (24 forward passes): 17–21 ms in Python, longer
+  than the 10 ms interval; it needs batching or compilation.
+
+**Part B3 (back-pressure newsvendor)**
+
+* **Q: What is BPN in one sentence?** Fill a base in back-pressure order, then
+  spend the leftover capacity on newsvendor (KKT) margins.
+* **Q: Why does the KKT rule waste capacity?** A budget is a per-cell cap;
+  capacity reserved for an LL cell's upper quantile and not used is lost to
+  everyone. BPN keeps the link busier (76.1 % vs 72.2 % utilisation).
+* **Q: Isn't it unfair: 8 tuned parameters vs the baselines?** The baselines
+  were re-tuned with the **same** CEM search on the same training seeds, and
+  both are exact special cases of BPN (unit-tested). Test seeds were never used
+  for tuning.
+* **Q: Why v2 and not v1, when v1 is better on Family S?** v1 always uses
+  strict back-pressure in stage 1, so it cannot express reservation and loses
+  on Family G (long FTP bursts). v2 adds the sharing exponent η and wins all
+  10 scenarios. On S, v1 is marginally better (5.23 vs 5.32 % at high load).
+* **Q: What did the learned parameters tell you?** η = 6 (strict
+  back-pressure) on bursty Family S, η = 0 (reservation) on Families G and M:
+  the search rediscovered the regime map of the extended study.
+* **Q: Is BPN optimal?** No proof. Only stage 2 inherits the KKT optimality
+  for one interval.
+* **Q: What is still missing before a top venue?** Real traces, a PPO xApp
+  baseline, BPN sensitivity to T/τ/load, cross-family transfer.
 * **Q: Where is this being published?** The conference version targets NCC
   2027 (IISc Bengaluru, Networks track; 6 pages, double-blind, so the
   submitted PDF is anonymised). An 11-page extended manuscript is in
@@ -1122,9 +1552,10 @@ what to say, and the one thing to land.
 
 ---
 
-## 13. Cheat sheet: the numbers to remember
+## 15. Cheat sheet: the numbers to remember
 
 **Setup**
+
 * 8 cells: 3 LL (2 ms, weight 3) + 5 eMBB (10 ms, weight 1)
 * Link 25 Gbit/s; 3 % reserved; C = 12.125 Mbit per 0.5 ms slot
 * β(BFP-9) = 3,387 bits per PRB-layer per slot; cell peak 7.4 Gbit/s
@@ -1132,12 +1563,14 @@ what to say, and the one thing to land.
 * Control interval T = 10 ms (20 slots); telemetry delay τ = 1 ms (2 slots)
 
 **Forecaster**
+
 * 6 quantiles (5/25/50/75/90/95 %), 300 trees, 15 leaves, 28 features
 * 101k rows, 12 s training
 * Coverage 5.6 / 25.6 / 50.7 / 75.3 / 89.9 / 94.9 %
 * Median error 37 % (vs 52 % persistence)
 
 **Main results (Family S, 20 seeds)**
+
 * Proposed V_w: 0.15 / 2.15 / 8.00 / 11.76 / 10.04 % (low / moderate / high / flash / shift)
 * vs point forecast: −11 to −43 %, 20/20 seeds
 * vs fixed global quantile: −22 to −54 %
@@ -1148,24 +1581,45 @@ what to say, and the one thing to land.
 * At high load: LL 3.4 %, eMBB 12.3 %, utilisation 72.2 %
 
 **Family G (3GPP), high load**
+
 * Proposed 8.01 %: −11 % vs point, −31 % vs deadline-aware, −50 % vs proportional; 20/20
 
 **Forecast error share (oracle + KKT gap):** 24–40 % at high load
 
 **Regime**
+
 * T: wins at 2/5/10 ms; loses at 20 ms
 * τ: margin over proportional 16 % → 2 % at 5 ms
 * Load: allocation matters at 0.5–0.8; BFP 6/9/12/14 → 0.44/0.65/0.86/0.99
 * Weight: needs w_LL ≥ 2–3
 
 **Extended study**
+
 * CEM best in 6/10, predictive MaxWeight 3/10, tuned-weight KKT 1/10
 * Bound 25–100× conservative; λ\* ≥ w_eMBB in 50–58 % of intervals
 * Decision time 3.5 ms (Python), rule < 0.1 ms
 
+**Part B2 (Bayesian Transformer, Family S)**
+
+* LCQT: 63k parameters, 16 patches × 22 slots, 2 layers, d = 48, ~6 min training
+* Pinball −4.5 %, 90 % interval −8 % vs GBM, at higher coverage
+* Bayesian LCQT + KKT: 0.12 / 2.02 / 7.89 / 11.78 / 10.02 %
+* vs GBM + KKT: −20.8 / −6.1 / −1.4 % (20/20 seeds); flash, shift n.s.
+* Cross-cell layer: no gain. Bayesian layer: 17–21 ms per decision
+
+**Part B3 (back-pressure newsvendor)**
+
+* Two stages: back-pressure base, KKT margins on the leftover; 8 parameters by CEM
+* S high: BPN v2 5.32 % (v1 5.23 %) vs pred. MaxWeight 5.98 %, CEM 6.58 %, KKT 8.00 %
+* Utilisation 76.1 % vs 72.2 % (KKT); eMBB loss 4.8 % vs 12.3 %
+* G high 6.81 %, M high 3.62 %
+* vs best baseline: −3.4 % (G high) to −25.3 % (S moderate); **10/10 scenarios, p ≤ 0.024**
+* Learned η: 6 on S (back-pressure), 0 on G and M (reservation)
+* Within 6–10 % of oracle + KKT at S high; 2.2–3.5 ms per decision
+
 ---
 
-## 14. Glossary
+## 16. Glossary
 
 * **O-RU / O-DU:** radio unit on the tower / processing unit nearby.
 * **Fronthaul:** the link between them. **7-2x:** the O-RAN split where the
@@ -1221,10 +1675,31 @@ what to say, and the one thing to land.
 * **Wilcoxon signed-rank test:** a non-parametric test for paired data.
 * **Holm correction:** adjusts p-values when many comparisons are made.
 * **Jain's fairness index:** 1 means perfectly equal service ratios.
+* **Transformer / attention:** neural network whose layers let each input
+  element weigh all others; standard for sequences.
+* **LCQT:** link-aware cross-cell quantile Transformer, the B2 forecaster.
+* **Patch:** a chunk of consecutive time steps used as one Transformer token.
+* **FiLM:** feature-wise scale-and-shift of a layer from side information.
+* **MC dropout / deep ensemble:** two ways to estimate a model's own
+  (epistemic) uncertainty: random neuron dropout at inference / several
+  independently trained copies.
+* **Mixture distribution:** the average of several CDFs; keeps disagreement
+  between samples.
+* **Decision-focused learning:** training a forecaster on the cost of the
+  decision made with it.
+* **Implicit function theorem:** lets you differentiate λ\* without
+  differentiating through the bisection loop.
+* **DAgger:** retraining on situations generated by the model's own decisions.
+* **BPN (back-pressure newsvendor):** the B3 controller: back-pressure base,
+  KKT margins on the leftover.
+* **Sharing exponent η:** BPN's knob between reservation (η = 0) and strict
+  back-pressure (η = 6).
+* **Reservation vs back-pressure:** reserve each cell's need in advance /
+  serve the most pressured queues first.
 
 ---
 
-## 15. Where things live in the repository, and a live demo
+## 17. Where things live in the repository, and a live demo
 
 | What | Where |
 |---|---|
@@ -1238,7 +1713,12 @@ what to say, and the one thing to land.
 | Reviewer-style critique and responses | `docs/fhlm/review_and_response.md` |
 | Conference paper (NCC 2027, anonymised) | `paper/main.tex`, `paper/main.pdf` |
 | Extended manuscript | `paper/extended/main.tex`, `paper/extended/main.pdf` |
-| Final slides | `presentation/btp_final.tex`, `presentation/btp_final.pdf` |
+| B2 Transformer forecaster | `fhlm/transformer.py`, `fhlm/train_transformer.py`, `fhlm/decision_focused.py`, `fhlm/eval_bayes_forecast.py`, `fhlm/run_transformer_study.py`; models `models/fhlm_lcqt_*.pt` |
+| B3 back-pressure newsvendor | `fhlm/hybrid.py`; learned parameters `results/fhlm/hybrid_*.json` |
+| B2/B3 results | `results/fhlm/transformer_summary.csv`, `transformer_runs.csv`, `transformer_paired*.csv`, `bayes_forecast_quality.csv`; figures `fig_transformer_*.png`, `fig_bpn_vs_best.png` |
+| B2/B3 tests | `tests/test_fhlm_transformer.py`, `tests/test_fhlm_hybrid.py` |
+| Part B slides | `presentation/part_b_final.pptx` / `.pdf` (built by `presentation/make_part_b_pptx.py`) |
+| Whole-project slides | `presentation/btp_final.tex`, `presentation/btp_final.pdf` |
 
 Every number in the papers is a LaTeX macro generated from the CSVs
 (`fhlm/make_paper_tables.py`, `fhlm/make_extended_tables.py`), so text and data
@@ -1262,3 +1742,6 @@ it as in Section 8.4.
 `python -m fhlm.run_experiments tune`, `main` (~12 min for 1,000 runs on 4
 cores), `sweep`, `compression --scenario moderate`, and
 `bash experiments/run_extended.sh` for the extended study (about 2 hours).
+For B2 and B3: `python -m fhlm.train_transformer`, `python -m
+fhlm.decision_focused`, `python -m fhlm.run_transformer_study` and
+`python -m fhlm.hybrid cem --policy bpn2` (the Transformer parts need PyTorch).
