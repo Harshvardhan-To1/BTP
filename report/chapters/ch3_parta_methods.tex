@@ -148,7 +148,7 @@ In practice ranks are not uniform: at high SNR the effective rank collapses and 
 
 MMSE equalisation, ZF/RZF precoding, channel estimation and our own encoders all need a matrix inverse or decomposition \emph{every slot}. To choose the right method for a 0.5~ms budget we benchmarked nine methods on the CPU.
 
-\paragraph{Dataset.} Matrices $A = G/\sqrt{n} + 2I$ with $G_{ij}\sim\mathcal N(0,1)$, $n \in \{10, 100, 500\}$, 1000 matrices per size, float32. 80\,\% are used to train the learned models and timing is measured on 200 held-out matrices, one matrix at a time after warm-up, on CPU only. Metrics: mean, median and 95th-percentile time, and relative error $\|X - A^{-1}\|_F/\|A^{-1}\|_F$.
+\paragraph{Dataset.} Matrices $A = G/\sqrt{n} + 2I$ with $G_{ij}\sim\mathcal N(0,1)$, $n \in \{10, 100, 500\}$, 1000 matrices per size, float32. 80\,\% are used to train the learned models and timing is measured on 200 held-out matrices, one matrix at a time after warm-up, on CPU only. Metrics: mean, median and 95th-percentile time.
 
 \paragraph{Classical methods (6).} LAPACK \texttt{getri} through numpy, LU (scipy), QR, SVD, Gauss--Jordan elimination and the Newton--Schulz iteration.
 
@@ -158,7 +158,7 @@ MMSE equalisation, ZF/RZF precoding, channel estimation and our own encoders all
   \item \textbf{InverseNet-NS}: the Newton--Schulz iteration unrolled for 8 steps,
   \[ X_{k+1} = X_k(\beta_k I - \gamma_k A X_k), \qquad X_0 = \alpha A^T/(\|A\|_1\|A\|_\infty), \]
   with learned step coefficients $(\beta_k,\gamma_k)$ and a learned scale $\alpha$ of the initial guess.
-  \item \textbf{InverseNet-Ultra}: a small hyper-network predicts the initial guess $X_0 = a_s A^T/\|A\|_F^2 + i_s I$ from four matrix statistics (trace, Frobenius, 1- and $\infty$-norm), followed by 6 learned Newton--Schulz steps. The better initial guess removes two steps and reaches $10^{-6}$ relative error.
+  \item \textbf{InverseNet-Ultra}: a small hyper-network predicts the initial guess $X_0 = a_s A^T/\|A\|_F^2 + i_s I$ from four matrix statistics (trace, Frobenius, 1- and $\infty$-norm), followed by 6 learned Newton--Schulz steps. The better initial guess removes two steps.
 \end{itemize}
 The learned iterations keep the mathematical structure of a provably convergent method and learn only its coefficients, so they need very few parameters and generalise across matrices, and their cost is a fixed number of batched matrix multiplications, which is exactly the operation that GPUs, NPUs and tensor cores execute fastest.
 

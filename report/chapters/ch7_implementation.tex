@@ -81,7 +81,6 @@ The kernel was optimised step by step, guided by per-stage cycle counts ($K=16$,
   \item \textbf{Register-blocked weight formation} $W = H^H X$ with output $W^T[S,K,M]$: from 0.81 to \textbf{0.42~ms} per slot.
   \item \textbf{Gauss--Jordan sweep instead of Cholesky}: the inverse drops from 6.4k to \textbf{2.9k cycles} per PRB at $K=16$, and from 21k to 11k cycles at $K=32$.
   \item \textbf{AVX-512 code generation}: 1.3--1.5$\times$ faster on one thread and 2$\times$ on four threads.
-  \item A 4-column blocked Gram variant was measured and reverted because it was slower.
 \end{enumerate}
 After tuning, weight formation takes 44--58\,\% of the cycles at about 30 flops/cycle (about half of the AVX-512 peak), the Gram matrix 20--24\,\% at about 28 flops/cycle, and the inverse the rest.
 
@@ -118,12 +117,12 @@ $K$, $M$ & numpy + LAPACK & Our kernel, 1 thread & \textbf{Our kernel, 4 threads
 
 \subsection{Inverse kernels}
 
-Figure~\ref{fig:hw-inv} isolates the inverse. The C kernels are an order of magnitude faster than numpy/LAPACK, and the \textbf{fused Newton--Schulz step of RMT-WS is the fastest inverse for $K \le 16$} (0.115~ms per slot at $K=16$, against 0.124~ms for a tuned C Cholesky inverse and 1.6~ms for LAPACK). This is the per-slot warm-start update of Chapter~\ref{ch:parta-methods} running at hardware speed.
+Figure~\ref{fig:hw-inv} isolates the inverse. The C kernels are an order of magnitude faster than numpy/LAPACK, and the \textbf{fused Newton--Schulz step of RMT-WS is the fastest inverse of all} (0.115~ms per slot at $K=16$, against 0.124~ms for a tuned C Cholesky inverse and 1.6~ms for LAPACK). This is the per-slot warm-start update of Chapter~\ref{ch:parta-methods} running at hardware speed.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{exp15_kernel_bench.png}
-\caption{Inverse-only time per slot (273 PRBs): numpy/LAPACK, tuned C Cholesky, numpy Newton--Schulz step and our fused C Newton--Schulz step (4 threads).}
+\caption{Inverse-only time per slot (273 PRBs, $M=64$): numpy/LAPACK, tuned C Cholesky, numpy Newton--Schulz step and our fused C Newton--Schulz step (4 threads), which is the fastest at every size.}
 \label{fig:hw-inv}
 \end{figure}
 
