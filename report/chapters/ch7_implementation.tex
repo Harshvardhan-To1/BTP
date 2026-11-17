@@ -1,5 +1,5 @@
 % =====================================================================
-\chapter{Implementation and Experimental Results on Hardware}
+\chapter{Implementation and CPU Measurements}
 \label{ch:impl}
 \thispagestyle{plain}
 % =====================================================================
@@ -8,7 +8,7 @@
 
 A precoder or controller that is accurate in simulation is only useful if it meets the real-time budget of the O-DU. This chapter describes the implementation side of the project: the hand-optimised C/AVX-512/OpenMP kernel that computes the whole RZF precoder of Eq.~\eqref{eq:rzf} for 273 PRBs in a fraction of the 0.5~ms slot (Sections~\ref{sec:hw-platform}--\ref{sec:hw-results}), and the software framework used for every experiment of this report (Section~\ref{sec:sw}).
 
-\section{Hardware Platform}
+\section{Measurement Platform}
 \label{sec:hw-platform}
 
 All timing measurements were made on a 4-core Intel Xeon server CPU with AVX-512 support, the class of general-purpose processor used in software-defined, cloud-native O-DU deployments. Kernels were compiled with GCC and timed with \texttt{rdtsc} cycle counters for per-stage profiling and with wall-clock time (median of 40 runs) for end-to-end results. The data type is single-precision complex (\texttt{complex64}), as used in O-DU baseband processing; accuracy is always checked against a float64 reference.
@@ -89,7 +89,7 @@ After tuning, weight formation takes 44--58\,\% of the cycles at about 30 flops/
 
 \subsection{Whole precoder per slot}
 
-Table~\ref{tab:hw-pipeline} and Figure~\ref{fig:hw-pipeline} report the time to compute the complete precoder (Gram, inverse and weights) for all 273 PRBs of a slot. \textbf{The fused kernel is 10--15$\times$ faster than numpy + LAPACK.} For $K = 16$ users and $M = 64$ antennas it takes 0.226~ms, less than half of the 0.5~ms slot, where numpy + LAPACK needs 3.21~ms, six times the slot. With the kernel, $K = 8$ and $K = 16$ at $M = 64$, and $K = 16$ at $M = 128$, \textbf{fit the slot for the entire precoder}. None of these configurations did before. Thread scaling is near-linear: 0.92, 0.45 and 0.23~ms on 1, 2 and 4 threads.
+Table~\ref{tab:hw-pipeline} and Figure~\ref{fig:hw-pipeline} report the time to compute the complete precoder (Gram, inverse and weights) for all 273 PRBs of a slot. The fused kernel is 10--15$\times$ faster than numpy + LAPACK. For $K = 16$ users and $M = 64$ antennas it takes 0.226~ms, less than half of the 0.5~ms slot, where numpy + LAPACK needs 3.21~ms, six times the slot. With the kernel, $K = 8$ and $K = 16$ at $M = 64$, and $K = 16$ at $M = 128$, fit the slot for the entire precoder. None of these configurations did before. Thread scaling is near-linear: 0.92, 0.45 and 0.23~ms on 1, 2 and 4 threads.
 
 \begin{table}[H]
 \caption{Whole-precoder time per slot (273 PRBs, complex64, 4-core AVX-512 Xeon, median of 40 runs).}
@@ -117,7 +117,7 @@ $K$, $M$ & numpy + LAPACK & Our kernel, 1 thread & \textbf{Our kernel, 4 threads
 
 \subsection{Inverse kernels}
 
-Figure~\ref{fig:hw-inv} isolates the inverse. The C kernels are an order of magnitude faster than numpy/LAPACK, and the \textbf{fused Newton--Schulz step of RMT-WS is the fastest inverse of all} (0.115~ms per slot at $K=16$, against 0.124~ms for a tuned C Cholesky inverse and 1.6~ms for LAPACK). This is the per-slot warm-start update of Chapter~\ref{ch:parta-methods} running at hardware speed.
+Figure~\ref{fig:hw-inv} isolates the inverse. The C kernels are an order of magnitude faster than numpy/LAPACK, and the fused Newton--Schulz step of RMT-WS is the fastest inverse of all (0.115~ms per slot at $K=16$, against 0.124~ms for a tuned C Cholesky inverse and 1.6~ms for LAPACK). This is the per-slot warm-start update of Chapter~\ref{ch:parta-methods} running at hardware speed.
 
 \begin{figure}[H]
 \centering
@@ -143,7 +143,7 @@ All results of this report are produced by an open, fully reproducible Python/C 
 \toprule
 \normalfont Module & Content \\
 \midrule
-matinv\_bench/ & inversion benchmark, InverseNet-MLP/NS/Ultra \\
+matinv\_bench/ & inversion benchmark, InverseNet-NS/Ultra \\
 cmatinv/, experiments\_v2/ & complex inversion, RMT-WS, 38.901 channels, Experiments 5--18 \\
 kernels/ & fused C/AVX-512/OpenMP precoder kernel \\
 experiments/ & Part~A Experiments 1--4, extended Part~B pipeline \\
@@ -160,4 +160,4 @@ results/ & all CSV files, logs and figures \\
 
 \section{Discussion and Analysis}
 
-This chapter discussed the hardware results of the project. The fused C/AVX-512/OpenMP kernel turns the RZF precoder from a computation that is six times too slow for the slot into one that uses less than half of it, with float64-level accuracy. This is what makes per-slot RU-side precoding, with its 72\,\% fronthaul saving, practical on a general-purpose CPU O-DU. On the Part~B side, every controller runs well within its 10~ms decision interval in Python (3.5~ms for the KKT rule with GBM, 2.2--3.5~ms for BPN), and the fully tested, reproducible framework makes every result of this report traceable to its data.
+This chapter presented the implementation and the measured CPU results of the project. The fused C/AVX-512/OpenMP kernel turns the RZF precoder from a computation that is six times too slow for the slot into one that uses less than half of it, with float64-level accuracy. This is what makes per-slot RU-side precoding, with its 72\,\% fronthaul saving, practical on a general-purpose CPU O-DU. On the Part~B side, every controller runs well within its 10~ms decision interval in Python (3.5~ms for the KKT rule with GBM, 2.2--3.5~ms for BPN), and the fully tested, reproducible framework makes every result of this report traceable to its data.
