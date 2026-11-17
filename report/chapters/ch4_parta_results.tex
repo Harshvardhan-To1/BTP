@@ -52,7 +52,7 @@ O-RAN BFP ($b=8$) & $-46$~dB & 3.9$\times$ & 3.1~ms \\
 Truncated SVD ($r=12$) & $-21$~dB & 16.2$\times$ & 18--30~ms \\
 \ours \textbf{CSEE} ($K=300$, ours) & $-21$~dB & \textbf{12.7$\times$} & \textbf{5.2~ms} \\
 \ours \textbf{RAS-BFP} ($r=12$, ours) & $-18$~dB & \textbf{16.2$\times$} & \textbf{7.2~ms} \\
-\ours CSEE ($K=60$, ours) & $-19$~dB & $\approx$\textbf{63$\times$} & --- \\
+\ours CSEE ($K=60$, ours) & $-19$~dB & $\approx$\textbf{63$\times$} & n/a \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -120,7 +120,7 @@ QR & 20.3~ms & 64.5~ms & $3.2\cdot10^{-7}$ & 110.8~ms & 153.0~ms & $3.2\cdot10^{
 \end{tabular}
 \end{table}
 
-Figure~\ref{fig:inference} shows the latency against matrix size. It also explains \emph{why} the learned iteration works: the direct-regression InverseNet-MLP has about 52\,\% error and would need more than $2\cdot10^9$ parameters at $n=500$, because the map from a matrix to its inverse is non-smooth with $n^2$ outputs. Keeping the Newton--Schulz structure and learning only its coefficients gives $10^{-6}$ accuracy with a handful of parameters, and a fixed number of batched matrix multiplications gives a flat, predictable latency. This principle --- \emph{keep the mathematical structure, learn only what is uncertain} --- leads directly to RMT-WS and, in Part~B, to the KKT newsvendor rule.
+Figure~\ref{fig:inference} shows the latency against matrix size. It also explains \emph{why} the learned iteration works: the direct-regression InverseNet-MLP has about 52\,\% error and would need more than $2\cdot10^9$ parameters at $n=500$, because the map from a matrix to its inverse is non-smooth with $n^2$ outputs. Keeping the Newton--Schulz structure and learning only its coefficients gives $10^{-6}$ accuracy with a handful of parameters, and a fixed number of batched matrix multiplications gives a flat, predictable latency. This principle, \emph{keep the mathematical structure and learn only what is uncertain}, leads directly to RMT-WS and, in Part~B, to the KKT newsvendor rule.
 
 \begin{figure}[H]
 \centering
@@ -192,7 +192,7 @@ Gauss--Seidel & 6 & 4 & $>12$ \\
 
 \subsection{Warm-start tracking across user speeds}
 
-Table~\ref{tab:a-track} and Figure~\ref{fig:exp7} compare RMT-WS with warm-started Gauss--Seidel and conjugate gradient at 3, 30 and 120~km/h ($K=16$, $M=64$). At pedestrian speed RMT-WS needs \textbf{2.7$\times$ fewer GEMMs than a cold start at 30$\times$ lower loss}; at 30~km/h it has the lowest loss of all warm-started methods; at 120~km/h it has \textbf{24$\times$ lower loss than warm Gauss--Seidel}. Fixed one- or two-step warm starts diverge at 120~km/h, whereas the certificate makes RMT-WS fall back to a cold start and never diverge: one method serves every speed --- cheap when users are slow, safe when they are fast.
+Table~\ref{tab:a-track} and Figure~\ref{fig:exp7} compare RMT-WS with warm-started Gauss--Seidel and conjugate gradient at 3, 30 and 120~km/h ($K=16$, $M=64$). At pedestrian speed RMT-WS needs \textbf{2.7$\times$ fewer GEMMs than a cold start at 30$\times$ lower loss}; at 30~km/h it has the lowest loss of all warm-started methods; at 120~km/h it has \textbf{24$\times$ lower loss than warm Gauss--Seidel}. Fixed one- or two-step warm starts diverge at 120~km/h, whereas the certificate makes RMT-WS fall back to a cold start and never diverge: one method serves every speed. It is cheap when users are slow and safe when they are fast.
 
 \begin{table}[H]
 \caption{Tracking: sum-rate loss versus exact RZF / GEMMs per slot per PRB ($K=16$, $M=64$).}
@@ -284,7 +284,7 @@ numpy + LAPACK (whole precoder) & time per slot, $K=16$ & 3.21~ms & \textbf{0.22
 \section{Fronthaul Impact of RU-Side Precoding}
 \label{sec:ra-ru}
 
-Table~\ref{tab:a-ru} and Figure~\ref{fig:exp10} quantify the architectures of Figure~\ref{fig:ru-prec} for a 100~MHz carrier with $M=64$, $K=16$ and BFP-9 IQ. Precoding at the radio unit with 8-bit weights refreshed every slot \textbf{cuts the fronthaul from 118.4 to 32.8~Gbit/s ($-72\,\%$, 3.6$\times$ lighter) at 99.7\,\% of the exact RZF sum-rate}. Refreshing the weights less often is not an option at mobility (every 4 slots gives only 70\,\% of the rate at 30~km/h), so per-slot weights are required --- exactly the workload our fast precoder delivers.
+Table~\ref{tab:a-ru} and Figure~\ref{fig:exp10} quantify the architectures of Figure~\ref{fig:ru-prec} for a 100~MHz carrier with $M=64$, $K=16$ and BFP-9 IQ. Precoding at the radio unit with 8-bit weights refreshed every slot \textbf{cuts the fronthaul from 118.4 to 32.8~Gbit/s ($-72\,\%$, 3.6$\times$ lighter) at 99.7\,\% of the exact RZF sum-rate}. Refreshing the weights less often is not an option at mobility (every 4 slots gives only 70\,\% of the rate at 30~km/h), so per-slot weights are required, and this is exactly the workload our fast precoder handles.
 
 \begin{table}[H]
 \caption{Fronthaul rate and sum-rate by precoding architecture (100~MHz, $M=64$, $K=16$, BFP-9).}

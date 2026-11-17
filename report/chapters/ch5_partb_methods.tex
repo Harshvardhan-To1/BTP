@@ -8,10 +8,10 @@
 
 Part~A reduces the number of bits each cell puts on the fronthaul. Part~B decides how a shared link is divided among cells when even the compressed load is larger than the link. The work was built in three steps, each answering the question raised by the previous one (Figure~\ref{fig:b-roadmap}):
 \begin{itemize}
-  \item \textbf{B1 --- the KKT newsvendor rule.} Forecast each cell's \emph{deadline-feasible rate} as a range and split the link so that every cell carries the same priority-weighted risk. This is our NCC 2027 submission and the best of 12 controllers on two traffic families.
+  \item \textbf{B1: the KKT newsvendor rule.} Forecast each cell's \emph{deadline-feasible rate} as a range and split the link so that every cell carries the same priority-weighted risk. This is our NCC 2027 submission and the best of 12 controllers on two traffic families.
   \item \textbf{Extended study.} A POMDP formulation, Markov-fluid theory of the deadline-feasible rate, a third traffic family, and the two strongest implementable baselines from queueing control and policy search: predictive MaxWeight and a cross-entropy-learned policy.
-  \item \textbf{B2 --- a Bayesian, link-aware Transformer forecaster (LCQT).} A forecaster designed for the shared link, with a Bayesian mixture layer and a differentiable KKT layer.
-  \item \textbf{B3 --- the back-pressure newsvendor (BPN).} A two-stage policy that contains both strongest baselines exactly and combines back-pressure ordering with newsvendor margins; it beats both of them in all 10 scenarios of three traffic families.
+  \item \textbf{B2: a Bayesian, link-aware Transformer forecaster (LCQT).} A forecaster designed for the shared link, with a Bayesian mixture layer and a differentiable KKT layer.
+  \item \textbf{B3: the back-pressure newsvendor (BPN).} A two-stage policy that contains both strongest baselines exactly and combines back-pressure ordering with newsvendor margins; it beats both of them in all 10 scenarios of three traffic families.
 \end{itemize}
 
 \begin{figure}[H]
@@ -132,7 +132,7 @@ Given the forecast distribution $F_i$ of $\rstar_i$ for each cell, we maximise t
   \quad \text{s.t.}\ \sum_i r_i \le C,\ \ 0\le r_i\le \mathrm{cap}_i .
   \label{eq:nv}
 \end{equation}
-The function $\mathbb{E}[\min(B_i + \rstar_i, r)]$ is concave in $r$ with derivative $w_i\,(1 - F_i(r - B_i))$ --- the weighted probability that the marginal bit of budget is actually needed. The problem is separable and concave, so the KKT conditions give its \emph{global} optimum in closed form:
+The function $\mathbb{E}[\min(B_i + \rstar_i, r)]$ is concave in $r$ with derivative $w_i\,(1 - F_i(r - B_i))$, which is the weighted probability that the marginal bit of budget is actually needed. The problem is separable and concave, so the KKT conditions give its \emph{global} optimum in closed form:
 \begin{equation}
   \boxed{\; r_i(\lambda) = \mathrm{clip}\Big(B_i + F_i^{-1}\big(1 - \lambda/w_i\big),\ 0,\ \mathrm{cap}_i\Big)\;}
   \label{eq:kkt}
@@ -222,7 +222,7 @@ Figure~\ref{fig:loop} shows the complete loop executed every 10~ms. Edge cases a
 
 \subsection{The control problem as a POMDP}
 
-With state $s(t) = (Q(t), Z(t), \eta(t))$ --- queue age profiles, hidden traffic state and spectral efficiencies --- the controller solves at epochs $t_k = kT$
+With state $s(t) = (Q(t), Z(t), \eta(t))$, made up of queue age profiles, hidden traffic state and spectral efficiencies, the controller solves at epochs $t_k = kT$
 \begin{equation}
   \min_{\pi}\ \mathbb{E}_\pi\Big[\sum_k \sum_{t=t_k}^{t_k+T-1} \sum_i w_i\,\mathrm{dropped}_i(t)\Big],
   \qquad r(t_k) = \pi\big(s(t_k - \tau),\text{history}\big).
@@ -231,7 +231,7 @@ This partially observable MDP is intractable: the continuous state has hundreds 
 \begin{enumerate}
   \item \textbf{One-step stochastic programs}: the KKT newsvendor rule (Section~\ref{sec:kkt}) on a learned or model-based distribution, including a Markov chain fitted online.
   \item \textbf{Lyapunov drift}: MaxWeight~\cite{tassiulas1992} and \textbf{predictive MaxWeight}~\cite{huang2016}, which serves cells in order of $w_i\,(Q_i + \ell H m_i)$, the queue the cell \emph{will} have with forecast median $m_i$, each up to $Q_i/T + (1+\mu)\,m_i$.
-  \item \textbf{Direct policy search}: a class-level policy in which each cell reserves $B_i + F_i^{-1}(p_{c(i)})$ and the shortage is shared by weighted water-filling with a learned LL weight; its three parameters $(p_{\rm LL}, p_{\rm eMBB}, w_{\rm LL})$ are learned with the cross-entropy method (CEM)~\cite{rubinstein1999} on training seeds --- a small, reliable analogue of a deep-RL xApp.
+  \item \textbf{Direct policy search}: a class-level policy in which each cell reserves $B_i + F_i^{-1}(p_{c(i)})$ and the shortage is shared by weighted water-filling with a learned LL weight; its three parameters $(p_{\rm LL}, p_{\rm eMBB}, w_{\rm LL})$ are learned with the cross-entropy method (CEM)~\cite{rubinstein1999} on training seeds. It is a small, reliable analogue of a deep-RL xApp.
 \end{enumerate}
 
 \subsection{Markov-fluid theory of the deadline-feasible rate}
@@ -250,14 +250,14 @@ For Markov-modulated traffic with phase chain $P$ (stationary distribution $\pi$
   \end{equation}
   where $V(r)$ is the volume violated at constant rate $r$. Hence the newsvendor surrogate~\eqref{eq:nv} is a lower bound on the violated volume.
 \end{itemize}
-The bounds are valid in all validation runs but conservative by a factor 25--100 at 2--10~ms deadlines --- a strong argument for \emph{learning} the distribution of $\rstar$ rather than computing it from a model.
+The bounds are valid in all validation runs but conservative by a factor 25--100 at 2--10~ms deadlines, which is a strong argument for \emph{learning} the distribution of $\rstar$ rather than computing it from a model.
 
 \section{B2: LCQT, a Bayesian Link-Aware Quantile Transformer}
 \label{sec:lcqt}
 
 \subsection{Architecture}
 
-LCQT (Figure~\ref{fig:lcqt}) is a drop-in replacement for the GBM forecaster, built from established components --- PatchTST patches~\cite{nie2023}, iTransformer-style attention across variates~\cite{liu2024}, TFT-style multi-quantile output~\cite{lim2021}, FiLM conditioning~\cite{perez2018film}, deep ensembles~\cite{lakshminarayanan2017} and MC dropout~\cite{gal2016} --- with six modifications for the shared fronthaul link:
+LCQT (Figure~\ref{fig:lcqt}) is a drop-in replacement for the GBM forecaster, built from established components (PatchTST patches~\cite{nie2023}, iTransformer-style attention across variates~\cite{liu2024}, TFT-style multi-quantile output~\cite{lim2021}, FiLM conditioning~\cite{perez2018film}, deep ensembles~\cite{lakshminarayanan2017} and MC dropout~\cite{gal2016}), with six modifications for the shared fronthaul link:
 \begin{enumerate}
   \item \textbf{Deadline-aware patch tokens}: 352 slots of history are cut into 16 patches of $H=22$ slots; each patch token carries its own $\rstar$ at the cell's deadline together with its mean and maximum. A summary token holds the 28 GBM features.
   \item \textbf{Deadline/priority FiLM}: one network serves both LL and eMBB cells, modulated by $(D_i/H, p_i)$.
@@ -325,13 +325,13 @@ A budget is a per-cell cap: capacity reserved for a 2~ms cell's upper quantile a
 \centering
 \begin{tikzpicture}[font=\footnotesize,>=Stealth,
    s/.style={draw,rounded corners,align=left,text width=6.2cm,inner sep=5pt}]
-  \node[s,fill=iitblue!8] (st1) {\textbf{Stage 1 --- base in back-pressure order}\\[2pt]
+  \node[s,fill=iitblue!8] (st1) {\textbf{Stage 1: base in back-pressure order}\\[2pt]
     base rate $b_i = a\,Q_i/T + (1-a)\,B_i$\\
     base demand $d_i = b_i + (1+\mu)\,\hat F_i^{-1}(p^0_{c(i)})$\\
     shortage shared $\propto v_{c}\,(\pi_i/\bar\pi)^{\eta}$\\
     pressure $\pi_i = Q_i + \ell H m_i$\\[2pt]
     \scriptsize $\eta = 0$: class-weighted water-fill (reservation)\\ $\eta = \eta_{\max}$: strict back-pressure order};
-  \node[s,fill=good!10,right=0.8cm of st1] (st2) {\textbf{Stage 2 --- leftover by the KKT rule}\\[2pt]
+  \node[s,fill=good!10,right=0.8cm of st1] (st2) {\textbf{Stage 2: leftover by the KKT rule}\\[2pt]
     $r_i = \max\!\big(r_i^{(1)},\ b_i + \hat F_i^{-1}(1 - \lambda/\omega_{c(i)})\big)$\\
     with $\lambda$ such that $\sum_i r_i = C$\\[2pt]
     \scriptsize newsvendor margins only where the forecast is wide};

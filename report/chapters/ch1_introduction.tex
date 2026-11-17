@@ -5,7 +5,7 @@
 
 \section{Introduction}
 
-Every call, video stream and app on a mobile phone reaches the Internet through a \emph{radio access network} (RAN). The RAN converts the radio signal received at the antenna into packets and back, and schedules thousands of users on a shared spectrum every half millisecond. Over three generations the RAN has moved from a single cabinet at the foot of every tower to a chain of specialised units connected by packet networks. The data rate, latency and reliability of the links in this chain --- and above all of the first link, the \emph{fronthaul} --- now decide how many cells an operator can deploy and at what cost. This project is about managing the load on that link.
+Every call, video stream and app on a mobile phone reaches the Internet through a \emph{radio access network} (RAN). The RAN converts the radio signal received at the antenna into packets and back, and schedules thousands of users on a shared spectrum every half millisecond. Over three generations the RAN has moved from a single cabinet at the foot of every tower to a chain of specialised units connected by packet networks. The data rate, latency and reliability of the links in this chain, and above all of the first link (the \emph{fronthaul}), now decide how many cells an operator can deploy and at what cost. This project is about managing the load on that link.
 
 \subsection{The mobile transport network: fronthaul, midhaul and backhaul}
 
@@ -151,7 +151,7 @@ Besides opening the fronthaul, O-RAN adds two programmable controllers (Figure~\
 
 \subsection{Why the fronthaul is loaded}
 
-The fronthaul load of a 7-2x cell is set by the number of scheduled PRB-layers, not by the number of user bits. For one PRB on one layer in one slot, the O-RAN BFP format sends 12 subcarriers $\times$ 14 symbols of $b$-bit I and Q mantissas plus an exponent; with a 9-bit mantissa this is about 3{,}400 bits. A 100~MHz carrier with 273 PRBs and 4 layers peaks at about 7.4~Gbit/s; a 64-antenna receiver that ships every antenna stream needs about 15.4~Gbit/s, and DU-side precoding for 64 streams more than 118~Gbit/s. Because cells rarely peak together, operators connect many cells through one aggregation switch and one 25 or 100~Gbit Ethernet link whose capacity is well below the sum of the peaks (Figure~\ref{fig:shared}). This \emph{statistical multiplexing} is what makes Open RAN fronthaul affordable --- and it is also what makes it fail when bursts coincide.
+The fronthaul load of a 7-2x cell is set by the number of scheduled PRB-layers, not by the number of user bits. For one PRB on one layer in one slot, the O-RAN BFP format sends 12 subcarriers $\times$ 14 symbols of $b$-bit I and Q mantissas plus an exponent; with a 9-bit mantissa this is about 3{,}400 bits. A 100~MHz carrier with 273 PRBs and 4 layers peaks at about 7.4~Gbit/s; a 64-antenna receiver that ships every antenna stream needs about 15.4~Gbit/s, and DU-side precoding for 64 streams more than 118~Gbit/s. Because cells rarely peak together, operators connect many cells through one aggregation switch and one 25 or 100~Gbit Ethernet link whose capacity is well below the sum of the peaks (Figure~\ref{fig:shared}). This \emph{statistical multiplexing} is what makes Open RAN fronthaul affordable. It is also what makes it fail when bursts coincide.
 
 \begin{figure}[H]
 \centering
@@ -180,15 +180,15 @@ The fronthaul load of a 7-2x cell is set by the number of scheduled PRB-layers, 
 
 Two bottlenecks limit how cheaply and how densely Open RAN cells can be deployed:
 \begin{enumerate}
-  \item \textbf{The data are large and the processing time is short.} O-RAN BFP compression only shortens numbers and reaches about 4$\times$. Every 0.5~ms slot, the O-DU must also compute a precoder for all 273 PRBs, which requires inverting a complex $K\times K$ Gram matrix per PRB. In a standard numpy + LAPACK implementation this takes 3.2~ms for 16 users --- more than six times the slot.
-  \item \textbf{The link is shared and smaller than the peak.} When the bursts of several cells coincide, the shared link cannot carry everything. Low-latency (LL) cells tolerate only about 2~ms of waiting. A coordinator must decide in advance --- every 10~ms, on telemetry that is already 1~ms old, without seeing the next burst --- how many bits each cell may send. Whoever is under-provisioned loses data.
+  \item \textbf{The data are large and the processing time is short.} O-RAN BFP compression only shortens numbers and reaches about 4$\times$. Every 0.5~ms slot, the O-DU must also compute a precoder for all 273 PRBs, which requires inverting a complex $K\times K$ Gram matrix per PRB. In a standard numpy + LAPACK implementation this takes 3.2~ms for 16 users, which is more than six times the slot.
+  \item \textbf{The link is shared and smaller than the peak.} When the bursts of several cells coincide, the shared link cannot carry everything. Low-latency (LL) cells tolerate only about 2~ms of waiting. A coordinator must decide in advance how many bits each cell may send. It does this every 10~ms, on telemetry that is already 1~ms old, without seeing the next burst. Whoever is under-provisioned loses data.
 \end{enumerate}
 
 The project addresses both bottlenecks with one guiding principle: \emph{keep the mathematical structure of the problem, and learn only what is uncertain}.
 
 \paragraph{Problem statement (Part A).} Design IQ compression methods that exploit the low rank and delay-domain sparsity of the received signal to go well beyond the 4$\times$ of BFP with provable error bounds; adapt the functional split to the channel; and make the per-slot complex precoder fast and accurate enough to run inside the 0.5~ms slot on a general-purpose CPU.
 
-\paragraph{Problem statement (Part B).} Given a forecast of each cell's fronthaul need over the next interval, design a controller that sets per-cell budgets on a shared 7-2x link, every 10~ms and before the traffic is seen, so that the priority-weighted fraction of bits that miss their deadline is minimised --- and show, on identical traffic and with paired statistics, that it outperforms the strongest available controllers.
+\paragraph{Problem statement (Part B).} Given a forecast of each cell's fronthaul need over the next interval, design a controller that sets per-cell budgets on a shared 7-2x link, every 10~ms and before the traffic is seen, so that the priority-weighted fraction of bits that miss their deadline is minimised. We also want to show, on identical traffic and with paired statistics, that it outperforms the strongest available controllers.
 
 \section{Objectives and Contributions}
 

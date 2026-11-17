@@ -183,7 +183,7 @@ Fixed global quantile & 0.9\,\% & 22.0\,\% & 67.0\,\% & 0.985 \\
 The ablations isolate each design choice (everything else fixed):
 \begin{enumerate}
   \item \textbf{A range versus a single number} (same model, same rule family): $-11$\,\% to $-43$\,\%, 20/20 seeds everywhere. \emph{Representing uncertainty matters.}
-  \item \textbf{Per-cell KKT level versus one tuned global level} (same forecast): $-22$\,\% to $-54$\,\%. \emph{The level must be set per cell by the link constraint} --- exactly what the KKT rule does.
+  \item \textbf{Per-cell KKT level versus one tuned global level} (same forecast): $-22$\,\% to $-54$\,\%. \emph{The level must be set per cell by the link constraint}, and that is exactly what the KKT rule does.
   \item \textbf{GBM versus window (no-ML) quantiles} under the same KKT rule: GBM adds $-7$\,\% to $-37$\,\% on nominal traffic. Even the no-ML version beats the point forecast in every scenario, so the rule itself carries the method and the learned forecaster adds on top.
   \item \textbf{Online ACI calibration}: no gain (1--9\,\% worse on nominal traffic). In a coupled allocation, LL misses are caused by how the shortage is split rather than by forecast bias, so per-stream offsets inflate LL reservations; the KKT rule already handles this coupling through $\lambda$.
 \end{enumerate}
@@ -226,7 +226,7 @@ Transfer (trained on S) & 6.99 & 9.89 & 14.3 \\
 \section{Forecast Quality, Robustness and Operating Regime}
 \label{sec:rb-robust}
 
-\paragraph{Forecast calibration.} On validation data the GBM quantiles cover 5.6 / 25.6 / 50.7 / 75.3 / 89.9 / 94.9\,\% at nominal levels 5 / 25 / 50 / 75 / 90 / 95\,\% --- calibrated to within about one percentage point. The median relative error is 37\,\%, against 49\,\% for a window median and 52\,\% for persistence, and the pinball loss is 0.0224 against 0.0293 (Figure~\ref{fig:b-fq}).
+\paragraph{Forecast calibration.} On validation data the GBM quantiles cover 5.6 / 25.6 / 50.7 / 75.3 / 89.9 / 94.9\,\% at nominal levels 5 / 25 / 50 / 75 / 90 / 95\,\%, so the forecaster is calibrated to within about one percentage point. The median relative error is 37\,\%, against 49\,\% for a window median and 52\,\% for persistence, and the pinball loss is 0.0224 against 0.0293 (Figure~\ref{fig:b-fq}).
 
 \begin{figure}[H]
 \centering
@@ -266,7 +266,7 @@ shift & 10.96 & 11.10 & 11.13 & 11.53 & 12.50 \\
 \caption{Robustness of the KKT rule to forecast miscalibration and to the control interval.}
 \end{figure}
 
-\paragraph{Control interval and telemetry delay.} Table~\ref{tab:b-interval} sweeps the control interval and the telemetry delay (10 seeds). For every interval from 2 to 10~ms --- the operating range of a near-RT RIC --- the KKT rule is the best controller, and at $T = 2$~ms it even beats the oracle water-fill. Its advantage is largest with fresh telemetry ($-16$\,\% against reactive proportional at $\tau = 0$). At $T = 20$~ms, five times the LL deadline, reservation is no longer the right structure and back-pressure becomes preferable; this regime map is exactly what the back-pressure newsvendor of Section~\ref{sec:rb-b3} learns automatically.
+\paragraph{Control interval and telemetry delay.} Table~\ref{tab:b-interval} sweeps the control interval and the telemetry delay (10 seeds). For every interval from 2 to 10~ms, which is the operating range of a near-RT RIC, the KKT rule is the best controller, and at $T = 2$~ms it even beats the oracle water-fill. Its advantage is largest with fresh telemetry ($-16$\,\% against reactive proportional at $\tau = 0$). At $T = 20$~ms, five times the LL deadline, reservation is no longer the right structure and back-pressure becomes preferable; this regime map is exactly what the back-pressure newsvendor of Section~\ref{sec:rb-b3} learns automatically.
 
 \begin{table}[H]
 \caption{Sensitivity to control interval $T$ and telemetry delay $\tau$, Family S high load, $V_w$ [\%].}
@@ -296,7 +296,7 @@ $\tau$ & & & vs.\ reactive prop. \\
 \section{Part A $\times$ Part B: Compression Width and Allocation}
 \label{sec:rb-ab}
 
-The two parts of the project meet in $\beta(b)$ of Eq.~\eqref{eq:beta}. Table~\ref{tab:b-ab} and Figure~\ref{fig:b-ab} keep the user traffic fixed and change only the BFP width. \textbf{Compression sets the load regime; allocation decides the loss inside it.} Going from 9- to 6-bit mantissas lowers the load from 0.65 to 0.44, and at 0.65 load the proposed rule halves the loss of reactive proportional (1.96 vs 3.90\,\%). The allocation rule matters most at offered loads of about 0.5--0.8; when the link is almost saturated ($\approx$1.0), the right lever is Part~A --- more compression --- which is why the two parts belong together.
+The two parts of the project meet in $\beta(b)$ of Eq.~\eqref{eq:beta}. Table~\ref{tab:b-ab} and Figure~\ref{fig:b-ab} keep the user traffic fixed and change only the BFP width. \textbf{Compression sets the load regime; allocation decides the loss inside it.} Going from 9- to 6-bit mantissas lowers the load from 0.65 to 0.44, and at 0.65 load the proposed rule halves the loss of reactive proportional (1.96 vs 3.90\,\%). The allocation rule matters most at offered loads of about 0.5--0.8; when the link is almost saturated ($\approx$1.0), the right lever is Part~A (more compression), which is why the two parts belong together.
 
 \begin{table}[H]
 \caption{Compression width versus allocation rule (same user traffic), $V_w$ [\%].}
@@ -368,7 +368,7 @@ M shift 0.80 & 5.52 & 4.80 & 4.17 & 5.39 & 5.31 \\
 \label{fig:b-ext}
 \end{figure}
 
-A diagnosis of the KKT multiplier explains the structure of the remaining gap. At high load the link is binding in 99.8--100\,\% of epochs, and $\lambda^\ast \ge w_{\rm eMBB}$ in 50--58\,\% of them: in half the epochs every eMBB cell already sits at its lowest quantile, so re-tuning the LL weight gains only 1--4\,\%. The CEM policy gains instead from \emph{decoupled} per-class levels and a different sharing rule --- a question of \textbf{structure}, not of a constant. Figure~\ref{fig:b-regime} summarises the operating regimes: reservation wins for short intervals and for long bursts (FTP files, XR frames), back-pressure for short bursts at 10--20~ms intervals. Figure~\ref{fig:b-theory} validates the Markov-fluid theory: the shortfall sandwich is never violated and the Chernoff bound is valid.
+A diagnosis of the KKT multiplier explains the structure of the remaining gap. At high load the link is binding in 99.8--100\,\% of epochs, and $\lambda^\ast \ge w_{\rm eMBB}$ in 50--58\,\% of them: in half the epochs every eMBB cell already sits at its lowest quantile, so re-tuning the LL weight gains only 1--4\,\%. The CEM policy gains instead from \emph{decoupled} per-class levels and a different sharing rule. It is a question of \textbf{structure}, not of a constant. Figure~\ref{fig:b-regime} summarises the operating regimes: reservation wins for short intervals and for long bursts (FTP files, XR frames), back-pressure for short bursts at 10--20~ms intervals. Figure~\ref{fig:b-theory} validates the Markov-fluid theory: the shortfall sandwich is never violated and the Chernoff bound is valid.
 
 \begin{figure}[H]
 \centering
@@ -403,7 +403,7 @@ Table~\ref{tab:b2-fq} evaluates all forecasters on the same validation rows and 
 \cmidrule(lr){2-5}\cmidrule(lr){6-7}
 Model & Pinball & Pinball LL & 90\,\% cov. & 90\,\% width & 90\,\% cov. & LL $q_{0.95}$ cov. \\
 \midrule
-GBM (B1) & 0.0224 & 0.0259 & 0.894 & 1.51 & --- & --- \\
+GBM (B1) & 0.0224 & 0.0259 & 0.894 & 1.51 & n/a & n/a \\
 LCQT & \textbf{0.0214} & \textbf{0.0251} & 0.902 & \textbf{1.36} & 0.795 & 0.855 \\
 \quad without cross-cell layer & 0.0213 & 0.0249 & 0.903 & 1.38 & & \\
 \quad unweighted pinball & 0.0213 & 0.0250 & 0.922 & 1.38 & & \\
@@ -463,14 +463,14 @@ shift & $-0.2\,\%$ (n.s.) & 14/20 \\
 \label{fig:b2}
 \end{figure}
 
-The B2 study also produced a clear scientific finding: with the best forecaster we could build, the KKT rule improves only modestly at high load, while CEM and predictive MaxWeight remain 14--28\,\% lower. The remaining gap is therefore not forecast error but \emph{decision structure} --- which is precisely what B3 changes, keeping the B2 forecaster.
+The B2 study also produced a clear scientific finding: with the best forecaster we could build, the KKT rule improves only modestly at high load, while CEM and predictive MaxWeight remain 14--28\,\% lower. The remaining gap is therefore not forecast error but \emph{decision structure}, and that is precisely what B3 changes, keeping the B2 forecaster.
 
 \section{B3 Results: the Back-Pressure Newsvendor}
 \label{sec:rb-b3}
 
 \subsection{Diagnosis}
 
-Table~\ref{tab:b3-diag} breaks down the high-load result of Family~S by class. The KKT rule protects LL cells best (3.4\,\%) but leaves eMBB short (12.3\,\%) and uses the link least (72.2\,\%), because reserved-but-unused LL capacity is lost. Back-pressure controllers waste less. \textbf{BPN combines the strengths of both}: among implementable controllers it reaches the lowest $V_w$ (5.23\,\%), the lowest eMBB violation (4.8--4.9\,\%) and the highest link utilisation (76.1\,\%) --- a utilisation higher even than that of the oracle-informed KKT rule (74.8\,\%).
+Table~\ref{tab:b3-diag} breaks down the high-load result of Family~S by class. The KKT rule protects LL cells best (3.4\,\%) but leaves eMBB short (12.3\,\%) and uses the link least (72.2\,\%), because reserved-but-unused LL capacity is lost. Back-pressure controllers waste less. \textbf{BPN combines the strengths of both}: among implementable controllers it reaches the lowest $V_w$ (5.23\,\%), the lowest eMBB violation (4.8--4.9\,\%) and the highest link utilisation (76.1\,\%). That utilisation is even higher than that of the oracle-informed KKT rule (74.8\,\%).
 
 \begin{table}[H]
 \caption{Why BPN wins: per-class breakdown, Family S high load (20 test seeds), all in \%.}
@@ -492,7 +492,7 @@ Pred.\ MaxWeight (CEM-tuned) & 5.98 & 6.0 & 5.9 & 75.5 \\
 
 \subsection{Family S}
 
-Table~\ref{tab:b3-s} compares BPN with both strongest baselines, each in its best tuning, for three forecasters. \textbf{With the same forecaster, BPN beats both strongest baselines in every scenario.} At high load, BPN with the GBM forecaster reaches 5.23\,\% against 5.98\,\% for CEM-tuned predictive MaxWeight and 6.58\,\% for the re-searched CEM policy --- within 6--10\,\% of the oracle-informed KKT rule that knows the true future $\rstar$. The B2 Transformer now pays off more than it did with the KKT rule: with the Bayesian LCQT forecaster BPN reaches \textbf{5.05\,\%} at high load, \textbf{8.34\,\%} under flash crowds and \textbf{8.92\,\%} under the held-out shift, the best results of the whole project.
+Table~\ref{tab:b3-s} compares BPN with both strongest baselines, each in its best tuning, for three forecasters. \textbf{With the same forecaster, BPN beats both strongest baselines in every scenario.} At high load, BPN with the GBM forecaster reaches 5.23\,\% against 5.98\,\% for CEM-tuned predictive MaxWeight and 6.58\,\% for the re-searched CEM policy. This is within 6--10\,\% of the oracle-informed KKT rule that knows the true future $\rstar$. The B2 Transformer now pays off more than it did with the KKT rule: with the Bayesian LCQT forecaster BPN reaches \textbf{5.05\,\%} at high load, \textbf{8.34\,\%} under flash crowds and \textbf{8.92\,\%} under the held-out shift, the best results of the whole project.
 
 \begin{table}[H]
 \caption{B3, Family S: $V_w$ [\%] (mean of 20 test seeds).}
@@ -518,7 +518,7 @@ Forecaster & Controller & low & moderate & high & flash & shift \\
 \multirow{2}{*}{Bayesian LCQT} & \cellcolor{good!12}\textbf{BPN v1} & \cellcolor{good!12}0.08 & \cellcolor{good!12}\textbf{1.11} & \cellcolor{good!12}\textbf{5.05} & \cellcolor{good!12}\textbf{8.34} & \cellcolor{good!12}\textbf{8.92} \\
 & \cellcolor{good!12}\textbf{BPN v2} & \cellcolor{good!12}\textbf{0.07} & \cellcolor{good!12}1.12 & \cellcolor{good!12}5.21 & \cellcolor{good!12}8.55 & \cellcolor{good!12}9.12 \\
 \midrule
---- & \textcolor{gray}{Oracle + KKT (true $\rstar$)} & \textcolor{gray}{0.05} & \textcolor{gray}{0.88} & \textcolor{gray}{4.77} & \textcolor{gray}{8.10} & \textcolor{gray}{5.84} \\
+ & \textcolor{gray}{Oracle + KKT (true $\rstar$)} & \textcolor{gray}{0.05} & \textcolor{gray}{0.88} & \textcolor{gray}{4.77} & \textcolor{gray}{8.10} & \textcolor{gray}{5.84} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -577,13 +577,13 @@ M shift & $\mathbf{-8.2\,\%}$ & 20/20 \\
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.8\textwidth]{fig_bpn_vs_best.png}
-\caption{Relative $V_w$ against the best baseline in each scenario: the B1 KKT rule (grey), BPN~v1 (blue) and BPN~v2 (green). BPN~v2 is below zero --- better than the best baseline --- in all ten scenarios.}
+\caption{Relative $V_w$ against the best baseline in each scenario: the B1 KKT rule (grey), BPN~v1 (blue) and BPN~v2 (green). BPN~v2 is below zero (better than the best baseline) in all ten scenarios.}
 \label{fig:b3-best}
 \end{figure}
 
 \subsection{What the policy learned}
 
-Because both baselines are special cases of BPN, its learned parameters are directly interpretable (Table~\ref{tab:b3-theta}). On bursty Family~S the search drives the sharing exponent to $\eta = 6$, strict back-pressure order, with an almost pure drain-rate base ($a = 0.98$). On the 3GPP and Markov families, with long FTP files and XR frames, it chooses $\eta = 0$ --- reservation --- with high LL base quantiles. \textbf{The search recovers the regime map of the extended study on its own}: back-pressure for short bursts, reservation for long ones. BPN is therefore not a black box; it tells the operator which structure suits its traffic. It decides in 2.2--3.5~ms per epoch in Python, inside the 10~ms interval.
+Because both baselines are special cases of BPN, its learned parameters are directly interpretable (Table~\ref{tab:b3-theta}). On bursty Family~S the search drives the sharing exponent to $\eta = 6$, strict back-pressure order, with an almost pure drain-rate base ($a = 0.98$). On the 3GPP and Markov families, with long FTP files and XR frames, it chooses $\eta = 0$, which means reservation, with high LL base quantiles. \textbf{The search recovers the regime map of the extended study on its own}: back-pressure for short bursts, reservation for long ones. BPN is therefore not a black box; it tells the operator which structure suits its traffic. It decides in 2.2--3.5~ms per epoch in Python, inside the 10~ms interval.
 
 \begin{table}[H]
 \caption{Learned BPN v2 structure per traffic family.}
