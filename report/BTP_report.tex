@@ -5,14 +5,14 @@
 \documentclass[12pt,a4paper,oneside]{report}
 
 % ---------------- details to fill in ----------------
-\newcommand{\btptitle}{Fronthaul Load Management for Open RAN: Structure-Aware IQ Compression, Fast Complex Inversion and Uncertainty-Aware Budget Allocation on a Shared 7-2x Link}
-\newcommand{\btptitleshort}{Fronthaul Load Management for Open RAN}
-\newcommand{\studentA}{Mayank Yadav}
+\newcommand{\btptitle}{Fronthaul Load Management for B5G Wireless Communications}
+\newcommand{\btptitleshort}{Fronthaul Load Management for B5G Wireless Communications}
+\newcommand{\studentA}{Harshvardhan Choudhary}
 \newcommand{\rollA}{<Roll No.>}
-\newcommand{\studentB}{Harshvardhan Choudhary}
+\newcommand{\studentB}{Mayank Yadav}
 \newcommand{\rollB}{<Roll No.>}
-\newcommand{\guidename}{Prof. <Name of BTP Guide>}
-\newcommand{\guidedesig}{<Designation>, Department of Electrical Engineering}
+\newcommand{\guidename}{Dr. Sumit Gautam}
+\newcommand{\guidedesig}{Department of Electrical Engineering}
 \newcommand{\discipline}{Electrical Engineering}
 \newcommand{\btpdate}{Dec. 2026}
 % ----------------------------------------------------
@@ -128,7 +128,7 @@ Place: ........................
 \addcontentsline{toc}{chapter}{Preface}
 This report on \textbf{``\btptitle''} is prepared under the guidance of \textbf{\guidename}.
 
-The fronthaul --- the link between the radio unit on the antenna mast and the processing unit that runs the baseband --- is the most demanding transport segment of a modern 5G network. A single 64-antenna cell can push more than 15~Gbit/s of raw IQ samples, and operators connect many such cells through one shared Ethernet link. In this project we have attacked the fronthaul load problem from both of its sides. In Part~A we make the data itself smaller and make the processing unit fast enough to work with it: structure-aware IQ encoders, an adaptive functional split, a random-matrix-guided complex inversion method and a hand-optimised C/AVX-512 precoder kernel. In Part~B we decide, every 10~ms and before the traffic is known, how much of a shared link each cell may use: a deadline-feasible demand target, a calibrated quantile forecaster, a closed-form newsvendor allocation rule, a Bayesian Transformer forecaster and, finally, the back-pressure newsvendor controller that outperforms the strongest known baselines in every scenario we tested.
+The fronthaul, which links the radio unit on the antenna mast to the processing unit that runs the baseband, is the most demanding transport segment of a modern 5G network. A single 64-antenna cell can push more than 15~Gbit/s of raw IQ samples, and operators connect many such cells through one shared Ethernet link. In this project we have attacked the fronthaul load problem from both of its sides. In Part~A we make the data itself smaller and make the processing unit fast enough to work with it: structure-aware IQ encoders, an adaptive functional split, a random-matrix-guided complex inversion method and a hand-optimised C/AVX-512 precoder kernel. In Part~B we decide, every 10~ms and before the traffic is known, how much of a shared link each cell may use: a deadline-feasible demand target, a calibrated quantile forecaster, a closed-form newsvendor allocation rule, a Bayesian Transformer forecaster and, finally, the back-pressure newsvendor controller that outperforms the strongest known baselines in every scenario we tested.
 
 We have tried to the best of our abilities and knowledge to explain the content in a lucid manner, starting from the basics of the radio access network. We have added block diagrams of the network architecture, the algorithms and the controllers, together with the plots and tables of all experiments, so that the report can be read by someone new to the field.
 
