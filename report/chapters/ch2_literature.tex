@@ -1,0 +1,89 @@
+% =====================================================================
+\chapter{Literature Review}
+\label{ch:lit}
+\thispagestyle{plain}
+% =====================================================================
+
+\section{Introduction}
+
+This chapter reviews the work on which the project builds and positions our contributions against it. Section~\ref{sec:lit-fh} covers the fronthaul itself: functional splits, the O-RAN 7-2x interface, dimensioning and statistical multiplexing of shared links. Section~\ref{sec:lit-comp} covers fronthaul compression and adaptive splits (Part~A), and Section~\ref{sec:lit-inv} fast matrix inversion and precoding for massive MIMO (Part~A). Sections~\ref{sec:lit-alloc}--\ref{sec:lit-bp} cover the literature relevant to Part~B: anticipatory capacity allocation from forecasts, uncertainty-aware forecasting and conformal allocation, the newsvendor problem and network calculus, back-pressure and policy-search control, and Transformer forecasters with decision-focused learning. Section~\ref{sec:lit-gap} summarises the research gaps.
+
+\section{The Fronthaul: Functional Splits, O-RAN 7-2x and Shared Links}
+\label{sec:lit-fh}
+
+\paragraph{Functional splits.} 3GPP TR 38.801~\cite{tr38801} defines functional split options 1 to 8 between a central and a distributed unit. Larsen, Checko and Christiansen~\cite{larsen2019} survey the splits for 5G crosshaul and show that for splits 1 to 7-2 ``the bitrate will vary with the user load'', while only splits 7-1 and 8 are constant-rate; Ethernet transport of split 7-2 adds about 8\,\% overhead. Fronthaul demand is therefore a function of scheduled PRB-layers rather than of application bits --- the fact on which both parts of this project rest.
+
+\paragraph{O-RAN 7-2x.} The O-RAN WG4 control, user and synchronisation plane specification~\cite{oran_cus} defines the 7-2x split, section-based U-plane messages that carry IQ only for scheduled PRBs, block floating point (BFP) compression with a shared exponent per PRB and a configurable mantissa width, and receive windows at the O-RU after which U-plane packets are discarded. Polese \emph{et al.}~\cite{polese2023} give a comprehensive overview of the O-RAN architecture, its RICs and interfaces. IEEE 802.1CM~\cite{ieee8021cm} specifies time-sensitive networking profiles for fronthaul with a 100~$\mu$s one-way latency budget.
+
+\paragraph{Dimensioning and statistical multiplexing.} P\'erez, Hern\'andez and Larrabeiti~\cite{perez2018} model packet-switched aggregation of eCPRI flows and dimension the fronthaul by high delay percentiles. Wang and Zhou~\cite{wang2017} derive the blocking probability when several radio units share one fronthaul link and show that the multiplexing gain grows with the cluster size (27.5\,\% for five units at 5\,\% blocking). Lag\'en \emph{et al.}~\cite{lagen2022} study several 7-2x cells that share one fixed-capacity link through an L2 switch and propose fronthaul-aware modulation compression and scheduling. Their control is reactive and per slot; it uses no forecasting, no uncertainty and no cross-cell deadline weighting. Koulougli \emph{et al.}~\cite{flexe2023} carry eCPRI over FlexEthernet. These works establish the shared, over-subscribed link model that we adopt in Part~B.
+
+\section{Fronthaul Compression and Adaptive Splits}
+\label{sec:lit-comp}
+
+The O-RAN baseline is BFP~\cite{oran_cus}, which compresses each PRB to a common exponent and $b$-bit mantissas; it exploits only the dynamic range of the samples and reaches about 4$\times$. Low-rank compression is grounded in the Eckart--Young theorem~\cite{eckart1936}: the truncated SVD gives the best rank-$r$ approximation in Frobenius norm, but at a cost of $O(MN\min(M,N))$ that is too high for a 0.5~ms slot. Halko, Martinsson and Tropp~\cite{halko2011} showed that a randomised sketch followed by a QR factorisation achieves a $(1+\varepsilon)$-optimal rank-$r$ factorisation at $O(rMN)$ cost; this is the theory behind our RAS-BFP encoder. The 3GPP TDL channel models of TR 38.901~\cite{tr38901} have a few strong delay taps, so the received signal is sparse in the delay domain after an inverse FFT across subcarriers; our CSEE encoder exploits this structure. Adaptive functional splits that change with the channel or the load have been proposed in the crosshaul literature~\cite{larsen2019}; our ACAFS controller chooses the split per user from the numerical rank that the encoder already computes.
+
+\section{Matrix Inversion and Precoding for Massive MIMO}
+\label{sec:lit-inv}
+
+Linear MMSE detection and regularised zero-forcing (RZF) precoding require the inverse of a $K\times K$ Gram matrix $G = HH^H + \alpha I$ for every PRB in every slot. To avoid the cubic cost of exact inversion, Wu \emph{et al.}~\cite{wu2013} and Prabhu \emph{et al.}~\cite{prabhu2013} proposed truncated Neumann series, which converge when $G$ is diagonally dominant (many more antennas than users). Shao \emph{et al.}~\cite{shao2016} combined Newton iteration with a Neumann initialisation. The classical Newton--Schulz iteration $X \leftarrow X(2I - GX)$~\cite{schulz1933,benisrael1966,pan1991} converges quadratically once the initial residual is below one, and uses only matrix multiplications, which makes it attractive for GPU and tensor-core hardware~\cite{higham2008}. Kammoun \emph{et al.}~\cite{kammoun2014} designed truncated polynomial expansion precoders using random-matrix theory. The Marchenko--Pastur law~\cite{marchenko1967} describes the limiting eigenvalue distribution of Gram matrices of i.i.d.\ channels and has been used to choose polynomial intervals. Learned iterative solvers that ``unroll'' a classical iteration and learn its coefficients are an emerging line of work; we build two such inverters (InverseNet-NS and InverseNet-Ultra) and a direct regression baseline.
+
+Our RMT-WS method combines three ideas in one per-slot inverter: an eigensolve-free spectral interval from a moment-matched Marchenko--Pastur law that also holds for correlated, near-far and line-of-sight channels; a Chebyshev polynomial initialisation followed by Newton--Schulz; and slot-to-slot warm-start tracking governed by a closed-form Doppler law and a probabilistic residual certificate.
+
+\section{Anticipatory Capacity Allocation from Forecasts}
+\label{sec:lit-alloc}
+
+Bega \emph{et al.} proposed DeepCog~\cite{bega2019}, which forecasts the capacity needed per network slice with a deep network trained on a cost-aware loss, and AZTEC~\cite{bega2020}, a two-timescale allocation of dedicated and shared capacity from forecasts. Sciancalepore \emph{et al.}~\cite{sciancalepore2017} use traffic forecasts for slice admission. Kavehmadavani \emph{et al.}~\cite{kavehmadavani2023} feed LSTM traffic forecasts into an O-RAN traffic-steering problem with a fronthaul capacity constraint. Recent O-RAN works allocate slice resources with deep reinforcement learning xApps~\cite{dai2025,sever2025,dora2025,cheng2023}. All of these use \emph{point} forecasts (or a network trained for one fixed cost ratio), allocate at time scales of seconds to minutes, and have no notion of per-cell deadline feasibility or queue state. Predictive dynamic bandwidth allocation for PON-based fronthaul~\cite{mikaeil2018} has the same ``decide before observing'' structure, again with point predictions.
+
+\section{Uncertainty-Aware Forecasting and Conformal Allocation}
+\label{sec:lit-unc}
+
+Kasuluru \emph{et al.}~\cite{kasuluru2024} forecast the distribution of PRB load with DeepAR and Transformer models and study the over- and under-provisioning caused by choosing a percentile; the percentile is chosen globally rather than derived from a coupled allocation. Cohen \emph{et al.}~\cite{cohen2023} use online conformal prediction to set the amount of pre-allocated URLLC resources for a single traffic stream so that a reliability target holds. Gibbs and Cand\`es~\cite{gibbs2021} introduced adaptive conformal inference (ACI) under distribution shift, the update rule we use as a calibration ablation. Deep ensembles~\cite{lakshminarayanan2017} and Monte-Carlo dropout~\cite{gal2016} are the standard ways to represent epistemic uncertainty in deep forecasters. None of these works couples several cells through a shared capacity constraint.
+
+\section{Newsvendor Problems, Network Calculus and Effective Bandwidth}
+\label{sec:lit-nv}
+
+The multi-item newsvendor with a budget constraint~\cite{hadley1963} has a classical solution: at the optimum, the marginal expected value of one more unit is equal across items, which yields a quantile of each item's demand distribution set by a common Lagrange multiplier. Our KKT rule applies this structure with learned quantiles of a deadline-feasible rate and with priority weights. Network calculus~\cite{leboudec2001,chang1994} gives the service-curve condition under which a constant-rate server meets a delay bound; it defines our deadline-feasible rate $\rstar$. The theory of Markov-fluid sources~\cite{anick1982} and effective bandwidths~\cite{kesidis1993,kelly1996,duffield1994} relates buffer-overflow probabilities to the log-moment-generating function of the arrivals; we extend it to bound the distribution of $\rstar$. Self-similar ON/OFF traffic with heavy-tailed sojourns~\cite{willinger1997} is the basis of our bursty synthetic traffic.
+
+\section{Back-Pressure, Lyapunov Drift and Policy Search}
+\label{sec:lit-bp}
+
+MaxWeight (back-pressure) scheduling~\cite{tassiulas1992} serves queues in order of weighted backlog and is throughput-optimal; the Lyapunov drift-plus-penalty framework~\cite{neely2010} generalises it. Huang \emph{et al.}~\cite{huang2016} showed how back-pressure can use predicted future arrivals (predictive back-pressure), which we implement as \emph{predictive MaxWeight}, one of the two strongest baselines. Direct policy search with the cross-entropy method (CEM)~\cite{rubinstein1999} and rollout-based approximate dynamic programming~\cite{bertsekas2020} provide the second strong baseline: a low-dimensional allocation policy tuned on simulated episodes.
+
+\paragraph{Transformer forecasters and decision-focused learning.} PatchTST~\cite{nie2023} splits a time series into patches that become Transformer tokens; iTransformer~\cite{liu2024} attends across variates instead of time; the Temporal Fusion Transformer~\cite{lim2021} produces multi-quantile forecasts with static covariates; FiLM layers~\cite{perez2018film} condition a network on side information. Decision-focused (``predict-then-optimise'') learning trains a forecaster through the downstream optimisation problem~\cite{donti2017,elmachtoub2022}. A recent O-RAN preprint (arXiv:2609.17297) forecasts PRB load with a TFT trained at a cost-derived quantile level, but avoids differentiating through the allocation and has no shared link or deadlines.
+
+\section{Research Gaps Addressed}
+\label{sec:lit-gap}
+
+\begin{table}[H]
+\caption{Positioning of this project against the closest prior work.}
+\label{tab:gap}
+\centering\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+\toprule
+Area & State of the art & This project \\
+\midrule
+IQ compression & BFP ($\approx$4$\times$); truncated SVD (slow) & CSEE / RAS-BFP: 13--16$\times$, provable bounds, 3--6$\times$ faster than SVD \\
+Functional split & fixed at deployment & ACAFS: per-user split from the channel rank \\
+Precoder inversion & Neumann / Newton series, $>$8--10 GEMMs & RMT-WS: 6 GEMMs, warm-start tracking, certificate, Doppler law \\
+DU implementation & numpy + LAPACK: 3.2~ms per slot & fused C/AVX-512 kernel: 0.226~ms per slot \\
+Shared-link control & reactive per-slot compression~\cite{lagen2022} & anticipatory per-cell budgets every 10~ms \\
+Demand target & traffic volume / mean rate & deadline-feasible rate $\rstar$ \\
+Forecast use & single number, global percentile & full quantile set, per-cell level from the coupled KKT rule \\
+Strongest controllers & MaxWeight, policy search, used separately & BPN: one policy class containing both, beats both in 10/10 scenarios \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+From this review we identify the following gaps, each addressed in this project (Table~\ref{tab:gap}):
+\begin{itemize}
+  \item Fronthaul compression in practice exploits only the dynamic range of IQ samples; the low-rank and delay-sparse structure of the massive-MIMO signal remains unused at real-time cost.
+  \item Per-slot precoder inversion on a CPU O-DU does not fit the slot with standard libraries, and existing iterative inverters neither adapt to correlated, near-far channels nor exploit slot-to-slot correlation safely.
+  \item Shared fronthaul links are managed reactively; anticipatory allocation literature uses point forecasts and has no notion of per-cell deadline feasibility.
+  \item Uncertainty-aware and conformal allocation has been studied per stream, not for several cells coupled by a shared capacity.
+  \item Reservation-style (newsvendor) and back-pressure-style controllers have been studied separately; no controller combines both so that it inherits the strengths of each.
+\end{itemize}
+
+\section{Summary}
+
+In this chapter, starting with the functional splits and the O-RAN 7-2x fronthaul, we reviewed how shared fronthaul links are dimensioned and controlled, how IQ data are compressed, how massive-MIMO precoders are inverted, and how forecasts, uncertainty, newsvendor theory, network calculus, back-pressure and Transformer forecasters have been used for resource allocation. The review shows that the structure of the fronthaul signal and the uncertainty and deadlines of the fronthaul demand are both under-exploited. The next chapters present our methods for Part~A and Part~B that close these gaps.

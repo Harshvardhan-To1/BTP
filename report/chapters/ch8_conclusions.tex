@@ -1,0 +1,41 @@
+% =====================================================================
+\chapter{Conclusions and Scope for Future Work}
+\label{ch:concl}
+\thispagestyle{plain}
+% =====================================================================
+
+\section{Conclusions}
+
+This project set out to make the O-RAN fronthaul both \emph{lighter} and \emph{smarter}. It delivered a complete, end-to-end solution: Part~A reduces the bits that cross every fronthaul link, and Part~B decides, ahead of time and under uncertainty, how the remaining capacity of a shared link is divided among the cells. Both parts are backed by theorems, by large statistically tested experiments and by a fully reproducible code base.
+
+\subsection*{Part A --- lighter fronthaul and real-time precoding}
+\begin{itemize}
+  \item \textbf{Channel compression.} CSEE and RAS-BFP compress the channel with provable error bounds, reaching 13--16$\times$ compression at about $-20$~dB NMSE where standard BFP stops at about 4$\times$, and encoding 3--6$\times$ faster than SVD; ACAFS adapts the rank to the channel automatically.
+  \item \textbf{A 9-method inversion benchmark} and the proposed InverseNet family showed that a learned \emph{iteration} succeeds where a direct neural inverse cannot, and pointed the way to an iterative, warm-started solution.
+  \item \textbf{RMT-WS} --- equilibration, a moment-matched Marchenko--Pastur interval, a Chebyshev--Newton--Schulz hybrid, warm-start tracking and a residual certificate --- predicts the eigenvalue interval with 100\,\% coverage, tracks the channel at 2.25 steps per slot with 0.006\,\% sum-rate loss at walking speed, and obeys a closed-form Doppler law.
+  \item \textbf{The fused C/AVX-512/OpenMP kernel} computes the whole RZF precoder of a 273-PRB slot 10--15$\times$ faster than numpy + LAPACK (0.226~ms for $K=16$, $M=64$), well inside the 0.5~ms slot.
+  \item \textbf{RU-side precoding} with the compressed channel saves \textbf{72\,\%} of the fronthaul.
+\end{itemize}
+
+\subsection*{Part B --- smarter fronthaul allocation}
+\begin{itemize}
+  \item \textbf{Problem formulation.} The deadline-feasible rate $r^\star$ connects packet deadlines directly to the capacity a slice needs; the newsvendor view turns allocation into a quantile decision that a single KKT water-fill solves in closed form, with four supporting propositions.
+  \item \textbf{The predictive KKT rule (B1)} is the best of 12 controllers in every scenario of two traffic families, with 11--43\,\% fewer weighted violations than the forecast median and 19--70\,\% fewer than deadline-aware reactive control, on every one of 20 seeds ($p < 0.01$). It has the best fairness and the highest utilisation among deadline-aware controllers, and at a 2~ms interval it even beats the oracle water-fill.
+  \item \textbf{The Bayesian LCQT Transformer (B2)} learns calibrated, non-crossing joint quantiles across cells, cuts the pinball loss by 4.5\,\% with the best calibration of all models, and with the differentiable KKT layer lowers the weighted violation by 21 / 6 / 1.4\,\% at low / moderate / high load on 20 of 20 seeds.
+  \item \textbf{The back-pressure newsvendor (B3)} unifies the newsvendor rule, predictive MaxWeight and the learned class-level policy in one 8-parameter controller. It \textbf{beats both strongest baselines in all 10 scenarios of three traffic families} (3--25\,\% lower, $p \le 0.024$), comes within 6--10\,\% of the oracle-informed rule at high load, gives the best results of the whole project (5.05\,\% at high load with the LCQT forecaster), and decides in 2.2--3.5~ms.
+\end{itemize}
+
+\subsection*{Part A $\times$ Part B --- one system}
+The two parts reinforce each other. Part~A lowers the demand placed on the link; Part~B serves what remains with the right capacity at the right time. The joint experiment shows that compression sets the load regime and allocation decides the loss inside it: at a link load of 0.65 the proposed rule halves the violations of reactive control (1.96\,\% against 3.90\,\%). An operator therefore obtains both benefits: fewer bits per cell and fewer deadline violations per bit. Together they give a practical, provably grounded and real-time fronthaul solution ready for the software-defined O-RAN.
+
+\section{Scope for Future Work}
+
+The framework developed in this project opens several promising directions:
+\begin{enumerate}
+  \item \textbf{GPU and accelerator kernels.} The Newton--Schulz iteration and the residual certificate of RMT-WS are made of matrix--matrix products, exactly the operation that GPU tensor cores, NPUs and systolic arrays accelerate; porting the fused kernel to such engines is a natural next step.
+  \item \textbf{Real operator traces.} Training and evaluating the Part~B forecasters and controllers on measured multi-cell traffic traces, and the Part~A precoder on measured channels.
+  \item \textbf{Reinforcement-learning xApp.} Using BPN as the structured policy class of a PPO agent deployed as a near-RT RIC xApp, with the newsvendor rule as a safe fallback.
+  \item \textbf{Cross-family transfer and online adaptation} of the learned forecasters and the BPN parameters through the A1 interface.
+  \item \textbf{A joint per-cell compression and allocation knob,} in which the controller chooses both the BFP mantissa width of each cell and its capacity share in every interval.
+  \item \textbf{O-DU deployment} of the fused kernel and the BPN controller on an open-source O-RAN stack, closing the loop from simulation to a live testbed.
+\end{enumerate}

@@ -1,0 +1,107 @@
+% =====================================================================
+\chapter{Proofs of the Part B Propositions}
+\label{app:proofs}
+\thispagestyle{plain}
+% =====================================================================
+
+This appendix proves the four properties of the KKT newsvendor rule stated in Chapter~\ref{ch:partb-methods}. Throughout, $R_i \ge 0$ denotes the deadline-feasible rate $\rstar_i$ of cell $i$ with forecast distribution $F_i$, $B_i \ge 0$ its backlog rate, $w_i > 0$ its weight, and
+\[
+  J_F(r) = \sum_i w_i\,\mathbb{E}_F\big[\min(B_i + R_i,\ r_i)\big]
+\]
+the objective of Eq.~\eqref{eq:nv}. For $r \ge B$,
+\begin{equation}
+  \mathbb{E}_F[\min(B + R, r)] = B + \int_0^{\,r-B} \big(1 - F(x)\big)\,dx ,
+  \label{eq:app-int}
+\end{equation}
+and for $r < B$ it equals $r$. Hence the function is concave and non-decreasing in $r$, with derivative $1$ below $B$ and $1 - F(r - B)$ above it.
+
+\section*{Proof of Proposition~\ref{prop:feas} (Feasibility)}
+
+By construction $r_i(\lambda) = \mathrm{clip}\big(B_i + F_i^{-1}(1-\lambda/w_i),\,0,\,\mathrm{cap}_i\big)$, so $0 \le r_i(\lambda) \le \mathrm{cap}_i$ for every $\lambda$. For $\lambda \ge w_i$ the probability level $1 - \lambda/w_i$ is non-positive and the rule assigns $r_i = 0$; hence $\sum_i r_i(w_{\max}) = 0 \le C$. Each $r_i(\lambda)$ is non-increasing in $\lambda$, because the quantile function is non-decreasing in its level. If $\sum_i r_i(0) \le C$ the link is not binding and the allocation is feasible. Otherwise the bisection keeps the invariant $\sum_i r_i(\lambda_{\rm hi}) \le C < \sum_i r_i(\lambda_{\rm lo})$ with $\lambda_{\rm hi} = w_{\max}$ initially, and returns $r(\lambda_{\rm hi})$. Any slack $C - \sum_i r_i(\lambda_{\rm hi})$ is redistributed in proportion to $r_i(\lambda_{\rm lo}) - r_i(\lambda_{\rm hi})$ but never beyond the slack, and $r_i(\lambda_{\rm lo}) \le \mathrm{cap}_i$. Therefore the caps hold and $\sum_i r_i \le C$. \hfill$\square$
+
+\section*{Proof of Proposition~\ref{prop:equal} (Equal weighted tail probability)}
+
+Problem~\eqref{eq:nv} maximises a separable concave function over a polytope, so the KKT conditions are necessary and sufficient. With multiplier $\lambda \ge 0$ for the link constraint and multipliers for the box constraints, stationarity for a cell with $0 < r_i < \mathrm{cap}_i$ and $r_i > B_i$ reads
+\[
+  \frac{\partial}{\partial r_i} w_i\,\mathbb{E}[\min(B_i + R_i, r_i)] = w_i\big(1 - F_i(r_i - B_i)\big) = \lambda ,
+\]
+using Eq.~\eqref{eq:app-int}. Inverting gives $r_i = B_i + F_i^{-1}(1 - \lambda/w_i)$, which is Eq.~\eqref{eq:kkt}, and shows that at an interior optimum every cell has the same weighted probability $w_i\,\Pr(B_i + R_i > r_i) = \lambda$ that its marginal bit of budget is needed.
+
+If $F_i$ is a point mass at $\mu_i$, the marginal value of budget is $w_i$ up to $B_i + \mu_i$ and $0$ above it. The optimal allocation then funds cells in decreasing order of $w_i$ until the link is full, which is a priority-ordered fill. \hfill$\square$
+
+\section*{Proof of Proposition~\ref{prop:backlog} (Backlog first)}
+
+Let $\lambda < w_i$. Then $1 - \lambda/w_i > 0$, so $F_i^{-1}(1 - \lambda/w_i) \ge 0$ and $B_i + F_i^{-1}(1 - \lambda/w_i) \ge B_i$; after clipping, $r_i(\lambda) \ge \min(B_i, \mathrm{cap}_i)$. Now suppose that some cell $j$ with $w_j \le w_i$ receives budget for its uncertain demand, i.e.\ $r_j > B_j$. This requires $1 - \lambda/w_j > 0$, i.e.\ $\lambda < w_j \le w_i$, and therefore $r_i \ge \min(B_i, \mathrm{cap}_i)$. The known backlog of a cell is thus always funded before the uncertain demand of any cell of equal or lower priority. \hfill$\square$
+
+\section*{Proof of Proposition~\ref{prop:robust} (Robustness to miscalibration)}
+
+Let $r^F$ maximise $J_F$ (the rule run with the forecast $F$) and $r^G$ maximise $J_G$ (the rule run with the true distribution $G$). By Eq.~\eqref{eq:app-int}, for any feasible $r$,
+\[
+  \big|J_G(r) - J_F(r)\big| \le \sum_i w_i \int_0^{(r_i - B_i)^+} \big|F_i(x) - G_i(x)\big|\,dx
+  \le \epsilon \sum_i w_i\,(r_i - B_i)^+ .
+\]
+Decomposing the regret,
+\[
+  J_G(r^G) - J_G(r^F)
+  = \underbrace{J_G(r^G) - J_F(r^G)}_{\le\, \epsilon\sum_i w_i (r^G_i - B_i)^+}
+  + \underbrace{J_F(r^G) - J_F(r^F)}_{\le\, 0}
+  + \underbrace{J_F(r^F) - J_G(r^F)}_{\le\, \epsilon\sum_i w_i (r^F_i - B_i)^+},
+\]
+where the middle term is non-positive because $r^F$ maximises $J_F$. This is the first inequality. For the second, $(r_i - B_i)^+ \le r_i$ and $\sum_i r_i \le C$ for both allocations, so each sum is at most $w_{\max} C$. \hfill$\square$
+
+\paragraph{Empirical check.} The miscalibration sweep of Chapter~\ref{ch:partb-results} confirms the proposition: under-reserving is almost harmless, over-reserving degrades gradually, and even with a level shift of $\epsilon = 0.3$ the rule still beats deadline-aware reactive control.
+
+% =====================================================================
+\chapter{Reproducing the Results}
+\label{app:repro}
+\thispagestyle{plain}
+% =====================================================================
+
+All experiments run on a CPU-only machine (a 4-core VM). The commands below regenerate every table and figure of this report from the project repository.
+
+\section*{Installation}
+\begin{lstlisting}[language=bash]
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pytest tests                                   # unit tests
+\end{lstlisting}
+
+\section*{Part A}
+\begin{lstlisting}[language=bash]
+# matrix-inversion benchmark and InverseNet
+python -m matinv_bench.generate_dataset --dims 10 100 500 --num-samples 1000
+python -m matinv_bench.train_inversenet --dims 10 100 500
+python -m matinv_bench.benchmark --dims 10 100 500
+# RMT-WS, Doppler law, low precision, fronthaul, kernels (Exp. 5-18)
+bash kernels/build.sh
+python experiments_v2/run_all.py              # writes results/v2/
+\end{lstlisting}
+
+\section*{Part B}
+\begin{lstlisting}[language=bash]
+# B1: KKT newsvendor rule (Family S, then Family G)
+python -m fhlm.train --out models/fhlm_quantile_gbm_T20_d2.pkl \
+       --report results/fhlm/forecast_training_T20_d2.json
+python -m fhlm.run_experiments tune
+python -m fhlm.run_experiments main
+python -m fhlm.run_experiments sweep --intervals 4 10 20 40 --num-seeds 10
+python -m fhlm.run_experiments delay --delays 0 2 5 10 --num-seeds 10
+python -m fhlm.run_experiments miscalibration --num-seeds 10
+python -m fhlm.train --family 3gpp --out models/fhlm_quantile_gbm_T20_d2_3gpp.pkl
+python -m fhlm.run_experiments main --family 3gpp --append
+# Part A x Part B
+python -m fhlm.run_experiments compression --scenario moderate --num-seeds 10
+# extended study (Family M, theory, MaxWeight, CEM)
+python -m fhlm.train --family markov --out models/fhlm_quantile_gbm_T20_d2_markov.pkl
+bash experiments/run_extended.sh && bash experiments/run_extended_2.sh
+# B2: Bayesian LCQT Transformer + differentiable KKT layer
+python -m fhlm.train_transformer --out models/fhlm_lcqt_T20_d2.pt
+python -m fhlm.eval_bayes_forecast
+python -m fhlm.run_transformer_study --family synthetic
+# B3: back-pressure newsvendor (equal-budget CEM search)
+python -m fhlm.hybrid cem --policy bpn --forecaster gbm
+python -m fhlm.hybrid cem --policy bpn --forecaster lcqt
+# figures and tables
+python -m fhlm.make_figures && python -m fhlm.make_extended_tables
+\end{lstlisting}
