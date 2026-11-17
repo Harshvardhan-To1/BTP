@@ -1,0 +1,263 @@
+% =====================================================================
+\chapter{Part A: System Model and Proposed Methods}
+\label{ch:parta-methods}
+\thispagestyle{plain}
+% =====================================================================
+
+\section{Introduction}
+
+Part~A reduces the fronthaul load at its source and makes the O-DU fast enough to work with the reduced data. It has two threads. The first thread (Sections~\ref{sec:a-model}--\ref{sec:acafs}) compresses the per-slot IQ matrix by exploiting its structure --- low numerical rank across antennas and sparsity in the delay domain --- and adapts the functional split to the channel. The second thread (Sections~\ref{sec:a-bench}--\ref{sec:ru-precoding}) makes the per-slot precoder computation fit inside the 0.5~ms slot: a benchmark of nine inversion methods including our learned inverters, the RMT-WS warm-start complex inversion method, and an analysis of where precoding should run to minimise fronthaul load. The optimised C kernel that implements the precoder is described in Chapter~\ref{ch:impl}.
+
+\section{System Model for IQ Compression}
+\label{sec:a-model}
+
+After OFDM demodulation, the O-RU holds for every slot the frequency-domain received matrix
+\begin{equation}
+  Y = H \odot X + W \in \mathbb{C}^{M\times N},
+  \label{eq:a-model}
+\end{equation}
+with $M = 64$ antennas, $N = 1200$ subcarriers (100~MHz class), channel $H$, transmitted symbols $X$ and noise $W$. The channel follows the 3GPP TR 38.901 TDL-A delay profile~\cite{tr38901} with exponential spatial correlation across antennas. With 32-bit IQ samples and numerology~0 the raw fronthaul rate is
+\begin{equation}
+  R_{\rm raw} = 2\, M\, N_{\rm sc}\, N_{\rm sym}\, b\, R_{\rm slot} \approx 15.36~\text{Gbit/s per cell}.
+\end{equation}
+
+The signal has two structures that BFP does not use:
+\begin{itemize}
+  \item \textbf{Low rank.} Correlated antennas make the numerical rank $r$ of $Y$ much smaller than $\min(M,N)$.
+  \item \textbf{Delay-domain sparsity.} A TDL channel has only a few strong taps, so after an inverse FFT along subcarriers most of the energy of $Y$ sits in a few delay bins.
+\end{itemize}
+
+\paragraph{Baseline: O-RAN BFP.} The O-RAN compression standard~\cite{oran_cus} groups the 12 subcarriers of a PRB, stores one shared exponent and a $b$-bit mantissa for each I and Q value. It shortens numbers but does not reduce their count, giving about $32/b$, i.e.\ $\approx$4$\times$ at $b=8$.
+
+Figure~\ref{fig:a-pipeline} shows where our encoders sit: in the O-RU, after the FFT, replacing (or wrapping) BFP; the decoder runs in the O-DU before equalisation.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\footnotesize,>=Stealth,
+   b/.style={draw,rounded corners,align=center,minimum height=1.0cm,inner sep=3pt},
+   ours/.style={b,fill=good!15,draw=good!70!black,thick}]
+  \node[b,fill=iitblue!12] (ant) {64 antennas\\RF + ADC};
+  \node[b,fill=iitblue!12,right=0.45cm of ant] (fft) {CP removal\\+ FFT};
+  \node[ours,right=0.45cm of fft] (enc) {\textbf{Encoder}\\CSEE / RAS-BFP\\(+ ACAFS split)};
+  \node[b,fill=gray!10,right=2.4cm of enc] (dec) {Decoder\\$\hat Y$};
+  \node[b,fill=good!8,right=0.45cm of dec] (eq) {Channel est.,\\equalisation,\\decoding};
+  \draw[->,thick] (ant) -- (fft);
+  \draw[->,thick] (fft) -- node[above]{$Y$} (enc);
+  \draw[->,line width=2pt,accent] (enc) -- node[above,text=accent]{fronthaul} node[below,text=accent,font=\scriptsize,align=center]{13--16$\times$\\fewer bits} (dec);
+  \draw[->,thick] (dec) -- (eq);
+  \node[draw,dashed,rounded corners,fit=(ant)(fft)(enc),inner sep=6pt,label={[font=\footnotesize\bfseries]above:O-RU}] {};
+  \node[draw,dashed,rounded corners,fit=(dec)(eq),inner sep=6pt,label={[font=\footnotesize\bfseries]above:O-DU}] {};
+\end{tikzpicture}
+\caption{Placement of the proposed structure-aware IQ encoders in the 7-2x uplink chain.}
+\label{fig:a-pipeline}
+\end{figure}
+
+\section{CSEE: Delay-Domain Sparse Encoder}
+\label{sec:csee}
+
+CSEE transforms each antenna row of $Y$ to the delay domain, keeps the strongest taps and quantises them:
+\begin{enumerate}
+  \item $Y_d = \mathrm{IFFT}_N(Y)$ (row-wise, along subcarriers).
+  \item Select the support $S = \mathrm{TopK}(|Y_d|)$ of the $K$ largest-magnitude delay coefficients.
+  \item Quantise the kept coefficients with per-antenna BFP of step $\Delta$ and transmit values and support.
+  \item At the O-DU, reconstruct $\hat Y = \mathrm{FFT}_N(Y_d|_S)$.
+\end{enumerate}
+
+\begin{theorem}[CSEE error bound]
+Let $\sigma^2_{\rm tail}$ be the energy of the discarded delay coefficients and $\sigma_Y^2$ the energy of $Y$. With a uniform quantiser of step $\Delta$ on the $K$ kept coefficients,
+\begin{equation}
+  \mathrm{NMSE}_{\rm CSEE} \le \frac{\sigma^2_{\rm tail}}{\sigma^2_Y} + \frac{\Delta^2}{12}\,\frac{K}{MN\sigma_Y^2}.
+\end{equation}
+\end{theorem}
+The first term is the truncation error, the second the quantisation error; both are controlled by $K$ and the mantissa width. Because the FFT is unitary, the error in the delay domain equals the error in the frequency domain. The complexity is $O(MN\log N)$, dominated by the FFTs.
+
+\section{RAS-BFP: Randomised Sketch and QR Encoder}
+\label{sec:rasbfp}
+
+RAS-BFP computes a low-rank factorisation of $Y$ with a randomised sketch, which is far cheaper than an SVD:
+\begin{enumerate}
+  \item Sketch with a subsampled randomised Hadamard transform (SRHT): $Z = \Omega Y \in \mathbb{C}^{r\times N}$.
+  \item Thin QR of the sketch: $Z^H = QR$, with $Q \in \mathbb{C}^{N\times r}$ orthonormal.
+  \item Project: $L = YQ \in \mathbb{C}^{M\times r}$.
+  \item Transmit $\mathrm{BFP}(L)$ and $\mathrm{BFP}(Q)$; the O-DU reconstructs $Y \approx LQ^H$.
+\end{enumerate}
+
+\begin{theorem}[RAS-BFP approximation, after Halko--Martinsson--Tropp~\cite{halko2011}]
+With an SRHT sketch of $r$ rows (plus oversampling) and $Y_r$ the best rank-$r$ approximation of $Y$,
+\begin{equation}
+  \|Y - LQ^H\|_F^2 \le (1+\varepsilon_r)\,\|Y - Y_r\|_F^2 \quad\text{with probability at least } 1-\delta.
+\end{equation}
+\end{theorem}
+
+\begin{theorem}[Rate-optimal rank]
+For a total bit budget $B_{\rm total}$ and mantissa width $b$, the payload of $\mathrm{BFP}(L)$ and $\mathrm{BFP}(Q)$ is $b\,r(M+N)$ complex values, and the rank that balances truncation and quantisation error is
+\begin{equation}
+  r^\star = \left\lfloor \sqrt{\frac{B_{\rm total}}{b\,(M+N)}} \right\rceil.
+\end{equation}
+\end{theorem}
+
+The cost of RAS-BFP is $O(rMN)$, against $O(MN\min(M,N))$ for a truncated SVD, while it reaches the same compression ratio (Table~\ref{tab:a-methods}).
+
+\begin{table}[H]
+\caption{IQ compression methods compared in Part~A.}
+\label{tab:a-methods}
+\centering
+\begin{tabular}{llll}
+\toprule
+Method & Structure exploited & Complexity & Theory \\
+\midrule
+O-RAN BFP & dynamic range & $O(MN)$ & empirical quantisation \\
+Truncated SVD & low rank & $O(MN\min(M,N))$ & Eckart--Young~\cite{eckart1936} \\
+\ours \textbf{CSEE (ours)} & delay sparsity & $O(MN\log N)$ & Theorem~3.1 \\
+\ours \textbf{RAS-BFP (ours)} & low rank & $O(rMN)$ & Theorems~3.2--3.3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{ACAFS: Rank-Adaptive Functional Split}
+\label{sec:acafs}
+
+The best functional split depends on the channel: when a user's channel has low rank, the low split 7-2x with compressed IQ is cheapest; when the rank is high, moving more processing to the radio unit (split 7-1 or 6) sends fewer bits. ACAFS uses the per-user rank fraction $r_k/M$ that the encoder already computes to choose the split for each user (Table~\ref{tab:acafs}).
+
+\begin{table}[H]
+\caption{ACAFS split selection rule ($\tau_\ell = 0.15$, $\tau_h = 0.55$).}
+\label{tab:acafs}
+\centering
+\begin{tabular}{cc}
+\toprule
+Rank fraction $r_k/M$ & Selected split \\
+\midrule
+$< \tau_\ell$ & 7-2x \\
+$\tau_\ell \le r_k/M < \tau_h$ & 7-1 \\
+$\ge \tau_h$ & 6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{theorem}[ACAFS bandwidth saving]
+If the rank fraction is uniformly distributed, the relative bandwidth saving of ACAFS against a fixed Split~6 is
+\begin{equation}
+  \frac{\Delta \mathrm{BW}}{\mathrm{BW}_6} = 1 - \big(\mathrm{BW}_{7.2x}\,\tau_{\ell} + \mathrm{BW}_{7.1}(\tau_h-\tau_\ell) + \mathrm{BW}_6(1-\tau_h)\big)/\mathrm{BW}_6,
+\end{equation}
+which evaluates to about 33\,\% for $\tau_\ell = 0.15$, $\tau_h = 0.55$.
+\end{theorem}
+In practice ranks are not uniform: at high SNR the effective rank collapses and the saving grows to 55--75\,\% (Chapter~\ref{ch:parta-results}).
+
+\section{Matrix-Inversion Benchmark and Learned Inverters}
+\label{sec:a-bench}
+
+MMSE equalisation, ZF/RZF precoding, channel estimation and our own encoders all need a matrix inverse or decomposition \emph{every slot}. To choose the right method for a 0.5~ms budget we benchmarked nine methods on the CPU.
+
+\paragraph{Dataset.} Matrices $A = G/\sqrt{n} + 2I$ with $G_{ij}\sim\mathcal N(0,1)$, $n \in \{10, 100, 500\}$, 1000 matrices per size, float32. 80\,\% are used to train the learned models and timing is measured on 200 held-out matrices, one matrix at a time after warm-up, on CPU only. Metrics: mean, median and 95th-percentile time, and relative error $\|X - A^{-1}\|_F/\|A^{-1}\|_F$.
+
+\paragraph{Classical methods (6).} LAPACK \texttt{getri} through numpy, LU (scipy), QR, SVD, Gauss--Jordan elimination and the Newton--Schulz iteration.
+
+\paragraph{Our learned inverters (3).}
+\begin{itemize}
+  \item \textbf{InverseNet-MLP}: a multilayer perceptron that regresses $A^{-1}$ directly from the flattened $A$.
+  \item \textbf{InverseNet-NS}: the Newton--Schulz iteration unrolled for 8 steps,
+  \[ X_{k+1} = X_k(\beta_k I - \gamma_k A X_k), \qquad X_0 = \alpha A^T/(\|A\|_1\|A\|_\infty), \]
+  with learned step coefficients $(\beta_k,\gamma_k)$ and a learned scale $\alpha$ of the initial guess.
+  \item \textbf{InverseNet-Ultra}: a small hyper-network predicts the initial guess $X_0 = a_s A^T/\|A\|_F^2 + i_s I$ from four matrix statistics (trace, Frobenius, 1- and $\infty$-norm), followed by 6 learned Newton--Schulz steps. The better initial guess removes two steps and reaches $10^{-6}$ relative error.
+\end{itemize}
+The learned iterations keep the mathematical structure of a provably convergent method and learn only its coefficients, so they need very few parameters and generalise across matrices, and their cost is a fixed number of batched matrix multiplications --- the operation that GPUs, NPUs and tensor cores execute fastest.
+
+\section{The Real Workload: Complex RZF Precoding}
+\label{sec:rzf}
+
+In the downlink the O-DU (or the O-RU, Section~\ref{sec:ru-precoding}) computes for every PRB and every slot the regularised zero-forcing precoder
+\begin{equation}
+  G = HH^H + \alpha I \in \mathbb{C}^{K\times K}, \qquad W = H^H G^{-1} \in \mathbb{C}^{M\times K},
+  \label{eq:rzf}
+\end{equation}
+for $K$ users and $M$ antennas, 273 times inside a 0.5~ms slot. To evaluate inversion methods on this workload we built a realistic complex channel simulator (\texttt{cmatinv/}): 3GPP TR 38.901 UMa NLOS path loss and shadowing, which creates a large near-far spread of user powers; the TDL-A 23-tap profile over 100~MHz; per-user angular-spread spatial correlation; an optional Rician line-of-sight component; and Clarke/Jakes channel aging $\rho = J_0(2\pi f_D T)$ for user speeds of 3--120~km/h. Configurations: $M \in \{64, 128\}$, $K \in \{8, 16, 32\}$, 273 PRBs, 30~kHz subcarrier spacing, 3.5~GHz carrier.
+
+\section{RMT-WS: Random-Matrix-Guided Warm-Start Inversion}
+\label{sec:rmtws}
+
+RMT-WS inverts the complex Hermitian Gram matrices of Eq.~\eqref{eq:rzf} with matrix multiplications only, starts from a near-optimal initial guess derived from random-matrix theory, and re-uses the previous slot's inverse whenever the channel has changed little. Figure~\ref{fig:rmtws} shows the flow for one PRB.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\footnotesize,>=Stealth,node distance=0.45cm,
+   s/.style={draw,rounded corners,fill=soft,align=center,text width=3.3cm,minimum height=0.95cm},
+   d/.style={draw,diamond,aspect=2.2,fill=orange!15,align=center,inner sep=1pt,font=\scriptsize},
+   g/.style={s,fill=good!15}]
+  \node[s] (g) {Gram $G = HH^H + \alpha I$};
+  \node[s,below=of g] (eq) {Equilibrate\\$\hat G = D^{-1/2} G D^{-1/2}$};
+  \node[d,below=0.55cm of eq] (dec) {previous $X$\\available?};
+  \node[s,below left=0.7cm and 0.1cm of dec] (int) {Spectral interval $[a,b]$\\moment-matched MP\\($K^2$ work)};
+  \node[s,below=of int] (cheb) {Chebyshev polynomial\\on $[a,b]$ (cold start)};
+  \node[s,below right=0.7cm and 0.1cm of dec] (warm) {Warm start: $X_0 = X_{t-1}$\\rescaled by new $D$};
+  \node[d,below=0.6cm of warm] (cert) {certificate\\$\hat r \le 0.3$?};
+  \node[g,below=2.6cm of dec] (ns) {Newton--Schulz\\$X \leftarrow X(2I - \hat G X)$\\steps from $\hat r$};
+  \node[s,below=of ns] (out) {$G^{-1} = D^{-1/2} X D^{-1/2}$\\$\Rightarrow W = H^H G^{-1}$};
+  \draw[->,thick] (g) -- (eq);
+  \draw[->,thick] (eq) -- (dec);
+  \draw[->,thick] (dec.west) -| node[pos=0.25,above]{no} (int.north);
+  \draw[->,thick] (dec.east) -| node[pos=0.25,above]{yes} (warm.north);
+  \draw[->,thick] (int) -- (cheb);
+  \draw[->,thick] (warm) -- (cert);
+  \draw[->,thick] (cert.south) |- node[pos=0.3,right]{yes} (ns.east);
+  \draw[->,thick] (cheb.south) |- (ns.west);
+  \draw[->,thick,dashed] (cert.east) -- ++(0.5,0) |- node[pos=0.25,right]{no: fall back} (int.east);
+  \draw[->,thick] (ns) -- (out);
+\end{tikzpicture}
+\caption{RMT-WS inversion of one PRB: equilibration, random-matrix spectral interval, Chebyshev cold start or certified warm start, and Newton--Schulz refinement.}
+\label{fig:rmtws}
+\end{figure}
+
+\paragraph{1. Equilibration.} $\hat G = D^{-1/2} G D^{-1/2}$ with $D = \mathrm{diag}(G)$ gives a unit diagonal and removes the near-far power spread that otherwise ruins every series-based method.
+
+\paragraph{2. Eigensolve-free spectral interval.} For an i.i.d.\ channel the eigenvalues of $\hat G$ follow the Marchenko--Pastur (MP) law~\cite{marchenko1967} (Figure~\ref{fig:mp} in Chapter~\ref{ch:parta-results}). Correlation and line-of-sight widen the spectrum, which a fixed-ratio MP edge $(1\mp\sqrt{K/M})^2$ cannot capture. We instead match the first two spectral moments: $\hat G$ has spectral mean 1 and variance $v = \|\hat G\|_F^2/K - 1$, which yields
+\begin{equation}
+  [a,b] = 1 + v/\bar s \mp 2\sqrt{v},
+\end{equation}
+computed with only $K^2$ operations and no eigen-decomposition. Correlated and LoS channels increase $v$ and widen the interval automatically.
+
+\paragraph{3. Cold start.} A Chebyshev polynomial of degree $d$ on $[a,b]$ gives an initial inverse $X_0 = p_d(\hat G)$ whose residual $\|I - \hat G X_0\|$ is minimax-optimal on the interval. Newton--Schulz steps $X \leftarrow X(2I - \hat G X)$ then converge quadratically, using only GEMMs.
+
+\paragraph{4. Warm-start tracking.} Consecutive slots have strongly correlated channels at pedestrian speed, so the previous inverse, rescaled by the new diagonal, is an excellent starting point that needs only one or two Newton steps.
+
+\paragraph{5. Residual certificate.} With two Gaussian probe vectors, $\hat r = \|(I - \hat G X)z\|/\|z\|$ costs $4K^2$ multiply-accumulates (about $4/K$ of a GEMM). It predicts the number of Newton steps needed, $\lceil \log_2(\ln\varepsilon / \ln \hat r)\rceil$, and if $\hat r > 0.3$ it declares the warm start non-contractive and runs the cold start instead. This makes RMT-WS safe at every user speed.
+
+\paragraph{Doppler-to-warm-start law.} A first-order expansion of the AR(1) aging channel gives the initial residual of the warm start
+\begin{equation}
+  r_0 \approx c\cdot 2\sqrt{\frac{K}{M-K}}\,\sqrt{1-\rho}, \qquad 1-\rho \approx (\pi f_D T)^2,
+  \label{eq:doppler}
+\end{equation}
+so $r_0$ grows linearly with the user speed. Eq.~\eqref{eq:doppler} is a design rule: for a given array and user count the O-DU knows in advance up to which speed the warm start pays off (about 39~km/h for $M=64$, $K=16$; 60~km/h for $K=8$; 23~km/h for $K=32$).
+
+\paragraph{Certificate guarantee.} The probe estimate $\hat r^2$ is unbiased for $\|R\|_F^2/K$ with $R = I - \hat G X$. A Laurent--Massart tail bound for weighted $\chi^2$ sums gives
+\begin{equation}
+  \Pr\big(\hat r^2 \le (1-d)\, r^2\big) \le e^{-p d^2 s/2},
+\end{equation}
+where $p$ is the number of probes and $s$ the stable rank of $R$; in an audit of 480 PRB cases from 3 to 120~km/h no accepted warm start was non-contractive.
+
+\paragraph{Why RMT-WS suits the O-DU.} It adapts automatically to correlated and near-far channels, needs no eigen-decomposition, consists only of matrix multiplications (ideal for GPU, NPU and tensor-core hardware), adapts its cost to the user speed, and carries a built-in accuracy certificate.
+
+\section{Where Should Precoding Run? RU-Side Precoding}
+\label{sec:ru-precoding}
+
+The location of the precoder has a large effect on the fronthaul rate (Figure~\ref{fig:ru-prec}). If the O-DU precodes, it must send all $M=64$ antenna streams of IQ samples over the fronthaul. If the O-RU precodes (the O-RAN ``category B'' radio), the fronthaul carries only the $K=16$ layer streams plus the beamforming weights $W$. At mobility the weights must be refreshed every slot, so this architecture is only viable with a fast per-slot precoder computation --- exactly what RMT-WS and the fused kernel of Chapter~\ref{ch:impl} provide.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\footnotesize,>=Stealth,
+   b/.style={draw,rounded corners,align=center,minimum height=0.9cm,inner sep=3pt,minimum width=2.9cm}]
+  \node[b,fill=good!15] (du1) at (0,0) {O-DU\\layers + \textbf{precoding}};
+  \node[b,fill=iitblue!15] (ru1) at (8.6,0) {O-RU\\64 antennas};
+  \draw[->,line width=4pt,accent] (du1) -- node[above,text=accent]{$M = 64$ antenna streams} node[below,text=accent]{118.4 Gbit/s} (ru1);
+  \node[anchor=east,font=\footnotesize\bfseries] at (-1.6,0) {(a)};
+  \node[b,fill=good!15] (du2) at (0,-2.0) {O-DU\\layers + weights $W$};
+  \node[b,fill=iitblue!15] (ru2) at (8.6,-2.0) {O-RU\\\textbf{precoding} + 64 ant.};
+  \draw[->,line width=1.6pt,good!70!black] (du2) -- node[above,text=good!50!black]{$K = 16$ layers + 8-bit weights / slot} node[below,text=good!50!black]{32.8 Gbit/s ($-72\,\%$)} (ru2);
+  \node[anchor=east,font=\footnotesize\bfseries] at (-1.6,-2.0) {(b)};
+\end{tikzpicture}
+\caption{(a) DU-side precoding sends every antenna stream over the fronthaul; (b) RU-side precoding sends only the layer streams plus per-slot weights, cutting the fronthaul rate by 72\,\% (100~MHz, $M=64$, $K=16$, BFP-9).}
+\label{fig:ru-prec}
+\end{figure}
+
+\section{Summary}
+
+This chapter presented the Part~A system model and methods: two structure-aware encoders with error bounds (CSEE and RAS-BFP), a rank-adaptive split (ACAFS), a nine-method inversion benchmark with learned inverters, the RMT-WS warm-start complex inversion with its Doppler law and certificate, and the RU-side precoding architecture enabled by fast per-slot precoding. Chapter~\ref{ch:parta-results} presents their simulation results.

@@ -1,0 +1,294 @@
+% B.Tech. Project final report (IIT Indore format)
+% Build:  cd report && latexmk -pdf BTP_report.tex
+%   or:   pdflatex BTP_report && pdflatex BTP_report && pdflatex BTP_report
+% Before printing, fill in the guide and roll-number macros below.
+\documentclass[12pt,a4paper,oneside]{report}
+
+% ---------------- details to fill in ----------------
+\newcommand{\btptitle}{Fronthaul Load Management for Open RAN: Structure-Aware IQ Compression, Fast Complex Inversion and Uncertainty-Aware Budget Allocation on a Shared 7-2x Link}
+\newcommand{\btptitleshort}{Fronthaul Load Management for Open RAN}
+\newcommand{\studentA}{Mayank Yadav}
+\newcommand{\rollA}{<Roll No.>}
+\newcommand{\studentB}{Harshvardhan Choudhary}
+\newcommand{\rollB}{<Roll No.>}
+\newcommand{\guidename}{Prof. <Name of BTP Guide>}
+\newcommand{\guidedesig}{<Designation>, Department of Electrical Engineering}
+\newcommand{\discipline}{Electrical Engineering}
+\newcommand{\btpdate}{Dec. 2026}
+% ----------------------------------------------------
+
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}            % Times New Roman text and maths
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{geometry}
+\geometry{a4paper,tmargin=15mm,bmargin=22mm,lmargin=30mm,rmargin=20mm}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage[table]{xcolor}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\usepackage{subcaption}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,shapes.misc,fit,calc,backgrounds,decorations.pathreplacing}
+\usepackage{enumitem}
+\setlist{itemsep=1pt,topsep=3pt}
+\usepackage{listings}
+\usepackage{microtype}
+\usepackage{makecell}
+\usepackage{fancyhdr}
+\usepackage{cite}
+\usepackage[hidelinks]{hyperref}
+
+\renewcommand\bibname{References}
+
+\definecolor{iitblue}{RGB}{16,52,110}
+\definecolor{accent}{RGB}{200,40,40}
+\definecolor{good}{RGB}{20,120,60}
+\definecolor{soft}{RGB}{235,240,248}
+\definecolor{gold}{RGB}{212,175,55}
+\newcommand{\ours}{\rowcolor{good!12}}
+\newcommand{\best}[1]{\textbf{#1}}
+\newcommand{\rstar}{r^{\ast}}
+
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{proposition}{Proposition}[chapter]
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[chapter]
+
+\lstset{basicstyle=\ttfamily\footnotesize,columns=fullflexible,frame=single,
+  language=C,keywordstyle=\bfseries,commentstyle=\itshape,
+  xleftmargin=6pt,xrightmargin=6pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+\setlength{\emergencystretch}{1.5em}
+\begin{document}
+
+% =====================================================================
+% Title page
+% =====================================================================
+\begin{titlepage}
+\begin{center}
+\vspace*{10pt}
+{\Large \bf \btptitle}\\[22pt]
+{\large \bf A PROJECT REPORT}\\[30pt]
+\emph{Submitted in partial fulfillment of the requirements\\ for the award of the degree of}\\[6pt]
+{\large \bf BACHELOR OF TECHNOLOGY}\\
+{\large in}\\
+{\large \bf \MakeUppercase{\discipline}}\\[30pt]
+Submitted by:\\[8pt]
+{\large \bf \studentA} (Roll No.\ \rollA)\\
+{\large \bf \studentB} (Roll No.\ \rollB)\\[18pt]
+Guided by:\\[6pt]
+{\large \bf \guidename}\\[30pt]
+\includegraphics[scale=0.25]{IITI.png}\\[20pt]
+{\Large \bf DEPARTMENT OF \MakeUppercase{\discipline}\\
+INDIAN INSTITUTE OF TECHNOLOGY INDORE\\
+\btpdate}
+\end{center}
+\end{titlepage}
+
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+% =====================================================================
+\chapter*{Declaration}
+\addcontentsline{toc}{chapter}{Declaration}
+We hereby declare that the project entitled \textbf{``\btptitle''} submitted in partial fulfillment for the award of the degree of Bachelor of Technology in \textbf{\discipline}, completed under the supervision of \textbf{\guidename}, \guidedesig, IIT Indore, is an authentic work.
+
+Further, we declare that we have not submitted this work for the award of any other degree elsewhere.
+
+We declare that this written submission represents our ideas in our own words and where others' ideas or words have been included, we have adequately cited and referenced the original sources. We also declare that we have adhered to all principles of academic honesty and integrity and have not misrepresented or fabricated or falsified any idea/data/fact/source in our submission. We understand that any violation of the above will be cause for disciplinary action by the institute and can also evoke penal action from the sources which have thus not been properly cited or from whom proper permission has not been taken when needed.
+
+\vspace{2.5cm}
+\noindent
+\begin{tabular}{@{}p{0.48\textwidth}p{0.48\textwidth}@{}}
+\rule{5cm}{0.4pt} & \rule{5cm}{0.4pt}\\
+\studentA & \studentB\\
+Roll No.\ \rollA & Roll No.\ \rollB
+\end{tabular}
+
+\vspace{1.5cm}
+\noindent Date: ........................\\
+Place: ........................
+
+% =====================================================================
+\chapter*{Preface}
+\addcontentsline{toc}{chapter}{Preface}
+This report on \textbf{``\btptitle''} is prepared under the guidance of \textbf{\guidename}.
+
+The fronthaul --- the link between the radio unit on the antenna mast and the processing unit that runs the baseband --- is the most demanding transport segment of a modern 5G network. A single 64-antenna cell can push more than 15~Gbit/s of raw IQ samples, and operators connect many such cells through one shared Ethernet link. In this project we have attacked the fronthaul load problem from both of its sides. In Part~A we make the data itself smaller and make the processing unit fast enough to work with it: structure-aware IQ encoders, an adaptive functional split, a random-matrix-guided complex inversion method and a hand-optimised C/AVX-512 precoder kernel. In Part~B we decide, every 10~ms and before the traffic is known, how much of a shared link each cell may use: a deadline-feasible demand target, a calibrated quantile forecaster, a closed-form newsvendor allocation rule, a Bayesian Transformer forecaster and, finally, the back-pressure newsvendor controller that outperforms the strongest known baselines in every scenario we tested.
+
+We have tried to the best of our abilities and knowledge to explain the content in a lucid manner, starting from the basics of the radio access network. We have added block diagrams of the network architecture, the algorithms and the controllers, together with the plots and tables of all experiments, so that the report can be read by someone new to the field.
+
+\vspace{2cm}
+\noindent
+\studentA, \studentB\\
+B.Tech.\ IV Year\\
+Department of \discipline\\
+IIT Indore
+
+% =====================================================================
+\chapter*{B.\,Tech.\ Project Approval Certificate}
+\addcontentsline{toc}{chapter}{Approval Certificate}
+It is certified that the above statements made by the students are correct to the best of my knowledge and that the report titled \textbf{``\btptitle''} submitted by \textbf{\studentA} (Roll No.\ \rollA) and \textbf{\studentB} (Roll No.\ \rollB) is approved for the award of the degree of \textbf{Bachelor of Technology} in \textbf{\discipline}.
+
+\vspace{2cm}
+\begin{flushright}
+Signature of BTP Guide: \hspace{0.5cm} ......................................\\[1cm]
+Name: \hspace{0.5cm} \guidename\\[1cm]
+Designation: \hspace{0.5cm} ......................................\\[1cm]
+Date: \hspace{0.5cm} ......................................
+\end{flushright}
+
+% =====================================================================
+\chapter*{Acknowledgements}
+\addcontentsline{toc}{chapter}{Acknowledgements}
+We would like to express our sincere gratitude to our project guide, \textbf{\guidename}, for the immeasurable support, encouragement and technical direction throughout this project. The freedom to pursue the problem from compression theory all the way to controller design, and the regular critical feedback on our results, shaped this work. It was a wonderful opportunity to carry out our project under such generous guidance.
+
+We thank the Department of \discipline, IIT Indore, for the computing facilities and for the opportunity to present this work at the mid-term and final evaluations, where the questions of the evaluation committee pushed us towards stronger baselines and a fairer evaluation.
+
+We would like to thank our friends, who have constantly refreshed and lifted us up with their support and encouragement. A special gratitude and love goes to our families for their unfailing support.
+
+\vspace{2cm}
+\noindent
+\studentA, \studentB\\
+B.Tech.\ IV Year\\
+Department of \discipline\\
+IIT Indore
+
+% =====================================================================
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+In the O-RAN 7-2x functional split, the fronthaul between the radio unit (O-RU) and the distributed unit (O-DU) carries frequency-domain IQ samples for every scheduled resource block, at rates of 7--15~Gbit/s per cell. Operators therefore compress the IQ data and connect many cells through one over-subscribed Ethernet link. This project manages fronthaul load with two complementary levers.
+
+\textbf{Part A} makes the data smaller and the O-DU faster. Two structure-aware encoders, CSEE (delay-domain sparsity) and RAS-BFP (randomised sketch and QR), achieve 13--16$\times$ compression at about $-20$~dB NMSE, against about 4$\times$ for O-RAN block floating point, and run 3--6$\times$ faster than truncated SVD. A rank-adaptive functional split (ACAFS) saves 55--75\,\% of fronthaul bandwidth at high SNR. For the per-slot RZF precoder, our random-matrix-guided warm-start inversion (RMT-WS) needs 6 GEMMs where Neumann-type methods need more than 10, and a fused C/AVX-512/OpenMP kernel runs the whole precoder 10--15$\times$ faster than numpy+LAPACK, inside the 0.5~ms slot. Precoding at the radio unit with these per-slot weights cuts the fronthaul by 72\,\% at 99.7\,\% of the exact sum-rate.
+
+\textbf{Part B} shares one link among eight cells with 2~ms and 10~ms deadlines. We forecast each cell's deadline-feasible rate as a set of quantiles and split the link with a closed-form KKT (constrained newsvendor) rule that cuts every cell at the same priority-weighted risk; it is the best of twelve controllers in all scenarios of two traffic families, 11--43\,\% better than a point forecast on every seed. A Bayesian, link-aware Transformer forecaster further improves it on every seed at low to high load. Finally, the back-pressure newsvendor (BPN), a learned policy that contains predictive MaxWeight and policy search as special cases, beats both of these strongest baselines in all 10 scenarios of three traffic families by 3--25\,\% ($p \le 0.024$).
+
+\vspace{2mm}
+\noindent\textbf{\emph{Keywords}} -- O-RAN, fronthaul, split 7-2x, IQ compression, matrix inversion, RZF precoding, SIMD kernels, quantile forecasting, newsvendor, Transformer, back-pressure, resource allocation.
+
+% =====================================================================
+\tableofcontents
+\listoffigures
+\addcontentsline{toc}{chapter}{List of Figures}
+\listoftables
+\addcontentsline{toc}{chapter}{List of Tables}
+
+% =====================================================================
+\chapter*{List of Abbreviations}
+\addcontentsline{toc}{chapter}{List of Abbreviations}
+\begin{tabbing}
+xxxxxxxxxxxxxxx \= \kill
+3GPP \> 3rd Generation Partnership Project\\
+ACAFS \> rank-adaptive functional-split controller (proposed)\\
+ACI \> Adaptive Conformal Inference\\
+AVX-512 \> Advanced Vector Extensions (512-bit SIMD)\\
+BBU \> Baseband Unit\\
+BFP \> Block Floating Point\\
+BPN \> Back-Pressure Newsvendor\\
+CEM \> Cross-Entropy Method\\
+CPRI / eCPRI \> (enhanced) Common Public Radio Interface\\
+CSEE \> circulant / delay-domain sparse IQ encoder (proposed)\\
+CU / DU / RU \> Central / Distributed / Radio Unit\\
+DAgger \> Dataset Aggregation (imitation learning)\\
+DF-LCQT \> Decision-Focused LCQT\\
+eMBB \> enhanced Mobile Broadband\\
+FiLM \> Feature-wise Linear Modulation\\
+GBM \> Gradient-Boosted Machine (trees)\\
+GEMM \> General Matrix--Matrix Multiplication\\
+HOL \> Head of Line\\
+IQ \> In-phase and Quadrature samples\\
+KKT \> Karush--Kuhn--Tucker (conditions)\\
+LCQT \> Link-aware Cross-cell Quantile Transformer\\
+LL \> Low-Latency (traffic class)\\
+LAPACK \> Linear Algebra PACKage\\
+MC \> Monte Carlo\\
+MDP / POMDP \> (Partially Observable) Markov Decision Process\\
+MIMO \> Multiple-Input Multiple-Output\\
+MMSE \> Minimum Mean-Square Error\\
+MP \> Marchenko--Pastur (law)\\
+NMSE \> Normalised Mean-Square Error\\
+NS \> Newton--Schulz (iteration)\\
+O-RAN \> Open Radio Access Network\\
+OFDM \> Orthogonal Frequency-Division Multiplexing\\
+PRB \> Physical Resource Block\\
+RAN \> Radio Access Network\\
+RAS-BFP \> randomised sketch-and-QR encoder with block floating point (proposed)\\
+RIC \> RAN Intelligent Controller\\
+RMT-WS \> Random-Matrix-Theory guided Warm-Start inversion\\
+RZF \> Regularised Zero-Forcing (precoding)\\
+SNR \> Signal-to-Noise Ratio\\
+SRHT \> Subsampled Randomised Hadamard Transform\\
+SVD \> Singular Value Decomposition\\
+TDL \> Tapped Delay Line (channel model)\\
+UE \> User Equipment\\
+URLLC \> Ultra-Reliable Low-Latency Communication\\
+XR \> Extended Reality
+\end{tabbing}
+
+% =====================================================================
+\chapter*{Nomenclature}
+\addcontentsline{toc}{chapter}{Nomenclature}
+\begin{tabbing}
+xxxxxxxxxxxxxx \= \kill
+\textbf{Part A}\\
+$Y, H, X, W$ \> received IQ matrix, channel, transmitted symbols, noise ($\mathbb{C}^{M\times N}$)\\
+$M, N$ \> number of antennas, number of subcarriers\\
+$K$ \> number of delay taps kept (CSEE) / number of users (precoding)\\
+$r$ \> rank of the low-rank approximation\\
+$b$ \> BFP mantissa width (bits)\\
+$G$ \> regularised Gram matrix $HH^H + \alpha I$\\
+$W_{\rm RZF}$ \> RZF precoder $H^H G^{-1}$\\
+$[a,b]$ \> spectral interval of the equilibrated Gram matrix\\
+$\rho,\ f_D$ \> slot-to-slot channel correlation, Doppler frequency\\[6pt]
+\textbf{Part B}\\
+$N$ \> number of cells sharing the link (8)\\
+$C$ \> link capacity per slot (bits)\\
+$T,\ \tau,\ H$ \> control interval, telemetry delay, lead time $H = T+\tau$ (slots)\\
+$D_i$ \> deadline of cell $i$ (slots)\\
+$w_i$ \> priority weight of cell $i$\\
+$\beta(b)$ \> fronthaul bits per PRB-layer per slot\\
+$d_i(t)$ \> fronthaul demand of cell $i$ in slot $t$\\
+$r_i$ \> budget of cell $i$ for one interval\\
+$\rstar_i$ \> deadline-feasible rate of cell $i$\\
+$B_i$ \> backlog rate (queued bits / remaining slack)\\
+$F_i,\ F_i^{-1}$ \> forecast distribution and quantile function of $\rstar_i$\\
+$\lambda$ \> shadow price of link capacity\\
+$V_w$ \> priority-weighted deadline-violation ratio\\
+$\eta,\ a,\ p^0$ \> BPN sharing exponent, drain-rate mix, class base quantile
+\end{tabbing}
+
+% =====================================================================
+\cleardoublepage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\input{chapters/ch1_introduction}
+\input{chapters/ch2_literature}
+\input{chapters/ch3_parta_methods}
+\input{chapters/ch4_parta_results}
+\input{chapters/ch5_partb_methods}
+\input{chapters/ch6_partb_results}
+\input{chapters/ch7_implementation}
+\input{chapters/ch8_conclusions}
+
+\appendix
+\addcontentsline{toc}{chapter}{Appendices}
+\input{chapters/appendix}
+
+\input{chapters/references}
+
+\end{document}
