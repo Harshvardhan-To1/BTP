@@ -218,7 +218,7 @@
 \column{0.52\textwidth}
 \small
 \begin{alertblock}{1. Data are large, time is short}
-BFP gives only $\approx$4$\times$. Every 0.5~ms slot the O-DU must invert a $K\times K$ matrix for all 273 PRBs: numpy + LAPACK needs \textbf{3.2~ms} for 16 users (6$\times$ the slot).
+BFP gives only $\approx$2$\times$ over 16-bit I/Q. Every 0.5~ms slot the O-DU must invert a $K\times K$ matrix for all 273 PRBs: numpy + LAPACK needs \textbf{3.2~ms} for 16 users (6$\times$ the slot).
 \end{alertblock}
 \begin{alertblock}{2. The link is shared and smaller than the peak}
 When bursts coincide, someone loses data. LL cells tolerate only 2~ms. Budgets must be set every 10~ms, \emph{before} the traffic is seen.
@@ -252,7 +252,6 @@ Control & MaxWeight (Tassiulas), Lyapunov (Neely), policy search & reservation a
   \node[lever,fill=iitblue!8] (A) at (0,0) {%
     \textbf{\textcolor{iitblue}{Part A: make the data smaller and the DU faster}}\\[3pt]
     $\bullet$ CSEE, RAS-BFP: structure-aware IQ encoders\\
-    $\bullet$ ACAFS: per-user adaptive split\\
     $\bullet$ InverseNets and RMT-WS: fast inversion\\
     $\bullet$ Fused C/AVX-512 precoder kernel};
   \node[lever,fill=accent!6] (B) at (7.0,0) {%
@@ -276,7 +275,7 @@ Control & MaxWeight (Tassiulas), Lyapunov (Neely), policy search & reservation a
 \begin{tikzpicture}[font=\footnotesize,>=Stealth,
   s/.style={draw,rounded corners,align=center,minimum height=1.0cm,text width=1.9cm,inner sep=2pt}]
   \node[s,fill=iitblue!12] (ant) at (0,0) {64 antennas\\$\to$ FFT};
-  \node[s,fill=good!15] (enc) at (2.7,0) {\textbf{Encoder}\\CSEE / RAS-BFP\\+ ACAFS};
+  \node[s,fill=good!15] (enc) at (2.7,0) {\textbf{Encoder}\\CSEE /\\RAS-BFP};
   \node[s,fill=accent!10] (fh) at (5.4,0) {Fronthaul\\eCPRI};
   \node[s,fill=good!15] (dec) at (8.1,0) {Decoder};
   \node[s,fill=orange!15] (pre) at (10.8,0) {\textbf{RZF precoder}\\RMT-WS +\\fused kernel};
@@ -289,7 +288,7 @@ Control & MaxWeight (Tassiulas), Lyapunov (Neely), policy search & reservation a
 \column{0.48\textwidth}
 \small
 \begin{block}{Signal}
-Received IQ block $Y = HX + N \in \mathbb{C}^{M\times N}$, $M = 64$ antennas, $N = 1200$ subcarriers, 3GPP TDL-A/C channels.
+Reference-symbol (DMRS/SRS) IQ, de-rotated by the known pilots: $Y \odot \bar X = H + \tilde W \in \mathbb{C}^{M\times N}$, $M = 64$, $N = 1200$ (20 MHz), 3GPP TDL-A. Data-symbol IQ stays on BFP.
 \end{block}
 \column{0.48\textwidth}
 \small
@@ -339,16 +338,16 @@ with rate-optimal rank $r^\star = \big\lfloor \sqrt{B_{\rm total}/(b(M+N))} \big
 \toprule
 Method & Ratio & Speed-up vs SVD \\
 \midrule
-O-RAN BFP & 3.9$\times$ & n/a \\
-Truncated SVD & 16.2$\times$ & 1$\times$ \\
-\ours \textbf{CSEE} & \textbf{12.7$\times$} & \textbf{4--6$\times$} \\
-\ours \textbf{RAS-BFP} & \textbf{16.2$\times$} & \textbf{3--4$\times$} \\
-\ours CSEE, $K{=}60$ & $\approx$\textbf{63$\times$} & n/a \\
+O-RAN BFP & 2.0$\times$ & n/a \\
+Truncated SVD & 8.1$\times$ & 1$\times$ \\
+\ours \textbf{CSEE} & \textbf{6.4$\times$} & \textbf{4--6$\times$} \\
+\ours \textbf{RAS-BFP} & \textbf{8.1$\times$} & \textbf{3--4$\times$} \\
+\ours CSEE, $K{=}60$ & $\approx$\textbf{32$\times$} & n/a \\
 \bottomrule
 \end{tabular}
 
 \vspace{0.1cm}
-{\scriptsize at a target NMSE of about $-20$~dB}
+{\scriptsize ratios vs 16-bit I/Q; NMSE $\approx -20$~dB, the noise floor at 20~dB SNR}
 \vspace{0.3cm}
 \begin{exampleblock}{Takeaway}
 \small \textbf{3--4$\times$ more compression} than the O-RAN standard, at SVD quality, without SVD's cost.
@@ -361,36 +360,6 @@ Truncated SVD & 16.2$\times$ & 1$\times$ \\
 \end{columns}
 \end{frame}
 
-% ------------------------------------------------------------------ 8
-\begin{frame}{Part A: ACAFS, a per-user adaptive functional split}
-\begin{columns}[c]
-\column{0.5\textwidth}
-\small
-\begin{itemize}
-  \item A fixed split is chosen at deployment for the worst case.
-  \item ACAFS chooses the split \textbf{per user} from the rank fraction $r_k/M$ that the encoder has already computed, so the choice costs nothing extra.
-  \item Low rank: split 7-2x with compressed IQ is cheapest. High rank: moving more processing to the RU (split 7-1 or 6) sends fewer bits.
-\end{itemize}
-\begin{block}{Bandwidth-saving theorem}
-\scriptsize
-$\displaystyle \frac{\Delta \mathrm{BW}}{\mathrm{BW}_6} = 1 - \frac{\mathrm{BW}_{7.2x}\tau_{\ell} + \mathrm{BW}_{7.1}(\tau_h-\tau_\ell) + \mathrm{BW}_6(1-\tau_h)}{\mathrm{BW}_6}$
-\end{block}
-\column{0.46\textwidth}
-\begin{exampleblock}{Result}
-\centering
-\Large \textbf{55--75\,\%}\\[2pt]
-\normalsize bandwidth saving against a fixed Split~6 at high SNR
-\end{exampleblock}
-\centering
-\begin{tikzpicture}[font=\scriptsize,>=Stealth]
-  \node[draw,rounded corners,fill=soft] (r) at (0,0) {rank $r_k/M$};
-  \node[draw,diamond,aspect=2,fill=orange!15,inner sep=1pt] (d) at (2.4,0) {rank?};
-  \node[draw,rounded corners,fill=iitblue!15] (a) at (4.8,0.55) {Split 7-2x};
-  \node[draw,rounded corners,fill=good!15] (b) at (4.8,-0.55) {Split 7-1 / 6};
-  \draw[->] (r) -- (d); \draw[->] (d) -- node[above,sloped]{low} (a); \draw[->] (d) -- node[below,sloped]{high} (b);
-\end{tikzpicture}
-\end{columns}
-\end{frame}
 
 % ------------------------------------------------------------------ 9
 \begin{frame}{Part A: fast matrix inversion for the precoder}
@@ -414,10 +383,10 @@ QR & 20.3 & 64.5 \\
 \bottomrule
 \end{tabular}
 
-{\scriptsize time in ms, CPU, one matrix at a time}
+{\scriptsize ms, CPU, one matrix per call, $A = G/\sqrt n + 2I$}
 \column{0.52\textwidth}
 \begin{itemize}
-  \item 9-method benchmark; our learned \textbf{InverseNet-Ultra} has the \textbf{lowest mean latency} and \textbf{2$\times$ lower p95 than LAPACK}.
+  \item 8-method screening, same Python call path for every method: our learned \textbf{InverseNet-Ultra} has the \textbf{lowest mean latency} and \textbf{2$\times$ lower p95 than LAPACK}.
   \item It keeps the Newton--Schulz structure $X \leftarrow X(2I - GX)$ and learns only its coefficients.
   \item Lesson: \emph{learn the iteration, not the inverse}. This leads directly to RMT-WS.
 \end{itemize}
@@ -650,7 +619,7 @@ GBM quantile forecasts of $\rstar_i$ (28 features per cell); the KKT rule itself
 \end{frame}
 
 % ------------------------------------------------------------------
-\begin{frame}{B1 results: best of 12 controllers on Family S}
+\begin{frame}{B1 results: best of 12 reference controllers on Family S}
 \begin{columns}[c]
 \column{0.56\textwidth}
 \footnotesize
@@ -904,7 +873,6 @@ M shift & $\mathbf{-8.2\,\%}$ & 20/20 \\
 Area & Builds on & Our contribution \\
 \midrule
 IQ compression & O-RAN BFP, randomised SVD, delay sparsity & CSEE and RAS-BFP for real-time fronthaul, with bounds \\
-Functional split & 3GPP split options, fixed at deployment & ACAFS: per-user split from the encoder's rank \\
 Inversion & Newton--Schulz, Neumann, Marchenko--Pastur & RMT-WS: MP interval, Chebyshev start, warm start, certificate, Doppler law \\
 DU kernel & LAPACK, AVX-512 & fused precoder kernel, 0.226 ms per slot \\
 Allocation & newsvendor (Hadley--Whitin), point forecasts & deadline-feasible rate + per-cell KKT newsvendor for fronthaul \\
@@ -920,9 +888,9 @@ Strongest control & MaxWeight, policy search, used separately & BPN: one policy 
 \begin{block}{Conclusion}
 \small
 \begin{itemize}
-  \item \textbf{Lighter fronthaul}: 13--16$\times$ compression (vs 4$\times$), 55--75\,\% split saving, 72\,\% with RU-side precoding.
+  \item \textbf{Lighter fronthaul}: 6.4--8.1$\times$ compression vs 16-bit I/Q (BFP $\approx$2$\times$), 72\,\% with RU-side precoding.
   \item \textbf{Real-time DU}: whole precoder in 0.226~ms, 10--15$\times$ faster.
-  \item \textbf{Smarter sharing}: KKT rule best of 12; BPN beats the strongest baselines in all 10 scenarios.
+  \item \textbf{Smarter sharing}: KKT rule best of 12 reference controllers; BPN beats the strongest baselines in all 10 scenarios.
 \end{itemize}
 \end{block}
 \column{0.42\textwidth}
