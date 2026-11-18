@@ -1,0 +1,34 @@
+
+load 0.7
+  pac-0.01  loss=  7.09% viol=  0.38% b=4.33 | fixed:-0.17±0.12(0/10) static-snr:-0.18±0.13(0/10) reactive:-0.15±0.12(0/10) reactive-snr:-0.16±0.14(0/10)
+  pac-0.03  loss=  6.51% viol=  0.37% b=4.42 | fixed:-0.17±0.12(0/10) static-snr:-0.18±0.13(0/10) reactive:-0.15±0.12(0/10) reactive-snr:-0.16±0.14(0/10)
+  pac-0.1   loss=  4.50% viol=  0.33% b=4.74 | fixed:-0.13±0.08(0/10) static-snr:-0.14±0.09(0/10) reactive:-0.11±0.08(0/10) reactive-snr:-0.12±0.09(0/10)
+  pac-0.3   loss=  2.49% viol=  0.28% b=5.17 | fixed:-0.07±0.02(0/10) static-snr:-0.08±0.03(0/10) reactive:-0.05±0.03(1/10) reactive-snr:-0.06±0.04(0/10)
+  pac-1     loss=  1.06% viol=  0.25% b=5.75 | fixed:-0.02±0.02(2/10) static-snr:-0.03±0.02(1/10) reactive:-0.00±0.02(3/10) reactive-snr:-0.02±0.01(1/10)
+  pac-3     loss=  0.46% viol=  0.30% b=6.34 | fixed:-0.03±0.02(2/10) static-snr:-0.05±0.02(0/10) reactive:-0.02±0.02(2/10) reactive-snr:-0.04±0.02(0/10)
+  pac-10    loss=  0.11% viol=  0.69% b=7.44 | fixed:-0.08±0.07(2/10) static-snr:-0.05±0.09(3/10) reactive:-0.07±0.05(2/10) reactive-snr:-0.04±0.08(3/10)
+  pac-30    loss=  0.04% viol=  0.99% b=8.04 | fixed:+0.37±0.18(10/10) static-snr:-0.11±0.14(3/10) reactive:+0.37±0.18(10/10) reactive-snr:-0.09±0.13(3/10)
+  pac-100   loss=  0.02% viol=  1.50% b=8.35 | fixed:+0.42±0.08(10/10) static-snr:-0.62±0.06(0/10) reactive:+0.10±0.15(6/10) reactive-snr:-0.61±0.06(0/10)
+
+load 0.9
+  pac-0.01  loss=  7.71% viol=  1.68% b=4.00 | fixed:-0.26±0.12(0/10) static-snr:-0.36±0.13(0/10) reactive:-0.26±0.12(0/10) reactive-snr:-0.34±0.13(0/10)
+  pac-0.03  loss=  7.69% viol=  1.68% b=4.00 | fixed:-0.26±0.12(0/10) static-snr:-0.35±0.13(0/10) reactive:-0.26±0.12(0/10) reactive-snr:-0.34±0.13(0/10)
+  pac-0.1   loss=  7.09% viol=  1.68% b=4.09 | fixed:-0.25±0.12(0/10) static-snr:-0.35±0.13(0/10) reactive:-0.25±0.12(0/10) reactive-snr:-0.34±0.13(0/10)
+  pac-0.3   loss=  4.93% viol=  1.61% b=4.42 | fixed:-0.18±0.07(1/10) static-snr:-0.28±0.09(0/10) reactive:-0.18±0.07(1/10) reactive-snr:-0.27±0.08(0/10)
+  pac-1     loss=  2.12% viol=  1.63% b=5.14 | fixed:-0.21±0.11(0/10) static-snr:-0.26±0.12(0/10) reactive:-0.21±0.11(0/10) reactive-snr:-0.24±0.11(0/10)
+  pac-3     loss=  0.60% viol=  2.38% b=6.25 | fixed:-0.32±0.12(0/10) static-snr:-0.47±0.12(0/10) reactive:-0.32±0.12(0/10) reactive-snr:-0.49±0.14(0/10)
+  pac-10    loss=  0.18% viol=  3.10% b=6.98 | fixed:+0.61±0.23(10/10) static-snr:+0.01±0.10(5/10) reactive:+0.61±0.23(10/10) reactive-snr:+0.02±0.11(5/10)
+  pac-30    loss=  0.10% viol=  4.23% b=7.30 | fixed:+0.44±0.13(10/10) static-snr:+0.41±0.08(10/10) reactive:+0.44±0.13(10/10) reactive-snr:+0.39±0.11(9/10)
+  pac-100   loss=  0.04% viol=  6.93% b=7.86 | fixed:+0.64±0.13(10/10) static-snr:-1.35±0.14(0/10) reactive:+0.64±0.13(10/10) reactive-snr:-1.37±0.18(0/10)
+
+load 1.1
+  pac-0.01  loss=  7.53% viol=  3.96% b=4.03 | fixed:-0.01±0.03(5/10) static-snr:-0.40±0.11(0/10) reactive:-0.01±0.03(5/10) reactive-snr:-0.38±0.11(0/10)
+  pac-0.03  loss=  7.26% viol=  3.95% b=4.07 | fixed:+0.01±0.06(5/10) static-snr:-0.39±0.11(0/10) reactive:+0.01±0.06(5/10) reactive-snr:-0.38±0.12(0/10)
+  pac-0.1   loss=  6.69% viol=  4.01% b=4.19 | fixed:-0.03±0.07(4/10) static-snr:-0.45±0.12(0/10) reactive:-0.03±0.07(4/10) reactive-snr:-0.44±0.12(0/10)
+  pac-0.3   loss=  5.15% viol=  4.26% b=4.50 | fixed:-0.23±0.08(0/10) static-snr:-0.66±0.16(0/10) reactive:-0.23±0.08(0/10) reactive-snr:-0.62±0.17(0/10)
+  pac-1     loss=  1.69% viol=  4.86% b=5.45 | fixed:-0.45±0.21(1/10) static-snr:-0.67±0.17(0/10) reactive:-0.45±0.21(1/10) reactive-snr:-0.71±0.13(0/10)
+  pac-3     loss=  0.58% viol=  5.76% b=6.11 | fixed:+0.28±0.23(8/10) static-snr:-0.12±0.20(3/10) reactive:+0.28±0.23(8/10) reactive-snr:-0.24±0.17(2/10)
+  pac-10    loss=  0.31% viol=  7.20% b=6.46 | fixed:+0.74±0.14(10/10) static-snr:-0.05±0.09(5/10) reactive:+0.74±0.14(10/10) reactive-snr:+0.07±0.09(9/10)
+  pac-30    loss=  0.14% viol= 10.05% b=6.93 | fixed:+0.50±0.08(10/10) static-snr:-0.14±0.15(2/10) reactive:+0.50±0.08(10/10) reactive-snr:-0.14±0.18(2/10)
+  pac-100   loss=  0.05% viol= 14.97% b=7.65 | fixed:+0.50±0.31(8/10) static-snr:-1.63±0.21(0/10) reactive:+0.50±0.31(8/10) reactive-snr:-1.70±0.23(0/10)
+DONE
