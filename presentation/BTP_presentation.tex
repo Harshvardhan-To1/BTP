@@ -136,6 +136,64 @@
 \end{itemize}
 \end{frame}
 
+% ------------------------------------------------------------------
+\begin{frame}{Functional splits: where to cut the protocol stack}
+\begin{columns}[c]
+\column{0.5\textwidth}
+\centering
+\begin{tikzpicture}[font=\scriptsize,>=Stealth,
+  layer/.style={draw,fill=soft,minimum width=1.9cm,minimum height=0.42cm,align=center},
+  cut/.style={draw=accent,thick,dashed}]
+  \foreach \n/\y in {RRC/0,PDCP/-0.42,High RLC/-0.84,Low RLC/-1.26,High MAC/-1.68,Low MAC/-2.10,High PHY/-2.52,Low PHY/-2.94,RF/-3.36}
+    \node[layer] at (0,\y) {\n};
+  \foreach \y/\o in {-0.21/1,-0.63/2,-1.05/3,-1.47/4,-1.89/5,-2.31/6,-2.73/7,-3.15/8}{
+     \draw[cut] (-1.1,\y) -- (1.1,\y);
+     \node[anchor=west,text=accent] at (1.15,\y) {Opt.\ \o};
+  }
+  \draw[line width=1.4pt,good] (-1.2,-2.73) -- (1.2,-2.73);
+  \node[anchor=west,text=good,font=\scriptsize\bfseries] at (2.25,-2.73) {$\leftarrow$ O-RAN 7-2x};
+  \draw[->,thick] (-1.6,-0.1) -- (-1.6,-3.3);
+  \node[rotate=90,font=\tiny,align=center] at (-1.9,-1.7) {more centralisation, higher fronthaul rate};
+\end{tikzpicture}
+\column{0.48\textwidth}
+\small
+\begin{itemize}
+  \item 3GPP TR 38.801 defines 8 split options between central and radio units.
+  \item \textbf{Option 2} (CU/DU): packets at about the user rate.
+  \item \textbf{Option 8} (CPRI): time-domain samples, constant and enormous rate.
+  \item \textbf{Option 7-2x} (O-RAN): FFT and cyclic prefix in the O-RU; frequency-domain IQ per \emph{scheduled} PRB, BFP compressed, over eCPRI.
+\end{itemize}
+\begin{block}{Load of one 7-2x cell}
+\small 100 MHz, 273 PRBs, 4 layers: $\approx$\textbf{7.4 Gbit/s} peak. Shipping 64 antenna streams: \textbf{118 Gbit/s}.
+\end{block}
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{O-RAN architecture and where our work runs}
+\centering
+\begin{tikzpicture}[font=\footnotesize,>=Stealth,
+  b/.style={draw,rounded corners,align=center,minimum height=0.8cm,inner sep=3pt}]
+  \node[b,fill=purple!10,minimum width=11cm] (smo) at (3.5,3.4) {Service Management and Orchestration (SMO) $\supset$ \textbf{Non-RT RIC} (rApps, $>1$\,s, model training)};
+  \node[b,fill=orange!12,minimum width=8cm] (ric) at (3.5,2.0) {\textbf{Near-RT RIC} (xApps, 10\,ms -- 1\,s): \textcolor{accent}{\textbf{Part B budget controller}}};
+  \node[b,fill=orange!18,minimum width=2.2cm] (cu) at (0.3,0.3) {O-CU};
+  \node[b,fill=good!15,minimum width=2.6cm] (du) at (3.5,0.3) {O-DU\\\scriptsize\textcolor{iitblue}{\textbf{Part A}: precoder kernel}};
+  \node[b,fill=iitblue!15,minimum width=2.6cm] (ru) at (8.6,0.3) {O-RU\\\scriptsize\textcolor{iitblue}{\textbf{Part A}: IQ encoder}};
+  \draw[<->,thick] (smo.south -| ric.north) -- node[right]{A1} (ric.north);
+  \draw[<->,thick] (ric.south -| cu.north) -- node[left]{E2} (cu.north);
+  \draw[<->,thick] (ric.south -| du.north) -- node[left]{E2} (du.north);
+  \draw[<->,thick] (cu) -- node[above]{F1} (du);
+  \draw[<->,line width=2.2pt,accent] (du) -- node[above=2pt,text=accent,font=\scriptsize\bfseries]{Open FH} (ru);
+  \draw[<->,thick,dashed] (smo.east) -- ++(0.5,0) |- node[pos=0.75,above]{O1} (ru.east);
+\end{tikzpicture}
+\vspace{0.3cm}
+\small
+\begin{itemize}
+  \item Open interfaces (A1, E2, F1, O1, Open Fronthaul) let operators mix vendors and add software control.
+  \item Part A runs in the O-RU and O-DU every 0.5~ms slot; Part B runs as an xApp or O-DU function every 10~ms.
+\end{itemize}
+\end{frame}
+
 % ------------------------------------------------------------------ 5
 \begin{frame}{Why the fronthaul is the bottleneck}
 \begin{columns}[c]
@@ -160,12 +218,30 @@
 \column{0.52\textwidth}
 \small
 \begin{alertblock}{1. Data are large, time is short}
-BFP gives only $\approx$4$\times$. Every 0.5~ms slot the O-DU must invert a $K\times K$ matrix for all 273 PRBs: numpy + LAPACK needs \textbf{3.2~ms} for 16 users (6$\times$ the slot).
+BFP gives only $\approx$2$\times$ over 16-bit I/Q. Every 0.5~ms slot the O-DU must invert a $K\times K$ matrix for all 273 PRBs: numpy + LAPACK needs \textbf{3.2~ms} for 16 users (6$\times$ the slot).
 \end{alertblock}
 \begin{alertblock}{2. The link is shared and smaller than the peak}
 When bursts coincide, someone loses data. LL cells tolerate only 2~ms. Budgets must be set every 10~ms, \emph{before} the traffic is seen.
 \end{alertblock}
 \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{Literature review and research gaps}
+\footnotesize
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{5.4cm}>{\raggedright\arraybackslash}p{5.6cm}}
+\toprule
+Topic & Representative work & Gap we address \\
+\midrule
+Shared fronthaul & Wang--Zhou (multiplexing), Lag\'en \emph{et al.} (shared 7-2x link) & control is reactive, per slot, no forecasts or deadlines \\
+IQ compression & O-RAN BFP; Eckart--Young SVD; Halko \emph{et al.} & only dynamic range is used; low-rank and delay sparsity unused in real time \\
+Precoder inversion & Neumann (Wu, Prabhu), Newton (Shao), TPE (Kammoun) & no safe use of slot-to-slot correlation; fails for near-far channels \\
+Predictive allocation & DeepCog, AZTEC, LSTM steering, DRL xApps & point forecasts, seconds--minutes, no per-cell deadlines \\
+Uncertainty & DeepAR percentiles (Kasuluru), conformal URLLC (Cohen) & one stream or one global percentile, no coupling via shared capacity \\
+Control & MaxWeight (Tassiulas), Lyapunov (Neely), policy search & reservation and back-pressure studied separately \\
+\bottomrule
+\end{tabular}
 \end{frame}
 
 % ------------------------------------------------------------------ 6
@@ -176,7 +252,6 @@ When bursts coincide, someone loses data. LL cells tolerate only 2~ms. Budgets m
   \node[lever,fill=iitblue!8] (A) at (0,0) {%
     \textbf{\textcolor{iitblue}{Part A: make the data smaller and the DU faster}}\\[3pt]
     $\bullet$ CSEE, RAS-BFP: structure-aware IQ encoders\\
-    $\bullet$ ACAFS: per-user adaptive split\\
     $\bullet$ InverseNets and RMT-WS: fast inversion\\
     $\bullet$ Fused C/AVX-512 precoder kernel};
   \node[lever,fill=accent!6] (B) at (7.0,0) {%
@@ -194,9 +269,38 @@ When bursts coincide, someone loses data. LL cells tolerate only 2~ms. Budgets m
 
 % ------------------------------------------------------------------ 7
 \section{Part A}
-\begin{frame}{Part A: structure-aware IQ compression (CSEE and RAS-BFP)}
+% ------------------------------------------------------------------
+\begin{frame}{Part A: system model}
+\centering
+\begin{tikzpicture}[font=\footnotesize,>=Stealth,
+  s/.style={draw,rounded corners,align=center,minimum height=1.0cm,text width=1.9cm,inner sep=2pt}]
+  \node[s,fill=iitblue!12] (ant) at (0,0) {64 antennas\\$\to$ FFT};
+  \node[s,fill=good!15] (enc) at (2.7,0) {\textbf{Encoder}\\CSEE /\\RAS-BFP};
+  \node[s,fill=accent!10] (fh) at (5.4,0) {Fronthaul\\eCPRI};
+  \node[s,fill=good!15] (dec) at (8.1,0) {Decoder};
+  \node[s,fill=orange!15] (pre) at (10.8,0) {\textbf{RZF precoder}\\RMT-WS +\\fused kernel};
+  \draw[->,thick] (ant) -- (enc); \draw[->,thick] (enc) -- (fh); \draw[->,thick] (fh) -- (dec); \draw[->,thick] (dec) -- (pre);
+  \draw[decorate,decoration={brace,amplitude=5pt}] (-1.0,0.75) -- (3.7,0.75) node[midway,above=6pt]{O-RU};
+  \draw[decorate,decoration={brace,amplitude=5pt}] (7.1,0.75) -- (11.8,0.75) node[midway,above=6pt]{O-DU};
+\end{tikzpicture}
+\vspace{0.4cm}
+\begin{columns}[T]
+\column{0.48\textwidth}
+\small
+\begin{block}{Signal}
+Reference-symbol (DMRS/SRS) IQ, de-rotated by the known pilots: $Y \odot \bar X = H + \tilde W \in \mathbb{C}^{M\times N}$, $M = 64$, $N = 1200$ (20 MHz), 3GPP TDL-A. Data-symbol IQ stays on BFP.
+\end{block}
+\column{0.48\textwidth}
+\small
+\begin{block}{Precoder (every PRB, every 0.5 ms slot)}
+$W = H^H (HH^H + \alpha I)^{-1}$, $K$ users. The $K\times K$ inverse is the bottleneck.
+\end{block}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Part A: CSEE and RAS-BFP encoders with provable bounds}
 \begin{columns}[c]
-\column{0.52\textwidth}
+\column{0.5\textwidth}
 \begin{tikzpicture}[font=\footnotesize,>=Stealth,
    s/.style={draw,rounded corners,fill=soft,align=center,minimum height=0.8cm,text width=2.2cm}]
   \node[s] (y) at (0,0) {Received IQ\\$Y \in \mathbb{C}^{M\times N}$};
@@ -207,56 +311,55 @@ When bursts coincide, someone loses data. LL cells tolerate only 2~ms. Budgets m
   \draw[->,thick] (y.east) -- (c2.west);
   \draw[->,thick] (c1.east) -- (q.west);
   \draw[->,thick] (c2.east) -- (q.west);
-  \node[font=\scriptsize,align=center,text width=6.5cm] at (2.8,-2.5) {Exploits few strong delay taps (3GPP TDL)\\and low rank (few users per antenna array)};
+  \node[font=\scriptsize,align=center,text width=6.5cm] at (2.8,-2.4) {Exploits few strong delay taps (3GPP TDL)\\and low rank (few users per antenna array)};
 \end{tikzpicture}
-\column{0.46\textwidth}
+\column{0.48\textwidth}
 \small
+\begin{block}{CSEE bound, $O(MN\log N)$}
+\[
+  \mathrm{NMSE} \le \frac{\sigma^2_{\rm tail}}{\sigma^2_Y} + \frac{\Delta^2}{12}\,\frac{K}{MN\sigma_Y^2}
+\]
+\end{block}
+\begin{block}{RAS-BFP bound, $O(rMN)$}
+\[
+  \|Y - LQ^H\|_F^2 \le (1+\varepsilon_r)\,\|Y - Y_r\|_F^2
+\]
+with rate-optimal rank $r^\star = \big\lfloor \sqrt{B_{\rm total}/(b(M+N))} \big\rceil$
+\end{block}
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{Part A: compression results}
+\begin{columns}[c]
+\column{0.5\textwidth}
+\centering
 \begin{tabular}{lcc}
 \toprule
 Method & Ratio & Speed-up vs SVD \\
 \midrule
-O-RAN BFP & 3.9$\times$ & n/a \\
-Truncated SVD & 16.2$\times$ & 1$\times$ \\
-\ours \textbf{CSEE} & \textbf{12.7$\times$} & \textbf{4--6$\times$} \\
-\ours \textbf{RAS-BFP} & \textbf{16.2$\times$} & \textbf{3--4$\times$} \\
-\ours CSEE, $K{=}60$ & $\approx$\textbf{63$\times$} & n/a \\
+O-RAN BFP & 2.0$\times$ & n/a \\
+Truncated SVD & 8.1$\times$ & 1$\times$ \\
+\ours \textbf{CSEE} & \textbf{6.4$\times$} & \textbf{4--6$\times$} \\
+\ours \textbf{RAS-BFP} & \textbf{8.1$\times$} & \textbf{3--4$\times$} \\
+\ours CSEE, $K{=}60$ & $\approx$\textbf{32$\times$} & n/a \\
 \bottomrule
 \end{tabular}
 
-\vspace{0.2cm}
-{\scriptsize at a target NMSE of about $-20$~dB}
+\vspace{0.1cm}
+{\scriptsize ratios vs 16-bit I/Q; NMSE $\approx -20$~dB, the noise floor at 20~dB SNR}
 \vspace{0.3cm}
-\begin{itemize}
-  \item Both encoders come with \textbf{provable NMSE bounds}.
-  \item \textbf{3--4$\times$ more compression} than the O-RAN standard.
-\end{itemize}
+\begin{exampleblock}{Takeaway}
+\small \textbf{3--4$\times$ more compression} than the O-RAN standard, at SVD quality, without SVD's cost.
+\end{exampleblock}
+\column{0.48\textwidth}
+\centering
+\includegraphics[width=0.92\linewidth]{exp2_complexity.png}
+
+{\scriptsize Encode time vs antennas: CSEE and RAS-BFP stay two orders of magnitude below SVD.}
 \end{columns}
 \end{frame}
 
-% ------------------------------------------------------------------ 8
-\begin{frame}{Part A: ACAFS, a per-user adaptive functional split}
-\begin{columns}[c]
-\column{0.5\textwidth}
-\begin{itemize}
-  \item A fixed split is chosen at deployment for the worst case.
-  \item ACAFS chooses the split \textbf{per user} from the channel rank that the encoder has already computed, so the choice costs nothing extra.
-  \item Low rank: split 7-2x with compressed IQ is cheapest. High rank: moving more processing to the RU (split 7-1 or 6) sends fewer bits.
-\end{itemize}
-\column{0.46\textwidth}
-\begin{exampleblock}{Result}
-\centering
-\Large \textbf{55--75\,\%}\\[2pt]
-\normalsize bandwidth saving against a fixed Split~6 at high SNR
-\end{exampleblock}
-\begin{tikzpicture}[font=\scriptsize,>=Stealth]
-  \node[draw,rounded corners,fill=soft] (r) at (0,0) {rank estimate};
-  \node[draw,diamond,aspect=2,fill=orange!15,inner sep=1pt] (d) at (2.6,0) {rank?};
-  \node[draw,rounded corners,fill=iitblue!15] (a) at (5.0,0.55) {Split 7-2x};
-  \node[draw,rounded corners,fill=good!15] (b) at (5.0,-0.55) {Split 7-1 / 6};
-  \draw[->] (r) -- (d); \draw[->] (d) -- node[above,sloped]{low} (a); \draw[->] (d) -- node[below,sloped]{high} (b);
-\end{tikzpicture}
-\end{columns}
-\end{frame}
 
 % ------------------------------------------------------------------ 9
 \begin{frame}{Part A: fast matrix inversion for the precoder}
@@ -280,10 +383,10 @@ QR & 20.3 & 64.5 \\
 \bottomrule
 \end{tabular}
 
-{\scriptsize time in ms, CPU, one matrix at a time}
+{\scriptsize ms, CPU, one matrix per call, $A = G/\sqrt n + 2I$}
 \column{0.52\textwidth}
 \begin{itemize}
-  \item 9-method benchmark; our learned \textbf{InverseNet-Ultra} has the \textbf{lowest mean latency} and \textbf{2$\times$ lower p95 than LAPACK}.
+  \item 8-method screening, same Python call path for every method: our learned \textbf{InverseNet-Ultra} has the \textbf{lowest mean latency} and \textbf{2$\times$ lower p95 than LAPACK}.
   \item It keeps the Newton--Schulz structure $X \leftarrow X(2I - GX)$ and learns only its coefficients.
   \item Lesson: \emph{learn the iteration, not the inverse}. This leads directly to RMT-WS.
 \end{itemize}
@@ -323,8 +426,95 @@ QR & 20.3 & 64.5 \\
 \end{columns}
 \end{frame}
 
+% ------------------------------------------------------------------
+\begin{frame}{RMT-WS under the hood: interval, Doppler law, certificate}
+\begin{columns}[c]
+\column{0.56\textwidth}
+\footnotesize
+\begin{block}{Eigensolve-free interval ($K^2$ operations)}
+After equilibration $\hat G = D^{-1/2} G D^{-1/2}$, match two spectral moments:
+\[ [a,b] = 1 + v/\bar s \mp 2\sqrt{v}, \quad v = \|\hat G\|_F^2/K - 1 \]
+\end{block}
+\begin{block}{Doppler-to-warm-start law}
+\[ r_0 \approx c\cdot 2\sqrt{\tfrac{K}{M-K}}\,\sqrt{1-\rho}, \quad 1-\rho \approx (\pi f_D T)^2 \]
+Warm start pays up to \textbf{39 km/h} ($K{=}16$), 60 km/h ($K{=}8$).
+\end{block}
+\begin{block}{Residual certificate}
+2 probe vectors, $4K^2$ MACs; $\hat r > 0.3 \Rightarrow$ cold start. \textbf{480 audited cases, zero unsafe warm starts.}
+\end{block}
+\column{0.42\textwidth}
+\centering
+\includegraphics[width=0.72\linewidth]{figures/mp_spectrum_slide.png}\\[-2pt]
+{\scriptsize Gram spectrum follows the MP law}\\[2pt]
+\includegraphics[width=0.5\linewidth]{exp12_doppler_law.png}\\[-2pt]
+{\scriptsize Doppler law: prediction matches measurement}
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{Where should precoding run? RU-side precoding}
+\centering
+\begin{tikzpicture}[font=\footnotesize,>=Stealth,
+   b/.style={draw,rounded corners,align=center,minimum height=0.9cm,inner sep=3pt,minimum width=2.9cm}]
+  \node[b,fill=good!15] (du1) at (0,0) {O-DU\\layers + \textbf{precoding}};
+  \node[b,fill=iitblue!15] (ru1) at (9.0,0) {O-RU\\64 antennas};
+  \draw[->,line width=4pt,accent] (du1) -- node[above,text=accent]{$M = 64$ antenna streams} node[below,text=accent]{118.4 Gbit/s} (ru1);
+  \node[anchor=east,font=\footnotesize\bfseries] at (-1.7,0) {(a)};
+  \node[b,fill=good!15] (du2) at (0,-2.0) {O-DU\\layers + weights $W$};
+  \node[b,fill=iitblue!15] (ru2) at (9.0,-2.0) {O-RU\\\textbf{precoding} + 64 ant.};
+  \draw[->,line width=1.6pt,good!70!black] (du2) -- node[above,text=good!50!black]{$K = 16$ layers + 8-bit weights / slot} node[below,text=good!50!black]{\textbf{32.8 Gbit/s ($-72\,\%$)}} (ru2);
+  \node[anchor=east,font=\footnotesize\bfseries] at (-1.7,-2.0) {(b)};
+\end{tikzpicture}
+\vspace{0.4cm}
+\begin{columns}[T]
+\column{0.55\textwidth}
+\small
+\begin{itemize}
+  \item At mobility the weights must be refreshed \textbf{every slot}.
+  \item Only possible with a fast per-slot precoder, which RMT-WS and our fused kernel provide.
+\end{itemize}
+\column{0.4\textwidth}
+\begin{exampleblock}{Result}
+\small \textbf{3.6$\times$ lighter fronthaul} at \textbf{99.7\,\%} of the exact RZF sum-rate.
+\end{exampleblock}
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{Fused C/AVX-512/OpenMP kernel: design and profiling}
+\begin{columns}[c]
+\column{0.52\textwidth}
+\begin{tikzpicture}[font=\scriptsize,>=Stealth,
+  s/.style={draw,rounded corners,align=center,minimum height=0.75cm,text width=1.45cm,inner sep=2pt}]
+  \node[s,fill=soft] (h) at (0,0) {load $H$\\once};
+  \node[s,fill=iitblue!12] (g) at (1.85,0) {Gram\\lower triangle};
+  \node[s,fill=accent!12] (i) at (3.7,0) {GJ sweep /\\NS step};
+  \node[s,fill=good!12] (w) at (5.55,0) {$W^T$ +\\power scale};
+  \draw[->,thick] (h)--(g); \draw[->,thick] (g)--(i); \draw[->,thick] (i)--(w);
+  \draw[decorate,decoration={brace,amplitude=5pt,mirror}] (-0.75,-0.55) -- (6.3,-0.55) node[midway,below=6pt,align=center]{one pass per PRB, L1-resident, no DRAM intermediates\\OpenMP over 273 PRBs, AVX-512 SIMD};
+\end{tikzpicture}
+\vspace{0.4cm}
+
+\small
+\texttt{gcc -O3 -march=native -fopenmp -ffast-math}\\
+\texttt{\ \ \ \ -mprefer-vector-width=512}
+\column{0.46\textwidth}
+\small
+\begin{block}{Profiling-driven steps ($K{=}16$, $M{=}64$)}
+\begin{enumerate}
+  \item Fusion + Hermitian symmetry
+  \item Register-blocked $W = H^H X$: 0.81 $\to$ \textbf{0.42 ms}
+  \item Gauss--Jordan instead of Cholesky: 6.4k $\to$ \textbf{2.9k cycles}/PRB
+  \item AVX-512 codegen: \textbf{2$\times$} on 4 threads
+\end{enumerate}
+\end{block}
+Weights run at $\approx$30 flops/cycle, about half of the AVX-512 peak.
+
+\end{columns}
+\end{frame}
+
 % ------------------------------------------------------------------ 11
-\begin{frame}{Part A: fused C/AVX-512 kernel on a real CPU}
+\begin{frame}{Fused kernel results on a 4-core AVX-512 Xeon}
 \begin{columns}[c]
 \column{0.5\textwidth}
 \includegraphics[width=\linewidth]{figures/inverse_kernel_slide.png}
@@ -371,6 +561,34 @@ The smallest constant rate that delivers every bit before its deadline. Not the 
 \end{block}
 \end{frame}
 
+% ------------------------------------------------------------------
+\begin{frame}{Part B: experimental methodology}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\small
+\begin{block}{Three independent traffic families}
+\begin{itemize}
+  \item \textbf{S}: bursty ON/OFF with heavy-tailed Pareto sojourns; low, moderate, high, flash crowds, \textbf{held-out shift}.
+  \item \textbf{G}: 3GPP TR 38.901 UMa, FTP Model 3 (eMBB), 60 fps XR (LL); nothing hand-designed.
+  \item \textbf{M}: Markov-modulated idle/normal/burst sources + semi-Markov shift.
+\end{itemize}
+\end{block}
+\column{0.46\textwidth}
+\small
+\begin{block}{Fair, rigorous evaluation}
+\begin{itemize}
+  \item 12--19 controllers, all tuned on validation seeds.
+  \item 20 \textbf{held-out test seeds}, identical traces for every controller.
+  \item Paired bootstrap CIs, Holm--Wilcoxon tests.
+  \item Metric fixed before any tuning: $V_w$.
+\end{itemize}
+\end{block}
+\begin{exampleblock}{Scale}
+10 scenarios $\times$ 20 seeds $\times$ 19+ controllers
+\end{exampleblock}
+\end{columns}
+\end{frame}
+
 % ------------------------------------------------------------------ 13
 \begin{frame}{B1: forecast a range, then split with the KKT newsvendor rule}
 \begin{columns}[c]
@@ -386,30 +604,135 @@ Newsvendor view: reserve capacity under uncertain demand.
 \]
 one price $\lambda$ for the whole link, found by bisection
 \end{block}
-\begin{itemize}
-  \item GBM quantile forecasts of $\rstar_i$; each cell gets its \emph{own} quantile level.
-  \item Four proven properties; the KKT rule itself takes $<0.1$~ms.
-\end{itemize}
+GBM quantile forecasts of $\rstar_i$ (28 features per cell); the KKT rule itself takes $<0.1$~ms.
 \column{0.46\textwidth}
-\scriptsize
+\small
+\begin{block}{Four proven properties}
+\begin{enumerate}
+  \item \textbf{Feasibility}: the link is never overloaded.
+  \item \textbf{Equal weighted risk}: $w_i(1 - F_i(r_i - B_i)) = \lambda$ for all cells.
+  \item \textbf{Backlog first}: queued bits are funded before uncertain demand.
+  \item \textbf{Robustness}: miscalibration $\epsilon$ costs at most $2\epsilon\,w_{\max} C$.
+\end{enumerate}
+\end{block}
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{B1 results: best of 12 reference controllers on Family S}
+\begin{columns}[c]
+\column{0.56\textwidth}
+\footnotesize
 \begin{tabular}{lccc}
 \toprule
-$V_w$ [\%], Family S & low & mod. & high \\
+$V_w$ [\%] & low & moderate & high \\
 \midrule
 Static equal share & 4.45 & 9.65 & 15.46 \\
 Reactive proportional & 0.83 & 4.11 & 9.20 \\
 MaxWeight & 0.90 & 4.85 & 11.54 \\
 Deadline-aware reactive & 0.52 & 4.24 & 11.03 \\
-Point forecast & 0.27 & 3.23 & 9.70 \\
-\ours \textbf{Proposed (KKT)} & \textbf{0.15} & \textbf{2.15} & \textbf{8.00} \\
+Point forecast (GBM median) & 0.27 & 3.23 & 9.70 \\
+Fixed global quantile & 0.34 & 4.35 & 11.76 \\
+Window quantiles (no ML) & 0.25 & 2.57 & 8.72 \\
+\ours \textbf{Proposed (GBM + KKT)} & \textbf{0.15} & \textbf{2.15} & \textbf{8.00} \\
 \bottomrule
 \end{tabular}
 
-\vspace{0.3cm}
+{\scriptsize mean over 20 test seeds; also best under flash crowds and held-out shift}
+\column{0.42\textwidth}
 \small
-\begin{exampleblock}{Best of 12 controllers}
-in every scenario of two traffic families; \textbf{11--43\,\%} fewer violations than the point forecast, \textbf{20/20 seeds}, $p<0.01$.
+\begin{exampleblock}{Headline}
+\begin{itemize}
+  \item \textbf{11--43\,\%} fewer violations than the point forecast.
+  \item \textbf{19--70\,\%} fewer than deadline-aware reactive control.
+  \item Wins on \textbf{20/20 seeds}, $p < 0.01$.
+  \item Whole controller decides in \textbf{3.5 ms} $\ll$ 10 ms.
+\end{itemize}
 \end{exampleblock}
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{Where the gain comes from}
+\begin{columns}[c]
+\column{0.44\textwidth}
+\small
+\begin{tabular}{lccc}
+\toprule
+Method & eMBB & Util. & Jain \\
+\midrule
+DA reactive & 16.5 & 69.3 & 0.995 \\
+Point forecast & 16.0 & 70.1 & 0.994 \\
+Fixed quantile & 22.0 & 67.0 & 0.985 \\
+\ours \textbf{Proposed} & \textbf{12.3} & \textbf{72.2} & \textbf{0.997} \\
+\bottomrule
+\end{tabular}
+
+{\scriptsize deadline-aware controllers, Family S high load, \%}
+\vspace{0.3cm}
+\begin{itemize}
+  \item Margin only where the forecast is \emph{wide}.
+  \item Lowest eMBB loss, highest utilisation, best fairness.
+\end{itemize}
+\column{0.54\textwidth}
+\centering
+\includegraphics[width=\linewidth]{fig6_demo_timeseries.png}
+
+{\scriptsize One LL cell: the proposed rule raises the budget at burst onset; reactive control is one interval late.}
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{Ablations and standards-based 3GPP traffic}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\small
+\begin{block}{Every design choice matters}
+\begin{enumerate}
+  \item \textbf{Range vs single number}: $-11$ to $-43$\,\%, 20/20 seeds.
+  \item \textbf{Per-cell KKT level vs one global level}: $-22$ to $-54$\,\%.
+  \item \textbf{GBM vs window quantiles}: a further $-7$ to $-37$\,\%.
+\end{enumerate}
+\end{block}
+Even the no-ML version beats the point forecast everywhere: \emph{the rule itself carries the method.}
+\column{0.46\textwidth}
+\footnotesize
+\begin{tabular}{lcc}
+\toprule
+Family G, $V_w$ [\%] & mod. & high \\
+\midrule
+Reactive proportional & 12.05 & 15.94 \\
+MaxWeight & 17.51 & 25.79 \\
+Deadline-aware reactive & 8.95 & 11.53 \\
+Point forecast & 6.00 & 8.98 \\
+\ours \textbf{Proposed} & \textbf{5.08} & \textbf{8.01} \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.2cm}
+\small Reproduces on traffic \textbf{we did not design}: best at both loads, 20/20 seeds; \textbf{50\,\%} better than reactive proportional at high load.
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{Theory: calibrated forecasts and Markov-fluid bounds on $\rstar$}
+\begin{columns}[c]
+\column{0.34\textwidth}
+\centering
+\includegraphics[width=\linewidth]{figures/calibration_slide.png}
+
+{\scriptsize GBM quantiles within $\approx$1 point of nominal coverage}
+\column{0.64\textwidth}
+\centering
+\includegraphics[width=\linewidth]{paper_fig_theory.png}
+\vspace{0.1cm}
+
+\small
+\begin{itemize}
+  \item POMDP formulation; Chernoff-union tail bound on $\rstar$.
+  \item Large-deadline decay links $\rstar$ to \textbf{effective bandwidth}.
+  \item Shortfall sandwich: $(D{+}1)(\rstar - r)^+ \le V(r)$, so the newsvendor objective bounds the violated volume.
+\end{itemize}
 \end{columns}
 \end{frame}
 
@@ -486,6 +809,38 @@ Beats both strongest baselines in \textbf{all 10 scenarios of 3 traffic families
 \end{columns}
 \end{frame}
 
+% ------------------------------------------------------------------
+\begin{frame}{B3 results: beats the best baseline in all 10 scenarios}
+\begin{columns}[c]
+\column{0.42\textwidth}
+\footnotesize
+\begin{tabular}{lcc}
+\toprule
+Scenario & $V_w$ vs best & Seeds \\
+\midrule
+S low & $\mathbf{-23.7\,\%}$ & 15/20 \\
+S moderate & $\mathbf{-25.3\,\%}$ & 20/20 \\
+S high & $\mathbf{-11.0\,\%}$ & 20/20 \\
+S flash & $\mathbf{-7.0\,\%}$ & 20/20 \\
+S shift & $\mathbf{-4.8\,\%}$ & 20/20 \\
+G moderate & $\mathbf{-5.9\,\%}$ & 20/20 \\
+G high & $\mathbf{-3.4\,\%}$ & 19/20 \\
+M moderate & $\mathbf{-23.3\,\%}$ & 20/20 \\
+M high & $\mathbf{-7.9\,\%}$ & 20/20 \\
+M shift & $\mathbf{-8.2\,\%}$ & 20/20 \\
+\bottomrule
+\end{tabular}
+\column{0.54\textwidth}
+\small
+\begin{itemize}
+  \item ``Best baseline'' = the better of predictive MaxWeight and CEM policy \emph{in each scenario}, each in its own best tuning.
+  \item \textbf{10/10 scenarios, 3 families}, all $p \le 0.024$ (Holm--Wilcoxon).
+  \item With the Bayesian LCQT forecaster: \textbf{5.05\,\%} at high load, the best result of the project.
+  \item Within 6--10\,\% of the oracle that knows the true future at high load.
+\end{itemize}
+\end{columns}
+\end{frame}
+
 % ------------------------------------------------------------------ 16
 \section{Summary}
 \begin{frame}{Part A $\times$ Part B: one system}
@@ -518,7 +873,6 @@ Beats both strongest baselines in \textbf{all 10 scenarios of 3 traffic families
 Area & Builds on & Our contribution \\
 \midrule
 IQ compression & O-RAN BFP, randomised SVD, delay sparsity & CSEE and RAS-BFP for real-time fronthaul, with bounds \\
-Functional split & 3GPP split options, fixed at deployment & ACAFS: per-user split from the encoder's rank \\
 Inversion & Newton--Schulz, Neumann, Marchenko--Pastur & RMT-WS: MP interval, Chebyshev start, warm start, certificate, Doppler law \\
 DU kernel & LAPACK, AVX-512 & fused precoder kernel, 0.226 ms per slot \\
 Allocation & newsvendor (Hadley--Whitin), point forecasts & deadline-feasible rate + per-cell KKT newsvendor for fronthaul \\
@@ -534,9 +888,9 @@ Strongest control & MaxWeight, policy search, used separately & BPN: one policy 
 \begin{block}{Conclusion}
 \small
 \begin{itemize}
-  \item \textbf{Lighter fronthaul}: 13--16$\times$ compression (vs 4$\times$), 55--75\,\% split saving, 72\,\% with RU-side precoding.
+  \item \textbf{Lighter fronthaul}: 6.4--8.1$\times$ compression vs 16-bit I/Q (BFP $\approx$2$\times$), 72\,\% with RU-side precoding.
   \item \textbf{Real-time DU}: whole precoder in 0.226~ms, 10--15$\times$ faster.
-  \item \textbf{Smarter sharing}: KKT rule best of 12; BPN beats the strongest baselines in all 10 scenarios.
+  \item \textbf{Smarter sharing}: KKT rule best of 12 reference controllers; BPN beats the strongest baselines in all 10 scenarios.
 \end{itemize}
 \end{block}
 \column{0.42\textwidth}
