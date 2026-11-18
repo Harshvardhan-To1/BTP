@@ -9,7 +9,7 @@ Every call, video stream and app on a mobile phone reaches the Internet through 
 
 \subsection{The mobile transport network: fronthaul, midhaul and backhaul}
 
-Figure~\ref{fig:transport} shows the path of a user's data in a 5G network. The \textbf{radio unit (RU)} on the mast holds the antennas, the radio-frequency chain and, in the O-RAN split, the lower part of the physical layer. The \textbf{distributed unit (DU)} runs the time-critical baseband: the rest of the physical layer, the MAC scheduler and RLC. The \textbf{central unit (CU)} runs the higher, less time-critical protocols (PDCP, RRC, SDAP) and can serve many DUs. The \textbf{5G core} handles mobility, sessions and the connection to the Internet.
+Figure~\ref{fig:transport} shows the path of a user's data in a 5G network. The radio unit (RU) on the mast holds the antennas, the radio-frequency chain and, in the O-RAN split, the lower part of the physical layer. The distributed unit (DU) runs the time-critical baseband: the rest of the physical layer, the MAC scheduler and RLC. The central unit (CU) runs the higher, less time-critical protocols (PDCP, RRC, SDAP) and can serve many DUs. The 5G core handles mobility, sessions and the connection to the Internet.
 
 The three transport segments between these units have very different requirements:
 \begin{itemize}
@@ -93,7 +93,7 @@ In a classical \emph{distributed RAN} (D-RAN) the complete baseband unit (BBU) s
 
 \subsection{Functional splits and the O-RAN 7-2x split}
 
-3GPP TR 38.801 defines eight possible points at which the protocol stack can be cut between a central and a remote unit (Figure~\ref{fig:splits}). The higher the split (Option 2), the lower and more elastic the transport rate, but the less coordination the central unit can perform. The lower the split (Option 8, CPRI), the more centralisation, but the transport rate becomes enormous and constant. The O-RAN Alliance standardised the intra-PHY \textbf{split 7-2x} as the fronthaul of Open RAN: FFT, cyclic-prefix handling and (optionally) precoding stay in the O-RU, while channel estimation, equalisation, decoding and scheduling run in the O-DU. The fronthaul then carries frequency-domain IQ samples, compressed with \emph{block floating point} (BFP), for every scheduled physical resource block (PRB) and every MIMO layer.
+3GPP TR 38.801 defines eight possible points at which the protocol stack can be cut between a central and a remote unit (Figure~\ref{fig:splits}). The higher the split (Option 2), the lower and more elastic the transport rate, but the less coordination the central unit can perform. The lower the split (Option 8, CPRI), the more centralisation, but the transport rate becomes enormous and constant. The O-RAN Alliance standardised the intra-PHY split 7-2x as the fronthaul of Open RAN: FFT, cyclic-prefix handling and (optionally) precoding stay in the O-RU, while channel estimation, equalisation, decoding and scheduling run in the O-DU. The fronthaul then carries frequency-domain IQ samples, compressed with \emph{block floating point} (BFP), for every scheduled physical resource block (PRB) and every MIMO layer.
 
 \begin{figure}[H]
 \centering
@@ -127,7 +127,7 @@ In a classical \emph{distributed RAN} (D-RAN) the complete baseband unit (BBU) s
 
 \subsection{The O-RAN architecture}
 
-Besides opening the fronthaul, O-RAN adds two programmable controllers (Figure~\ref{fig:oran}). The \textbf{non-real-time RIC} inside the service management and orchestration (SMO) framework runs ``rApps'' at time scales above one second and trains models. The \textbf{near-real-time RIC} runs ``xApps'' that control the O-CU and O-DU over the E2 interface in a 10~ms--1~s loop. A fronthaul budget controller such as the one developed in Part~B of this project is naturally deployed as an xApp or as a function inside the O-DU pool, operating at the 10~ms time scale of the near-RT RIC.
+Besides opening the fronthaul, O-RAN adds two programmable controllers (Figure~\ref{fig:oran}). The non-real-time RIC inside the service management and orchestration (SMO) framework runs ``rApps'' at time scales above one second and trains models. The near-real-time RIC runs ``xApps'' that control the O-CU and O-DU over the E2 interface in a 10~ms--1~s loop. A fronthaul budget controller such as the one developed in Part~B of this project is naturally deployed as an xApp or as a function inside the O-DU pool, operating at the 10~ms time scale of the near-RT RIC.
 
 \begin{figure}[H]
 \centering
@@ -180,13 +180,13 @@ The fronthaul load of a 7-2x cell is set by the number of scheduled PRB-layers, 
 
 Two bottlenecks limit how cheaply and how densely Open RAN cells can be deployed:
 \begin{enumerate}
-  \item \textbf{The data are large and the processing time is short.} O-RAN BFP compression only shortens numbers and reaches about 4$\times$. Every 0.5~ms slot, the O-DU must also compute a precoder for all 273 PRBs, which requires inverting a complex $K\times K$ Gram matrix per PRB. In a standard numpy + LAPACK implementation this takes 3.2~ms for 16 users, which is more than six times the slot.
+  \item \textbf{The data are large and the processing time is short.} O-RAN BFP compression only shortens numbers and reaches about 2$\times$ over 16-bit I/Q. Every 0.5~ms slot, the O-DU must also compute a precoder for all 273 PRBs, which requires inverting a complex $K\times K$ Gram matrix per PRB. In a standard numpy + LAPACK implementation this takes 3.2~ms for 16 users, which is more than six times the slot.
   \item \textbf{The link is shared and smaller than the peak.} When the bursts of several cells coincide, the shared link cannot carry everything. Low-latency (LL) cells tolerate only about 2~ms of waiting. A coordinator must decide in advance how many bits each cell may send. It does this every 10~ms, on telemetry that is already 1~ms old, without seeing the next burst. Whoever is under-provisioned loses data.
 \end{enumerate}
 
 The project addresses both bottlenecks with one guiding principle: \emph{keep the mathematical structure of the problem, and learn only what is uncertain}.
 
-\paragraph{Problem statement (Part A).} Design IQ compression methods that exploit the low rank and delay-domain sparsity of the received signal to go well beyond the 4$\times$ of BFP with provable error bounds; adapt the functional split to the channel; and make the per-slot complex precoder fast and accurate enough to run inside the 0.5~ms slot on a general-purpose CPU.
+\paragraph{Problem statement (Part A).} Design IQ compression methods that exploit the low rank and delay-domain sparsity of the received signal to go well beyond the 2$\times$ of BFP with error bounds, and make the per-slot complex precoder fast and accurate enough to run inside the 0.5~ms slot on a general-purpose CPU.
 
 \paragraph{Problem statement (Part B).} Given a forecast of each cell's fronthaul need over the next interval, design a controller that sets per-cell budgets on a shared 7-2x link, every 10~ms and before the traffic is seen, so that the priority-weighted fraction of bits that miss their deadline is minimised. We also want to show, on identical traffic and with paired statistics, that it outperforms the strongest available controllers.
 
@@ -199,8 +199,7 @@ The project addresses both bottlenecks with one guiding principle: \emph{keep th
   \node[lever,fill=iitblue!8] (A) at (0,0) {%
     \textbf{\textcolor{iitblue}{Part A: make the data smaller and the DU faster}}\\[3pt]
     $\bullet$ CSEE and RAS-BFP structure-aware IQ encoders\\
-    $\bullet$ ACAFS rank-adaptive functional split\\
-    $\bullet$ 9-method inversion benchmark, learned InverseNets\\
+    $\bullet$ 8-method inversion benchmark, learned InverseNets\\
     $\bullet$ RMT-WS warm-start complex inversion\\
     $\bullet$ Fused C/AVX-512/OpenMP RZF precoder kernel\\
     $\bullet$ RU-side precoding: $-72\,\%$ fronthaul};
@@ -213,7 +212,7 @@ The project addresses both bottlenecks with one guiding principle: \emph{keep th
     $\bullet$ B3: back-pressure newsvendor (BPN)\\
     $\bullet$ 3 traffic families, 19+ controllers, paired tests};
   \node[draw,rounded corners,fill=good!12,text width=14cm,align=center,inner sep=5pt,anchor=north] (AB) at ($(B.south)+(-3.7,-0.7)$) {%
-    \textbf{Part A $\times$ Part B:} the compression width sets \emph{how much} load reaches the link;
+    Part A $\times$ Part B: the compression width sets \emph{how much} load reaches the link;
     the allocation rule decides \emph{who} loses data when bursts coincide.};
   \draw[->,thick] (A.south) -- (A.south |- AB.north);
   \draw[->,thick] (B.south) -- (B.south |- AB.north);
@@ -224,10 +223,10 @@ The project addresses both bottlenecks with one guiding principle: \emph{keep th
 
 The main contributions of this project are:
 \begin{enumerate}
-  \item \textbf{Structure-aware IQ compression.} Two encoders with error bounds: CSEE (delay-domain sparsity, $O(MN\log N)$) and RAS-BFP (randomised SRHT sketch and QR, $O(rMN)$), reaching 13--16$\times$ compression at about $-20$~dB NMSE, 3--6$\times$ faster than truncated SVD. ACAFS adapts the split per user and saves 55--75\,\% bandwidth at high SNR.
-  \item \textbf{Fast complex inversion for the precoder.} A 9-method CPU inversion benchmark with learned inverters (InverseNet-Ultra has the lowest mean latency at $n=100$); RMT-WS, a random-matrix-guided Chebyshev/Newton--Schulz inversion with warm-start tracking, a Doppler law and a residual certificate, needing 6 GEMMs where Neumann-type schemes need more than 10.
+  \item \textbf{Structure-aware IQ compression.} Two encoders with error bounds: CSEE (delay-domain sparsity, $O(MN\log N)$) and RAS-BFP (randomised SRHT sketch and QR, $O(rMN)$), reaching 6.4--8.1$\times$ compression relative to 16-bit I/Q at about $-20$~dB NMSE, 3--4$\times$ more than O-RAN BFP and 3--6$\times$ faster than truncated SVD.
+  \item \textbf{Fast complex inversion for the precoder.} An 8-method CPU screening benchmark with two learned Newton--Schulz inverters; RMT-WS, a random-matrix-guided Chebyshev/Newton--Schulz inversion with warm-start tracking, a Doppler law and a residual certificate, needing 6 GEMMs where Neumann-type schemes need more than 10.
   \item \textbf{Kernel engineering.} A fused C/AVX-512/OpenMP RZF precoder that runs 10--15$\times$ faster than numpy + LAPACK and fits the whole precoder for up to 16 users in the 0.5~ms slot; together with RU-side precoding this cuts the fronthaul rate by 72\,\% at 99.7\,\% of the exact sum-rate.
-  \item \textbf{The KKT newsvendor rule (B1).} Forecasting the deadline-feasible rate $\rstar$ as a range and splitting the link at equal priority-weighted risk, with four proven properties; best of 12 controllers in all scenarios of two traffic families (submitted to NCC 2027).
+  \item \textbf{The KKT newsvendor rule (B1).} Forecasting the deadline-feasible rate $\rstar$ as a range and splitting the link at equal priority-weighted risk, with four proven properties; best of the 12 reference controllers of the NCC comparison in all scenarios of two traffic families (submitted to NCC 2027).
   \item \textbf{Theory and stronger baselines.} A POMDP formulation, Markov-fluid bounds that link $\rstar$ to effective bandwidth, a third traffic family, and the strongest implementable baselines (predictive MaxWeight and cross-entropy policy search).
   \item \textbf{A Bayesian, link-aware Transformer forecaster (B2).} LCQT with deadline-aware patch tokens, FiLM conditioning, cross-cell attention, non-crossing quantiles, a Bayesian mixture layer and a differentiable KKT layer.
   \item \textbf{The back-pressure newsvendor (B3).} A two-stage policy class that contains both strongest baselines exactly, learned with equal search effort, which beats them in all 10 scenarios of three traffic families by 3--25\,\%.

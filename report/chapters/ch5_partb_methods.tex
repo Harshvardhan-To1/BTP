@@ -35,7 +35,7 @@ Part~A reduces the number of bits each cell puts on the fronthaul. Part~B decide
 
 \subsection{Cells, link and decision}
 
-Eight 7-2x cells share one 25~Gbit Ethernet aggregation link (Figure~\ref{fig:shared}). Three cells are \textbf{low-latency (LL)} with a deadline of 2~ms and priority weight 3; five are \textbf{eMBB} with a deadline of 10~ms and weight 1. After reserving 3\,\% of the link for control, management and synchronisation planes, the capacity is $C = 12.125$~Mbit per 0.5~ms slot. The sum of the cells' peak demands is $2.44\,C$: the link is deliberately over-subscribed, as operators do to benefit from statistical multiplexing.
+Eight 7-2x cells share one 25~Gbit Ethernet aggregation link (Figure~\ref{fig:shared}). Three cells are low-latency (LL) with a deadline of 2~ms and priority weight 3; five are eMBB with a deadline of 10~ms and weight 1. After reserving 3\,\% of the link for control, management and synchronisation planes, the capacity is $C = 12.125$~Mbit per 0.5~ms slot. The sum of the cells' peak demands is $2.44\,C$: the link is deliberately over-subscribed, as operators do to benefit from statistical multiplexing.
 
 Every $T = 20$ slots (10~ms) a coordinator sets a budget $r_i$ (bits per slot) for each cell, which is held for the whole interval. The coordinator observes the cells' queues, head-of-line ages, demand history and spectral efficiency with a telemetry delay of $\tau = 2$ slots (1~ms), so each budget must cover a lead time of $H = T + \tau$ slots that it has not seen (Figure~\ref{fig:timing}).
 
@@ -359,7 +359,7 @@ Consequently, a search over the BPN parameters that starts from the tuned optimu
 
 \subsection{Learning with equal search effort}
 
-The eight parameters are learned with CEM on \textbf{training seeds only} (8 episodes per candidate, the same search as for the baselines), with two starts at the tuned optima of the two contained baselines. To keep the comparison fair, both baselines were \emph{re-tuned with the same CEM search} (``CEM-tuned''), so every controller received equal tuning effort. We report two versions: BPN~v1 (6 parameters, stage~1 always strict back-pressure) and BPN~v2 (8 parameters with the sharing exponent $\eta$ and margin $\mu$), which contains the reservation policy as well.
+The eight parameters are learned with CEM on training seeds only (8 episodes per candidate, the same search as for the baselines), with two starts at the tuned optima of the two contained baselines. To keep the comparison fair, both baselines were \emph{re-tuned with the same CEM search} (``CEM-tuned''), so every controller received equal tuning effort. We report two versions: BPN~v1 (6 parameters, stage~1 always strict back-pressure) and BPN~v2 (8 parameters with the sharing exponent $\eta$ and margin $\mu$), which contains the reservation policy as well.
 
 \section{Summary}
 

@@ -20,7 +20,7 @@ This chapter reviews the work on which the project builds and positions our cont
 \section{Fronthaul Compression and Adaptive Splits}
 \label{sec:lit-comp}
 
-The O-RAN baseline is BFP~\cite{oran_cus}, which compresses each PRB to a common exponent and $b$-bit mantissas; it exploits only the dynamic range of the samples and reaches about 4$\times$. Low-rank compression is grounded in the Eckart--Young theorem~\cite{eckart1936}: the truncated SVD gives the best rank-$r$ approximation in Frobenius norm, but at a cost of $O(MN\min(M,N))$ that is too high for a 0.5~ms slot. Halko, Martinsson and Tropp~\cite{halko2011} showed that a randomised sketch followed by a QR factorisation achieves a $(1+\varepsilon)$-optimal rank-$r$ factorisation at $O(rMN)$ cost; this is the theory behind our RAS-BFP encoder. The 3GPP TDL channel models of TR 38.901~\cite{tr38901} have a few strong delay taps, so the received signal is sparse in the delay domain after an inverse FFT across subcarriers; our CSEE encoder exploits this structure. Adaptive functional splits that change with the channel or the load have been proposed in the crosshaul literature~\cite{larsen2019}; our ACAFS controller chooses the split per user from the numerical rank that the encoder already computes.
+The O-RAN baseline is BFP~\cite{oran_cus}, which compresses each PRB to a common exponent and $b$-bit mantissas; it exploits only the dynamic range of the samples and reaches about 2$\times$ over 16-bit I/Q. Low-rank compression is grounded in the Eckart--Young theorem~\cite{eckart1936}: the truncated SVD gives the best rank-$r$ approximation in Frobenius norm, but at a cost of $O(MN\min(M,N))$ that is too high for a 0.5~ms slot. Halko, Martinsson and Tropp~\cite{halko2011} showed that a randomised sketch followed by a QR factorisation achieves a $(1+\varepsilon)$-optimal rank-$r$ factorisation at $O(rMN)$ cost; this is the theory behind our RAS-BFP encoder. The 3GPP TDL channel models of TR 38.901~\cite{tr38901} have a few strong delay taps, so the channel, and hence the de-rotated reference-symbol IQ, is sparse in the delay domain after an inverse FFT across subcarriers; our CSEE encoder exploits this structure.
 
 \section{Matrix Inversion and Precoding for Massive MIMO}
 \label{sec:lit-inv}
@@ -49,7 +49,7 @@ The multi-item newsvendor with a budget constraint~\cite{hadley1963} has a class
 
 MaxWeight (back-pressure) scheduling~\cite{tassiulas1992} serves queues in order of weighted backlog and is throughput-optimal; the Lyapunov drift-plus-penalty framework~\cite{neely2010} generalises it. Huang \emph{et al.}~\cite{huang2016} showed how back-pressure can use predicted future arrivals (predictive back-pressure), which we implement as \emph{predictive MaxWeight}, one of the two strongest baselines. Direct policy search with the cross-entropy method (CEM)~\cite{rubinstein1999} and rollout-based approximate dynamic programming~\cite{bertsekas2020} provide the second strong baseline: a low-dimensional allocation policy tuned on simulated episodes.
 
-\paragraph{Transformer forecasters and decision-focused learning.} PatchTST~\cite{nie2023} splits a time series into patches that become Transformer tokens; iTransformer~\cite{liu2024} attends across variates instead of time; the Temporal Fusion Transformer~\cite{lim2021} produces multi-quantile forecasts with static covariates; FiLM layers~\cite{perez2018film} condition a network on side information. Decision-focused (``predict-then-optimise'') learning trains a forecaster through the downstream optimisation problem~\cite{donti2017,elmachtoub2022}. A recent O-RAN preprint (arXiv:2609.17297) forecasts PRB load with a TFT trained at a cost-derived quantile level, but avoids differentiating through the allocation and has no shared link or deadlines.
+\paragraph{Transformer forecasters and decision-focused learning.} PatchTST~\cite{nie2023} splits a time series into patches that become Transformer tokens; iTransformer~\cite{liu2024} attends across variates instead of time; the Temporal Fusion Transformer~\cite{lim2021} produces multi-quantile forecasts with static covariates; FiLM layers~\cite{perez2018film} condition a network on side information. Decision-focused (``predict-then-optimise'') learning trains a forecaster through the downstream optimisation problem~\cite{donti2017,elmachtoub2022}. Larumbe-Lizarraga \emph{et al.}~\cite{larumbe2026} forecast PRB load with a TFT trained at a cost-derived quantile level, but avoids differentiating through the allocation and has no shared link or deadlines.
 
 \section{Research Gaps Addressed}
 \label{sec:lit-gap}
@@ -63,8 +63,7 @@ MaxWeight (back-pressure) scheduling~\cite{tassiulas1992} serves queues in order
 \toprule
 Area & State of the art & This project \\
 \midrule
-IQ compression & BFP ($\approx$4$\times$); truncated SVD (slow) & CSEE / RAS-BFP: 13--16$\times$, provable bounds, 3--6$\times$ faster than SVD \\
-Functional split & fixed at deployment & ACAFS: per-user split from the channel rank \\
+IQ compression & BFP ($\approx$2$\times$); truncated SVD (slow) & CSEE / RAS-BFP: 6.4--8.1$\times$, error bounds, 3--6$\times$ faster than SVD \\
 Precoder inversion & Neumann / Newton series, $>$8--10 GEMMs & RMT-WS: 6 GEMMs, warm-start tracking, certificate, Doppler law \\
 DU implementation & numpy + LAPACK: 3.2~ms per slot & fused C/AVX-512 kernel: 0.226~ms per slot \\
 Shared-link control & reactive per-slot compression~\cite{lagen2022} & anticipatory per-cell budgets every 10~ms \\

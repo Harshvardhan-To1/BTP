@@ -6,7 +6,7 @@
 
 \section{Introduction}
 
-This chapter evaluates the Part~A methods. Section~\ref{sec:ra-comp} reports compression ratio, error, encode time and SNR robustness of CSEE and RAS-BFP against O-RAN BFP and truncated SVD; Section~\ref{sec:ra-acafs} the bandwidth saving of ACAFS. Section~\ref{sec:ra-bench} reports the nine-method inversion benchmark. Section~\ref{sec:ra-rmtws} evaluates RMT-WS on realistic complex precoding channels: spectral-interval coverage, cold-start cost, tracking across user speeds, the Doppler law and low-precision robustness. Section~\ref{sec:ra-ru} quantifies the fronthaul saving of RU-side precoding. The simulation parameters are listed in Table~\ref{tab:a-params}.
+This chapter evaluates the Part~A methods. Section~\ref{sec:ra-comp} reports compression ratio, error, encode time and SNR robustness of CSEE and RAS-BFP against O-RAN BFP and truncated SVD. Section~\ref{sec:ra-bench} reports the eight-method inversion screening benchmark. Section~\ref{sec:ra-rmtws} evaluates RMT-WS on realistic complex precoding channels: spectral-interval coverage, cold-start cost, tracking across user speeds, the Doppler law and low-precision robustness. Section~\ref{sec:ra-ru} quantifies the fronthaul saving of RU-side precoding. The simulation parameters are listed in Table~\ref{tab:a-params}.
 
 \begin{table}[H]
 \caption{Part~A simulation parameters.}
@@ -17,11 +17,12 @@ This chapter evaluates the Part~A methods. Section~\ref{sec:ra-comp} reports com
 \toprule
 Study & Parameter & Value \\
 \midrule
-Compression & antennas $M$, subcarriers $N$ & 64, 1200 (100~MHz class) \\
+Compression & antennas $M$, subcarriers $N$ & 64, 1200 (20~MHz, numerology 0) \\
  & channel & 3GPP TDL-A, exponential antenna correlation \\
  & SNR & 20~dB (sweep $-5$ to 30~dB) \\
  & CSEE taps $K$ / RAS-BFP rank $r$ & 300 (sweep to 60) / 12 \\
  & mantissa width & BFP $b=8$; CSEE, RAS-BFP, SVD $b=10$ \\
+ & reference for ratios & 16-bit I and Q per antenna sample \\
 \midrule
 Inversion benchmark & matrix size $n$ & 10, 100, 500 \\
  & matrices & $A = G/\sqrt n + 2I$, 1000 per size, 200 held out \\
@@ -38,31 +39,24 @@ Complex precoding & antennas / users & $M \in \{64,128\}$, $K \in \{8,16,32\}$ \
 \section{IQ Compression Results}
 \label{sec:ra-comp}
 
-Table~\ref{tab:a-comp} and Figure~\ref{fig:exp1} show the trade-off between compression ratio (CR) and normalised mean-square error (NMSE). The structure-aware encoders reach \textbf{13--16$\times$} compression at about $-20$~dB NMSE, against about 4$\times$ for the O-RAN standard. RAS-BFP achieves the \emph{same} 16.2$\times$ ratio as the truncated SVD while encoding \textbf{3--4$\times$ faster}; CSEE is \textbf{4--6$\times$ faster} than SVD. At the knee of its Pareto curve ($K=60$), CSEE reaches about \textbf{63$\times$} compression at $-19$~dB NMSE.
+Table~\ref{tab:a-comp} reports the compression ratio (CR, against 16-bit I/Q) and the normalised mean-square error (NMSE) on the de-rotated channel IQ. The structure-aware encoders reach 6.4--8.1$\times$ compression at about $-20$~dB NMSE, 3--4 times the ratio of the O-RAN standard (about 2$\times$). RAS-BFP achieves the \emph{same} 8.1$\times$ ratio as the truncated SVD while encoding 3--4$\times$ faster, and CSEE is 4--6$\times$ faster than SVD. At the knee of its Pareto curve ($K=60$), CSEE reaches about 32$\times$ at $-19$~dB NMSE.
 
 \begin{table}[H]
-\caption{Compression results at a target NMSE of about $-20$~dB ($M=64$, $N=1200$, SNR 20~dB, TDL-A).}
+\caption{Compression of de-rotated reference-symbol IQ at a target NMSE of about $-20$~dB ($M=64$, $N=1200$, SNR 20~dB, TDL-A); ratios against 16-bit I/Q.}
 \label{tab:a-comp}
 \centering
 \begin{tabular}{lcc}
 \toprule
 Method & Compression ratio & Encode speed-up over SVD \\
 \midrule
-O-RAN BFP ($b=8$) & 3.9$\times$ & n/a \\
-Truncated SVD ($r=12$) & 16.2$\times$ & 1$\times$ \\
-\ours \textbf{CSEE} ($K=300$, ours) & \textbf{12.7$\times$} & \textbf{4--6$\times$} \\
-\ours \textbf{RAS-BFP} ($r=12$, ours) & \textbf{16.2$\times$} & \textbf{3--4$\times$} \\
-\ours \textbf{CSEE} ($K=60$, ours) & \textbf{$\approx$63$\times$} & n/a \\
+O-RAN BFP ($b=8$) & 2.0$\times$ & n/a \\
+Truncated SVD ($r=12$) & 8.1$\times$ & 1$\times$ \\
+\ours \textbf{CSEE} ($K=300$, ours) & \textbf{6.4$\times$} & \textbf{4--6$\times$} \\
+\ours \textbf{RAS-BFP} ($r=12$, ours) & \textbf{8.1$\times$} & \textbf{3--4$\times$} \\
+\ours \textbf{CSEE} ($K=60$, ours) & \textbf{$\approx$32$\times$} & n/a \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.78\textwidth]{exp1_nmse_vs_cr.png}
-\caption{NMSE versus compression ratio. CSEE and RAS-BFP reach 13--16$\times$ at about $-20$~dB, four times the ratio of O-RAN BFP, and stay within their theoretical bounds.}
-\label{fig:exp1}
-\end{figure}
 
 Figure~\ref{fig:exp2} shows how encode time scales with the array size: truncated SVD grows fastest with $M$, while both proposed encoders scale almost linearly. Figure~\ref{fig:exp4} shows that their NMSE is stable over the whole SNR range from $-5$ to 30~dB, so the encoder does not need retuning as users move through the cell.
 
@@ -81,25 +75,13 @@ Figure~\ref{fig:exp2} shows how encode time scales with the array size: truncate
 \caption{Complexity and SNR robustness of the encoders: the proposed methods scale near-linearly and keep their accuracy across SNR.}
 \end{figure}
 
-\section{ACAFS Results}
-\label{sec:ra-acafs}
-
-Figure~\ref{fig:exp3} shows the bandwidth saving of ACAFS against a fixed Split~6 as a function of SNR. At low SNR every user has full rank and the split stays at 6, but above about 15~dB the effective rank collapses and ACAFS moves users to the lower splits, saving \textbf{55--75\,\%} of the fronthaul bandwidth. For uniformly spread ranks the closed-form saving of Theorem~3.4 is 33\,\%. The decision is made per user from the rank the encoder already computes, so ACAFS adds no computation.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.75\textwidth]{exp3_acafs.png}
-\caption{ACAFS bandwidth saving against a fixed Split~6 versus SNR: 55--75\,\% at high SNR.}
-\label{fig:exp3}
-\end{figure}
-
 \section{Matrix-Inversion Benchmark Results}
 \label{sec:ra-bench}
 
-Table~\ref{tab:a-bench} lists the mean and 95th-percentile latency on the held-out matrices of size $n = 100$. Our \textbf{InverseNet-Ultra has the lowest mean latency of all nine methods} (0.47~ms) and a \textbf{2$\times$ lower 95th percentile than LAPACK} (0.57 vs 1.13~ms). It is 2.7$\times$ faster than classical Newton--Schulz, 7$\times$ faster than LU (scipy) and 22--43$\times$ faster than SVD and QR.
+Table~\ref{tab:a-bench} lists the mean and 95th-percentile latency on the held-out matrices of size $n = 100$. Every method is timed through the same Python call path, one matrix per call, so per-call overhead is part of every number and the table ranks methods as they would be used from a Python control loop. In this setting InverseNet-Ultra has the lowest mean latency of the eight methods (0.47~ms) and a 2$\times$ lower 95th percentile than LAPACK (0.57 vs 1.13~ms). It is 2.7$\times$ faster than classical Newton--Schulz and 7$\times$ faster than LU (scipy). The main outcome of the screening is the choice of method family: a Newton--Schulz iteration with a good initial guess, which RMT-WS develops for the complex precoding workload below and Chapter~\ref{ch:impl} implements in C.
 
 \begin{table}[H]
-\caption{Matrix-inversion benchmark on held-out matrices, $n = 100$ (CPU, one matrix at a time).}
+\caption{Inversion screening benchmark on held-out real matrices $A = G/\sqrt n + 2I$, $n = 100$ (CPU, Python, one matrix per call).}
 \label{tab:a-bench}
 \centering
 \begin{tabular}{lcc}
@@ -125,7 +107,7 @@ The learned iteration works because it keeps the Newton--Schulz structure and le
 
 \subsection{Spectral interval}
 
-Figure~\ref{fig:mp}(a) confirms that the spectrum of the equilibrated Gram matrix follows the Marchenko--Pastur law for i.i.d.\ channels. Table~\ref{tab:a-interval} and Figure~\ref{fig:mp}(b) compare how often the interval $[a,b]$ contains the true spectrum. Our moment-matched interval covers the upper edge in \textbf{100\,\%} of cases on every channel type and gives \textbf{2$\times$ better} lower-edge coverage than the classical fixed-ratio bound on strongly correlated and line-of-sight channels, with only $K^2$ work.
+Figure~\ref{fig:mp}(a) confirms that the spectrum of the equilibrated Gram matrix follows the Marchenko--Pastur law for i.i.d.\ channels. Table~\ref{tab:a-interval} and Figure~\ref{fig:mp}(b) compare how often the interval $[a,b]$ contains the true spectrum. Our moment-matched interval covers the upper edge in 100\,\% of cases on every channel type and gives 2$\times$ better lower-edge coverage than the classical fixed-ratio bound on strongly correlated and line-of-sight channels, with only $K^2$ work.
 
 \begin{table}[H]
 \caption{Probability that $[a,b]$ contains the true spectrum (24 subcarriers $\times$ 30 drops).}
@@ -154,7 +136,7 @@ Rician 6~dB + 12$^\circ$ & 41.3\,\% & 90.7\,\% & \textbf{84.0\,\%} & \textbf{100
 
 \subsection{Cold-start inversion cost}
 
-Table~\ref{tab:a-cold} counts the complex GEMMs ($K^3$ multiply-accumulates each) needed to reach at most 1\,\% RZF sum-rate loss. The Chebyshev--MP initialisation followed by Newton--Schulz \textbf{converges in 6 GEMMs where Neumann-type and classical Newton schemes need more than 10}, beats every Neumann/Newton-type scheme, and is the \textbf{best of all methods at heavy load} ($K/M = 0.5$: 9 versus 12 GEMMs).
+Table~\ref{tab:a-cold} counts the complex GEMMs ($K^3$ multiply-accumulates each) needed to reach at most 1\,\% RZF sum-rate loss. The Chebyshev--MP initialisation followed by Newton--Schulz converges in 6 GEMMs where Neumann-type and classical Newton schemes need more than 10, beats every Neumann/Newton-type scheme, and is the best of all methods at heavy load ($K/M = 0.5$: 9 versus 12 GEMMs).
 
 \begin{table}[H]
 \caption{Complex GEMMs needed for $\le 1\,\%$ sum-rate loss (cold start), configurations $M/K$.}
@@ -177,7 +159,7 @@ Gauss--Seidel & 6 & $>12$ \\
 
 \subsection{Warm-start tracking across user speeds}
 
-Table~\ref{tab:a-track} and Figure~\ref{fig:exp7} compare RMT-WS with warm-started Gauss--Seidel and conjugate gradient at 3, 30 and 120~km/h ($K=16$, $M=64$). At pedestrian speed RMT-WS needs \textbf{2.7$\times$ fewer GEMMs than a cold start at 30$\times$ lower loss}; at 30~km/h it has the lowest loss of all warm-started methods; at 120~km/h it has \textbf{24$\times$ lower loss than warm Gauss--Seidel}. Fixed one- or two-step warm starts diverge at 120~km/h, whereas the certificate makes RMT-WS fall back to a cold start and never diverge: one method serves every speed. It is cheap when users are slow and safe when they are fast.
+Table~\ref{tab:a-track} and Figure~\ref{fig:exp7} compare RMT-WS with warm-started Gauss--Seidel and conjugate gradient at 3, 30 and 120~km/h ($K=16$, $M=64$). At pedestrian speed RMT-WS needs 2.7$\times$ fewer GEMMs than a cold start at 30$\times$ lower loss; at 30~km/h it has the lowest loss of all warm-started methods; at 120~km/h it has 24$\times$ lower loss than warm Gauss--Seidel. Fixed one- or two-step warm starts diverge at 120~km/h, whereas the certificate makes RMT-WS fall back to a cold start and never diverge: one method serves every speed. It is cheap when users are slow and safe when they are fast.
 
 \begin{table}[H]
 \caption{Tracking: sum-rate loss versus exact RZF / GEMMs per slot per PRB ($K=16$, $M=64$).}
@@ -203,7 +185,7 @@ Speed & Warm Gauss--Seidel $\times 4$ & Warm CG $\times 4$ & \textbf{RMT-WS (our
 
 \subsection{Doppler law and certificate}
 
-Figure~\ref{fig:exp12} validates the Doppler-to-warm-start law of Eq.~\eqref{eq:doppler}: the measured initial residual grows linearly with user speed (log-log slope 1.00), and the predicted number of Newton steps matches the measurement. The law gives the DU an explicit warm-start envelope (39~km/h for $M=64$, $K=16$). In an audit of 480 PRB cases from 3 to 120~km/h, \textbf{zero} warm starts accepted by the certificate at $\hat r \le 0.3$ were non-contractive.
+Figure~\ref{fig:exp12} validates the Doppler-to-warm-start law of Eq.~\eqref{eq:doppler}: the measured initial residual grows linearly with user speed (log-log slope 1.00), and the predicted number of Newton steps matches the measurement. The law gives the DU an explicit warm-start envelope (39~km/h for $M=64$, $K=16$). In an audit of 480 PRB cases from 3 to 120~km/h, zero warm starts accepted by the certificate at $\hat r \le 0.3$ were non-contractive.
 
 \begin{figure}[H]
 \centering
@@ -214,7 +196,7 @@ Figure~\ref{fig:exp12} validates the Doppler-to-warm-start law of Eq.~\eqref{eq:
 
 \subsection{Robustness at low precision}
 
-Accelerators such as tensor cores and NPUs compute GEMMs with low-precision operands and wide accumulation. Table~\ref{tab:a-lowprec} and Figure~\ref{fig:exp8} show that our Chebyshev + 3 Newton--Schulz inversion keeps \textbf{6$\times$ lower loss} than direct Gauss--Jordan inversion at 8 mantissa bits and 3.6$\times$ lower at 6 bits, because each Newton step corrects the rounding error of the previous one. The tracker at 8 bits loses only 0.70\,\% against 0.54\,\% at full precision at 30~km/h. RMT-WS is therefore ready for low-precision accelerators where direct inversion degrades.
+Accelerators such as tensor cores and NPUs compute GEMMs with low-precision operands and wide accumulation. Table~\ref{tab:a-lowprec} and Figure~\ref{fig:exp8} show that our Chebyshev + 3 Newton--Schulz inversion keeps 6$\times$ lower loss than direct Gauss--Jordan inversion at 8 mantissa bits and 3.6$\times$ lower at 6 bits, because each Newton step corrects the rounding error of the previous one. The tracker at 8 bits loses only 0.70\,\% against 0.54\,\% at full precision at 30~km/h. RMT-WS is therefore ready for low-precision accelerators where direct inversion degrades.
 
 \begin{table}[H]
 \caption{Sum-rate loss versus float64 exact inversion at low precision.}
@@ -269,7 +251,7 @@ numpy + LAPACK (whole precoder) & time per slot, $K=16$ & 3.21~ms & \textbf{0.22
 \section{Fronthaul Impact of RU-Side Precoding}
 \label{sec:ra-ru}
 
-Table~\ref{tab:a-ru} and Figure~\ref{fig:exp10} quantify the architectures of Figure~\ref{fig:ru-prec} for a 100~MHz carrier with $M=64$, $K=16$ and BFP-9 IQ. Precoding at the radio unit with 8-bit weights refreshed every slot \textbf{cuts the fronthaul from 118.4 to 32.8~Gbit/s ($-72\,\%$, 3.6$\times$ lighter) at 99.7\,\% of the exact RZF sum-rate}. Refreshing the weights less often is not an option at mobility (every 4 slots gives only 70\,\% of the rate at 30~km/h), so per-slot weights are required, and this is exactly the workload our fast precoder handles.
+Table~\ref{tab:a-ru} and Figure~\ref{fig:exp10} quantify the architectures of Figure~\ref{fig:ru-prec} for a 100~MHz carrier with $M=64$, $K=16$ and BFP-9 IQ. Precoding at the radio unit with 8-bit weights refreshed every slot cuts the fronthaul from 118.4 to 32.8~Gbit/s ($-72\,\%$, 3.6$\times$ lighter) at 99.7\,\% of the exact RZF sum-rate. Refreshing the weights less often is not an option at mobility (every 4 slots gives only 70\,\% of the rate at 30~km/h), so per-slot weights are required, and this is exactly the workload our fast precoder handles.
 
 \begin{table}[H]
 \caption{Fronthaul rate and sum-rate by precoding architecture (100~MHz, $M=64$, $K=16$, BFP-9).}
@@ -295,4 +277,4 @@ RU precodes, 16 layers + 6-bit weights & 32.0~Gbit/s ($-73\,\%$) & 96.7\,\% \\
 
 \section{Summary}
 
-This chapter presented the simulation results of Part~A. The structure-aware encoders compress the IQ data 13--16$\times$ (63$\times$ at the CSEE knee) against 4$\times$ for the O-RAN standard and run 3--6$\times$ faster than SVD; ACAFS saves 55--75\,\% bandwidth at high SNR. InverseNet-Ultra has the lowest mean and a 2$\times$ lower tail latency than LAPACK at $n = 100$. RMT-WS inverts realistic complex Grams in 6 GEMMs instead of more than 10, tracks users at every speed with a certificate that never accepted an unsafe step, and is robust at 8-bit precision. Together with the fused kernel of Chapter~\ref{ch:impl} it enables RU-side precoding with a 72\,\% lighter fronthaul at 99.7\,\% of the exact sum-rate.
+This chapter presented the simulation results of Part~A. The structure-aware encoders compress reference-symbol and channel IQ 6.4--8.1$\times$ against 16-bit I/Q (32$\times$ at the CSEE knee), 3--4 times the ratio of the O-RAN standard, and run 3--6$\times$ faster than SVD. The inversion screening selected a learned Newton--Schulz family, with the lowest mean and a 2$\times$ lower tail latency than LAPACK at $n = 100$. RMT-WS inverts realistic complex Grams in 6 GEMMs instead of more than 10, tracks users at every speed with a certificate that never accepted an unsafe step, and is robust at 8-bit precision. Together with the fused kernel of Chapter~\ref{ch:impl} it enables RU-side precoding with a 72\,\% lighter fronthaul at 99.7\,\% of the exact sum-rate.
