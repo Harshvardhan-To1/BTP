@@ -1,0 +1,298 @@
+{
+ "30ns": {
+  "group g=1": {
+   "rate_ratio": 0.9737123160638048,
+   "rate_ratio_min": 0.9601556802605363,
+   "weight_gbps": 9.73679616,
+   "total_gbps": 39.324579840000006
+  },
+  "group g=2": {
+   "rate_ratio": 0.9391652719020157,
+   "rate_ratio_min": 0.9080167549130805,
+   "weight_gbps": 4.86839808,
+   "total_gbps": 34.45618176000001
+  },
+  "group g=3": {
+   "rate_ratio": 0.9064060538807241,
+   "rate_ratio_min": 0.8619772166493945,
+   "weight_gbps": 3.24559872,
+   "total_gbps": 32.833382400000005
+  },
+  "group g=4": {
+   "rate_ratio": 0.8764936985131991,
+   "rate_ratio_min": 0.8233370363774348,
+   "weight_gbps": 2.43419904,
+   "total_gbps": 32.021982720000004
+  },
+  "group g=6": {
+   "rate_ratio": 0.8241264850509937,
+   "rate_ratio_min": 0.7622008348057215,
+   "weight_gbps": 1.62279936,
+   "total_gbps": 31.210583040000003
+  },
+  "group g=12": {
+   "rate_ratio": 0.7070358038088176,
+   "rate_ratio_min": 0.6463035614742544,
+   "weight_gbps": 0.81139968,
+   "total_gbps": 30.399183360000006
+  },
+  "group g=24": {
+   "rate_ratio": 0.5684325885512008,
+   "rate_ratio_min": 0.4941504764184589,
+   "weight_gbps": 0.40569984,
+   "total_gbps": 29.993483520000005
+  },
+  "delay L=4": {
+   "rate_ratio": 0.8157691575839467,
+   "rate_ratio_min": 0.7656216626212674,
+   "weight_gbps": 1.6236838800000002,
+   "total_gbps": 31.211467560000006
+  },
+  "delay L=8": {
+   "rate_ratio": 0.9083843068846897,
+   "rate_ratio_min": 0.8780464160505137,
+   "weight_gbps": 3.2473677600000004,
+   "total_gbps": 32.835151440000004
+  },
+  "delay L=12": {
+   "rate_ratio": 0.9367871565644328,
+   "rate_ratio_min": 0.9170583962563768,
+   "weight_gbps": 4.871051640000001,
+   "total_gbps": 34.458835320000006
+  },
+  "delay L=16": {
+   "rate_ratio": 0.9514934888152481,
+   "rate_ratio_min": 0.9369676050306461,
+   "weight_gbps": 6.494735520000001,
+   "total_gbps": 36.08251920000001
+  },
+  "delay L=24": {
+   "rate_ratio": 0.9665807329020022,
+   "rate_ratio_min": 0.9570839444436071,
+   "weight_gbps": 9.742103280000002,
+   "total_gbps": 39.32988696000001
+  },
+  "delay L=32": {
+   "rate_ratio": 0.97423915334543,
+   "rate_ratio_min": 0.9671889095443299,
+   "weight_gbps": 12.989471040000002,
+   "total_gbps": 42.577254720000006
+  },
+  "delay L=48": {
+   "rate_ratio": 0.9818940592401577,
+   "rate_ratio_min": 0.9762395852854344,
+   "weight_gbps": 19.484206560000004,
+   "total_gbps": 49.071990240000005
+  },
+  "delay L=64": {
+   "rate_ratio": 0.9856509704195082,
+   "rate_ratio_min": 0.9807089147780255,
+   "weight_gbps": 25.978942080000003,
+   "total_gbps": 55.56672576000001
+  },
+  "per-subcarrier": {
+   "rate_ratio": 0.9969190932081229,
+   "rate_ratio_min": 0.9953702400931957,
+   "weight_gbps": 116.84155392,
+   "total_gbps": 146.4293376
+  }
+ },
+ "100ns": {
+  "group g=1": {
+   "rate_ratio": 0.8972760228945682,
+   "rate_ratio_min": 0.8625319353657472,
+   "weight_gbps": 9.73679616,
+   "total_gbps": 39.324579840000006
+  },
+  "group g=2": {
+   "rate_ratio": 0.8098167523274264,
+   "rate_ratio_min": 0.7611361615226259,
+   "weight_gbps": 4.86839808,
+   "total_gbps": 34.45618176000001
+  },
+  "group g=3": {
+   "rate_ratio": 0.7414534456044057,
+   "rate_ratio_min": 0.6912604233411768,
+   "weight_gbps": 3.24559872,
+   "total_gbps": 32.833382400000005
+  },
+  "group g=4": {
+   "rate_ratio": 0.6866235485768051,
+   "rate_ratio_min": 0.63844904244238,
+   "weight_gbps": 2.43419904,
+   "total_gbps": 32.021982720000004
+  },
+  "group g=6": {
+   "rate_ratio": 0.5969843331719709,
+   "rate_ratio_min": 0.5517762567651953,
+   "weight_gbps": 1.62279936,
+   "total_gbps": 31.210583040000003
+  },
+  "group g=12": {
+   "rate_ratio": 0.4635023728801923,
+   "rate_ratio_min": 0.424303282085672,
+   "weight_gbps": 0.81139968,
+   "total_gbps": 30.399183360000006
+  },
+  "group g=24": {
+   "rate_ratio": 0.3729878119021616,
+   "rate_ratio_min": 0.3216495466138119,
+   "weight_gbps": 0.40569984,
+   "total_gbps": 29.993483520000005
+  },
+  "delay L=4": {
+   "rate_ratio": 0.5867756928422467,
+   "rate_ratio_min": 0.5326250525755404,
+   "weight_gbps": 1.6236838800000002,
+   "total_gbps": 31.211467560000006
+  },
+  "delay L=8": {
+   "rate_ratio": 0.7689184921341914,
+   "rate_ratio_min": 0.7136444640047075,
+   "weight_gbps": 3.2473677600000004,
+   "total_gbps": 32.835151440000004
+  },
+  "delay L=12": {
+   "rate_ratio": 0.8790247564146921,
+   "rate_ratio_min": 0.8470174216691437,
+   "weight_gbps": 4.871051640000001,
+   "total_gbps": 34.458835320000006
+  },
+  "delay L=16": {
+   "rate_ratio": 0.9262186115664109,
+   "rate_ratio_min": 0.903579141422791,
+   "weight_gbps": 6.494735520000001,
+   "total_gbps": 36.08251920000001
+  },
+  "delay L=24": {
+   "rate_ratio": 0.957125012609611,
+   "rate_ratio_min": 0.9446901024069937,
+   "weight_gbps": 9.742103280000002,
+   "total_gbps": 39.32988696000001
+  },
+  "delay L=32": {
+   "rate_ratio": 0.9677926006606898,
+   "rate_ratio_min": 0.9579561087250242,
+   "weight_gbps": 12.989471040000002,
+   "total_gbps": 42.577254720000006
+  },
+  "delay L=48": {
+   "rate_ratio": 0.9780118843578809,
+   "rate_ratio_min": 0.9710567675483607,
+   "weight_gbps": 19.484206560000004,
+   "total_gbps": 49.071990240000005
+  },
+  "delay L=64": {
+   "rate_ratio": 0.9829364523741116,
+   "rate_ratio_min": 0.9772221264540787,
+   "weight_gbps": 25.978942080000003,
+   "total_gbps": 55.56672576000001
+  },
+  "per-subcarrier": {
+   "rate_ratio": 0.9968141637123672,
+   "rate_ratio_min": 0.9951613122243795,
+   "weight_gbps": 116.84155392,
+   "total_gbps": 146.4293376
+  }
+ },
+ "300ns": {
+  "group g=1": {
+   "rate_ratio": 0.7440513335268504,
+   "rate_ratio_min": 0.6993705899903832,
+   "weight_gbps": 9.73679616,
+   "total_gbps": 39.324579840000006
+  },
+  "group g=2": {
+   "rate_ratio": 0.6030812227264486,
+   "rate_ratio_min": 0.5616251822535803,
+   "weight_gbps": 4.86839808,
+   "total_gbps": 34.45618176000001
+  },
+  "group g=3": {
+   "rate_ratio": 0.5167106665216636,
+   "rate_ratio_min": 0.4769064321025024,
+   "weight_gbps": 3.24559872,
+   "total_gbps": 32.833382400000005
+  },
+  "group g=4": {
+   "rate_ratio": 0.4643574555546851,
+   "rate_ratio_min": 0.42089480896741166,
+   "weight_gbps": 2.43419904,
+   "total_gbps": 32.021982720000004
+  },
+  "group g=6": {
+   "rate_ratio": 0.3996463500108137,
+   "rate_ratio_min": 0.3560580116291128,
+   "weight_gbps": 1.62279936,
+   "total_gbps": 31.210583040000003
+  },
+  "group g=12": {
+   "rate_ratio": 0.36185185005968984,
+   "rate_ratio_min": 0.32378341580423703,
+   "weight_gbps": 0.81139968,
+   "total_gbps": 30.399183360000006
+  },
+  "group g=24": {
+   "rate_ratio": 0.29081411588653283,
+   "rate_ratio_min": 0.26476564103938977,
+   "weight_gbps": 0.40569984,
+   "total_gbps": 29.993483520000005
+  },
+  "delay L=4": {
+   "rate_ratio": 0.4608595473655455,
+   "rate_ratio_min": 0.40221026368122853,
+   "weight_gbps": 1.6236838800000002,
+   "total_gbps": 31.211467560000006
+  },
+  "delay L=8": {
+   "rate_ratio": 0.5185214489238565,
+   "rate_ratio_min": 0.47321300363845054,
+   "weight_gbps": 3.2473677600000004,
+   "total_gbps": 32.835151440000004
+  },
+  "delay L=12": {
+   "rate_ratio": 0.5717469281053076,
+   "rate_ratio_min": 0.5280997792003858,
+   "weight_gbps": 4.871051640000001,
+   "total_gbps": 34.458835320000006
+  },
+  "delay L=16": {
+   "rate_ratio": 0.6299831466312363,
+   "rate_ratio_min": 0.5737645265842926,
+   "weight_gbps": 6.494735520000001,
+   "total_gbps": 36.08251920000001
+  },
+  "delay L=24": {
+   "rate_ratio": 0.7965191272867436,
+   "rate_ratio_min": 0.7514422603824202,
+   "weight_gbps": 9.742103280000002,
+   "total_gbps": 39.32988696000001
+  },
+  "delay L=32": {
+   "rate_ratio": 0.8874542326690976,
+   "rate_ratio_min": 0.8504060911364136,
+   "weight_gbps": 12.989471040000002,
+   "total_gbps": 42.577254720000006
+  },
+  "delay L=48": {
+   "rate_ratio": 0.958677155900836,
+   "rate_ratio_min": 0.9425088958937833,
+   "weight_gbps": 19.484206560000004,
+   "total_gbps": 49.071990240000005
+  },
+  "delay L=64": {
+   "rate_ratio": 0.9794542730907132,
+   "rate_ratio_min": 0.9689626708349706,
+   "weight_gbps": 25.978942080000003,
+   "total_gbps": 55.56672576000001
+  },
+  "per-subcarrier": {
+   "rate_ratio": 0.9967164075279511,
+   "rate_ratio_min": 0.9946305690635452,
+   "weight_gbps": 116.84155392,
+   "total_gbps": 146.4293376
+  }
+ },
+ "du_precoding_gbps": 118.35113472000002,
+ "k_layer_floor_gbps": 29.587783680000005
+}

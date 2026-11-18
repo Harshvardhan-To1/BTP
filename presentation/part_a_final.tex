@@ -119,9 +119,9 @@ and a fused C/AVX-512 RZF precoder kernel for O-RAN 7-2x}
 \begin{frame}{Our Part A contributions at a glance}
   \begin{columns}[T]
     \begin{column}{0.32\textwidth}
-      \begin{block}{CSEE \& RAS-BFP}
-        \gd{13--16$\times$} compression vs $\approx 4\times$ for O-RAN BFP;
-        3--6$\times$ faster than SVD
+      \begin{block}{Pilot-sketch RAS-BFP}
+        Up to \gd{13.9$\times$} at the 256-QAM EVM limit, \gd{2--4.5$\times$} more than O-RAN BFP;
+        C encoder \gd{8--22$\times$} faster than numpy
       \end{block}
       \begin{exampleblock}{Warm-start tracking}
         \gd{2.7$\times$} fewer GEMMs, \gd{30$\times$} lower loss at pedestrian speed;
@@ -141,7 +141,7 @@ and a fused C/AVX-512 RZF precoder kernel for O-RAN 7-2x}
         Complex Hermitian Grams: \gd{6 GEMMs} vs $>10$ for Neumann-type methods
       \end{block}
       \begin{exampleblock}{RU-side precoding}
-        \gd{$-72\,\%$} fronthaul at 99.7\,\% of exact RZF sum-rate
+        Delay-domain weights: \gd{2.4$\times$} less fronthaul at $\ge 96\,\%$ of exact RZF, any delay spread
       \end{exampleblock}
     \end{column}
   \end{columns}
@@ -183,34 +183,76 @@ and a fused C/AVX-512 RZF precoder kernel for O-RAN 7-2x}
   \takeaway{Both encoders come with provable error bounds and lower complexity than SVD.}
 \end{frame}
 
-\begin{frame}{Compression: 4$\times$ more than the O-RAN standard}
+\begin{frame}{Compression at equal detection quality}
   \begin{columns}[c]
-    \begin{column}{0.46\textwidth}
-      \small $M=64$, $N=1200$, SNR 20 dB, TDL-A\\[2mm]
-      \footnotesize\setlength{\tabcolsep}{4pt}
-      \begin{tabular}{lcc}
+    \begin{column}{0.75\textwidth}
+      \scriptsize Uplink 7-2x, $M=64$, 24 PRBs, MMSE detection, 256-QAM.
+      Compression ratio vs 16-bit I/Q at the \textbf{3GPP 256-QAM EVM limit (3.5\,\%)}, all side information counted\\[2mm]
+      \scriptsize\setlength{\tabcolsep}{3pt}
+      \begin{tabular}{lcccc}
         \toprule
-        Method & Compression & Encode \\
+        $K$, SNR & BFP & DFT & SVD & \textbf{Ours} \\
         \midrule
-        O-RAN BFP ($b=8$) & 3.9$\times$ & 3.1 ms \\
-        Truncated SVD ($r=12$) & 16.2$\times$ & 18--30 ms \\
-        \ours CSEE (ours) & \best{12.7$\times$} & \best{5.2 ms} \\
-        \ours RAS-BFP (ours) & \best{16.2$\times$} & \best{7.2 ms} \\
+        4, 20 dB & 3.1$\times$ & 2.3$\times$ & 13.8$\times$ & \best{13.9$\times$} \\
+        4, 30 dB & 3.1$\times$ & 3.0$\times$ & 9.2$\times$ & \best{11.4$\times$} \\
+        8, 20 dB & 3.1$\times$ & --- & 6.9$\times$ & \best{7.0$\times$} \\
+        8, 30 dB & 3.1$\times$ & --- & 4.8$\times$ & \best{6.6$\times$} \\
         \bottomrule
       \end{tabular}
-      \vspace{3mm}
-      \begin{itemize}\footnotesize
-        \item 13--16$\times$ compression at $\approx -20$ dB NMSE
-        \item RAS-BFP: SVD-level compression, 3--4$\times$ faster
-        \item CSEE: 4--6$\times$ faster than SVD; $\approx 63\times$ at the $K=60$ knee
-        \item Stable NMSE across SNR $-5$ to 30 dB
+      \vspace{2mm}
+      \begin{itemize}\scriptsize\setlength{\itemsep}{0pt}
+        \item \textbf{Ours:} DMRS-pilot sketch + Marchenko--Pastur noise-edge rank + BFP basis/coefficients
+        \item Per-PRB rank adapts to frequency selectivity (16--26 $> K$)
+        \item \gd{2--4.5$\times$} more than O-RAN BFP at the same EVM; beats exact SVD at high SNR
       \end{itemize}
     \end{column}
+  \end{columns}
+  \takeaway{Measured where it matters --- at the EVM limit --- our encoder compresses 2--4.5$\times$ more than the standard.}
+\end{frame}
+
+\begin{frame}{Compression ratio versus post-detection SINR loss}
+  \centering
+  \vfill
+  \includegraphics[width=\linewidth,height=0.7\textheight,keepaspectratio]{exp19_iq_compression.png}
+  \takeaway{Our pilot-sketch encoder (red) reaches more compression than O-RAN BFP (grey) and DFT beamspace (purple) at every loss level.}
+\end{frame}
+
+\begin{frame}{A fast encoder that adapts its basis refresh to user speed}
+  \begin{columns}[T]
     \begin{column}{0.5\textwidth}
-      \includegraphics[width=\linewidth]{exp1_nmse_vs_cr.png}
+      \footnotesize\textbf{C/OpenMP encoder} (\texttt{kernels/iq\_kernels.c}), 273 PRBs, ms/slot\\[1mm]
+      \scriptsize\setlength{\tabcolsep}{4pt}
+      \begin{tabular}{lcc}
+        \toprule
+        Encoder & 1 thr & 4 thr \\
+        \midrule
+        numpy pilot sketch & 80.6 & 84.2 \\
+        C, basis refreshed every slot & 34.9 & 10.4 \\
+        \ours C, 25\,\% of PRBs refreshed & \best{12.7} & \best{3.8} \\
+        \bottomrule
+      \end{tabular}
+      \vspace{2mm}
+      \begin{itemize}\scriptsize
+        \item Batched LAPACK \texttt{cheevd}, register-blocked projection, vectorised BFP
+        \item Projection is 0.37 GFLOP/slot: a natural fit for an FPGA/GPU offload
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \footnotesize\textbf{Out-of-sample certificate:} refresh a PRB's basis only when a validation symbol
+      leaves the stored subspace\\[1mm]
+      \scriptsize\setlength{\tabcolsep}{3pt}
+      \begin{tabular}{lcc}
+        \toprule
+        Speed & \textbf{Certificate} & Every 8 slots \\
+        \midrule
+        3 km/h & \best{18--43\,\% refreshed, 7.4$\times$} & 7.5$\times$ \\
+        30 km/h & \best{100\,\%, 5.7$\times$, 2.6 dB} & 33 dB loss \\
+        120 km/h & \best{100\,\%, 5.7$\times$, 2.6 dB} & fails \\
+        \bottomrule
+      \end{tabular}
     \end{column}
   \end{columns}
-  \takeaway{RAS-BFP matches SVD compression at a fraction of its encode time.}
+  \takeaway{Static users get a cheaper, higher-ratio encoder; fast users are never left with a stale basis.}
 \end{frame}
 
 \begin{frame}{ACAFS: rank-adaptive functional split}
@@ -555,6 +597,71 @@ and a fused C/AVX-512 RZF precoder kernel for O-RAN 7-2x}
   \takeaway{Better than every listed existing method on the compared metric.}
 \end{frame}
 
+\begin{frame}{Closest prior art: Chebyshev, ChebI-NS, TPE and warm-started Neumann}
+  \begin{columns}[T]
+    \begin{column}{0.47\textwidth}
+      \footnotesize\textbf{Cold start}, GEMMs for $\le 1\,\%$ RZF loss\\[1mm]
+      \scriptsize\setlength{\tabcolsep}{3pt}
+      \begin{tabular}{lccc}
+        \toprule
+        Method & 64/16 & 128/16 & 64/32 \\
+        \midrule
+        Chebyshev cubic, classical init & 18 & 15 & $>21$ \\
+        Chebyshev cubic, MP init & 9 & 6 & 12 \\
+        ChebI-NS-style & 9 & 7 & 11 \\
+        TPE, oracle moments$^\ast$ & 6 & 5 & $>16$ \\
+        \ours RMT-WS (ours) & 7 & \best{5} & \best{9} \\
+        \bottomrule
+      \end{tabular}\\[1mm]
+      \tiny $^\ast$ exact spectral moments (eigendecomposition) not counted
+    \end{column}
+    \begin{column}{0.51\textwidth}
+      \footnotesize\textbf{Tracking}, rate loss (GEMMs per slot at 3 km/h)\\[1mm]
+      \scriptsize\setlength{\tabcolsep}{2pt}
+      \begin{tabular}{lccc}
+        \toprule
+        Method & 3 km/h & 30 km/h & 120 km/h \\
+        \midrule
+        Warm Neumann, 4 terms & 0\,\% (4.5) & 0.84\,\% & 86\,\% \\
+        Warm Neumann, 3 terms & 0\,\% (3.25) & 3.5\,\% & 69\,\% \\
+        \ours RMT-WS (ours) & \best{0.006\,\% (2.25)} & \best{0.43\,\%} & \best{0.12\,\%} \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}
+  \takeaway{Cheapest at heavy load ($K/M = 0.5$) and the only tracker that stays safe at 120 km/h.}
+\end{frame}
+
+\begin{frame}{Robust to CSI error and user re-scheduling}
+  \footnotesize 12 drops, mean and bootstrap 95\,\% CI, $M=64$, $K=16$ from a pool of 24 users\\[2mm]
+  \begin{columns}[T]
+    \begin{column}{0.36\textwidth}
+      \begin{block}{Imperfect CSI}
+        \scriptsize
+        NMSE $-20$ dB: loss \gd{0.04--0.24\,\%}\\
+        NMSE $-10$ dB: loss \gd{$\le 0.17\,\%$}\\[1mm]
+        The certificate refreshes automatically when the estimation noise decorrelates successive slots
+      \end{block}
+    \end{column}
+    \begin{column}{0.62\textwidth}
+      \begin{exampleblock}{New: Schur swap update for user swaps}
+        \scriptsize
+        Rank-$s$ downdate/update of the stored inverse, $4s/K$ GEMMs; 95\,\% CIs: 4.7\,\% [4.0, 5.5] vs 0.008\,\% [0.004, 0.012]\\[1mm]
+        \setlength{\tabcolsep}{2.5pt}
+        \begin{tabular}{lcc}
+          \toprule
+          3 km/h, loss (GEMMs) & naive warm start & \textbf{Schur update} \\
+          \midrule
+          1 swap/slot & 4.7\,\% (6.0) & \best{0.008\,\% (2.5)} \\
+          4 swaps/slot & 0.44\,\% (6.25) & \best{0.006\,\% (3.25)} \\
+          \bottomrule
+        \end{tabular}
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \takeaway{Warm start survives scheduler churn: 600$\times$ lower loss at less than half the cost.}
+\end{frame}
+
 % =====================================================================
 \section{Kernel Programming}
 
@@ -631,36 +738,66 @@ gcc -O3 -march=native -fopenmp
   \takeaway{Our fused kernels (green, red) run under the 0.5 ms line for $K \le 16$; numpy+LAPACK never does.}
 \end{frame}
 
+\begin{frame}{Against optimised C++ libraries on the same CPU}
+  \centering
+  \small Whole RZF precoder, 273 PRBs, complex64, OpenMP over subcarriers, ms per slot; all agree to $10^{-6}$\\[2mm]
+  \scriptsize\setlength{\tabcolsep}{3pt}
+  \begin{tabular}{lcccccc}
+    \toprule
+    & \multicolumn{3}{c}{1 thread} & \multicolumn{3}{c}{4 threads} \\
+    \cmidrule(lr){2-4}\cmidrule(lr){5-7}
+    $K\times M$ & \textbf{Ours} & Eigen LLT & OpenBLAS+LAPACK & \textbf{Ours} & Eigen LLT & OpenBLAS+LAPACK \\
+    \midrule
+    8 $\times$ 64 & \best{0.27} & 0.48 & 1.74 & \best{0.08} & 0.13 & 0.96 \\
+    16 $\times$ 64 & \best{0.94} & 1.49 & 4.41 & \best{0.28} & 0.37 & 1.45 \\
+    32 $\times$ 64 & \best{3.79} & 4.68 & 10.77 & \best{1.02} & 1.20 & 3.04 \\
+    16 $\times$ 128 & \best{1.63} & 2.77 & 8.50 & \best{0.47} & 0.72 & 2.55 \\
+    \bottomrule
+  \end{tabular}
+  \vspace{2mm}
+  \begin{itemize}\small
+    \item Eigen with fixed-size matrices and LLT solve; OpenBLAS \texttt{cgemm} + LAPACK \texttt{cposv}
+    \item Fusion keeps $H$, $G$ and $G^{-1}$ in L1 --- libraries pay per-call overhead at these sizes
+  \end{itemize}
+  \takeaway{1.2--1.8$\times$ faster than Eigen and 3--11$\times$ faster than OpenBLAS/LAPACK.}
+\end{frame}
+
 % =====================================================================
 \section{Fronthaul Impact and Summary}
 
-\begin{frame}{Where should precoding run? A 72\,\% fronthaul saving}
-  \centering
-  \small 100 MHz, $M=64$, $K=16$, BFP-9 IQ\\[2mm]
-  \begin{tabular}{lcc}
-    \toprule
-    Architecture & Fronthaul & Sum-rate vs exact \\
-    \midrule
-    DU precodes, sends 64 streams & 118.4 Gbit/s & 100\,\% \\
-    \ours RU precodes, 16 layers + 8-bit weights & \best{32.8 Gbit/s ($-72\,\%$)} & \best{99.7\,\%} \\
-    RU precodes, 16 layers + 6-bit weights & 32.0 Gbit/s ($-73\,\%$) & 96.7\,\% \\
-    \bottomrule
-  \end{tabular}
-  \vspace{3mm}
-  \raggedright
-  \begin{itemize}
-    \item Mobility requires refreshing the weights every slot (every 4 slots: only 70\,\% of the rate at 30 km/h)
-    \item Per-slot weights are exactly what our fast kernel delivers
-    \item RU-side precoding cuts the link load by \gd{3.6$\times$}
-  \end{itemize}
-  \takeaway{Fast per-slot precoding unlocks a 72\,\% lighter fronthaul at 99.7\,\% of the rate.}
+\begin{frame}{Where should precoding run? Delay-domain weights at the RU}
+  \begin{columns}[c]
+    \begin{column}{0.75\textwidth}
+      \footnotesize 100 MHz, $M=64$, $K=16$, BFP-9 IQ, 8-bit weights, \textbf{scored on every subcarrier}\\[1mm]
+      \scriptsize\setlength{\tabcolsep}{3pt}
+      \begin{tabular}{lcccc}
+        \toprule
+        Scheme & FH & 30 & 100 & 300 \\
+        \midrule
+        DU precoding, 64 str. & 118.4 & 1 & 1 & 1 \\
+        1 weight / 3-PRB group & 32.8 & 0.91 & 0.74 & 0.52 \\
+        1 weight / PRB & 39.3 & 0.97 & 0.90 & 0.74 \\
+        \ours Delay, 48 taps & \best{49.1} & \best{0.98} & \best{0.98} & \best{0.96} \\
+        \ours Delay, 64 taps & \best{55.6} & \best{0.99} & \best{0.98} & \best{0.98} \\
+        \bottomrule
+      \end{tabular}\\[1mm]
+      \tiny FH in Gbit/s; columns are sum-rate / exact RZF at TDL-A delay spread 30 / 100 / 300 ns
+      \vspace{1mm}
+      \begin{itemize}\scriptsize
+        \item Per-group weights work only for nearly flat channels
+        \item The RU rebuilds per-subcarrier weights from $L$ delay taps with one FFT
+        \item Per-slot weights are exactly what our fast kernel delivers
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \takeaway{RU-side precoding with delay-domain weights: 2.4$\times$ lighter fronthaul at $\ge 96\,\%$ of the rate.}
 \end{frame}
 
-\begin{frame}{Fronthaul rate and sum-rate by architecture}
+\begin{frame}{Fronthaul versus sum-rate for RU weight schemes}
   \centering
   \vfill
-  \includegraphics[width=\linewidth,height=0.7\textheight,keepaspectratio]{exp10_fronthaul.png}
-  \takeaway{RU-side precoding with per-slot weights: $-72\,\%$ fronthaul at 99.7\,\% rate.}
+  \includegraphics[width=\linewidth,height=0.7\textheight,keepaspectratio]{exp25_weight_granularity.png}
+  \takeaway{Delay-domain weights (blue) reach $\ge 96\,\%$ of the rate at half the DU-precoding fronthaul.}
 \end{frame}
 
 \begin{frame}{Part A summary}
@@ -670,7 +807,7 @@ gcc -O3 -march=native -fopenmp
     \toprule
     Contribution & Headline result \\
     \midrule
-    CSEE / RAS-BFP compression & 13--16$\times$ vs $\approx 4\times$ for O-RAN BFP; 3--6$\times$ faster than SVD; provable error bounds \\
+    Pilot-sketch RAS-BFP compression & Up to 13.9$\times$ at the 256-QAM EVM limit, 2--4.5$\times$ more than O-RAN BFP; certificate-driven basis reuse \\
     ACAFS adaptive split & 55--75\,\% bandwidth saving at high SNR \\
     Learned inversion (InverseNet-Ultra) & Lowest mean and 2$\times$ lower p95 than LAPACK at $n=100$; $10^{-6}$ error \\
     Moment-matched spectral interval & 2$\times$ better coverage than classical MP on correlated / LoS channels \\
@@ -678,8 +815,9 @@ gcc -O3 -march=native -fopenmp
     RMT-WS tracking & 2.7$\times$ fewer GEMMs, 30$\times$ lower loss at 3 km/h; safe up to 120 km/h \\
     Speed law + certificate & Closed-form warm-start envelope; 0 unsafe decisions in 480 cases \\
     Low precision & 6$\times$ lower loss than direct inversion at 8 bits \\
-    Fused C/AVX-512 precoder & 10--15$\times$ faster than numpy+LAPACK; $K \le 16$ fits the 0.5 ms slot \\
-    RU-side precoding & $-72\,\%$ fronthaul at 99.7\,\% of exact sum-rate \\
+    Robust tracking & CSI error and user swaps: Schur update, 0.008\,\% loss with 1 swap/slot \\
+    Fused C/AVX-512 precoder & 10--15$\times$ faster than numpy+LAPACK, 1.2--1.8$\times$ faster than Eigen; $K \le 16$ fits the slot \\
+    RU-side precoding & Delay-domain weights: 2.4$\times$ less fronthaul at $\ge 96\,\%$ of exact sum-rate \\
     \bottomrule
   \end{tabular}
   \takeaway{Part A delivers a lighter link and a slot-feasible precoder --- the foundation for Part B.}

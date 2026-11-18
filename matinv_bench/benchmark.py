@@ -135,6 +135,8 @@ def write_summary(df: pd.DataFrame, path: Path) -> None:
     lines = [
         "# Matrix inversion benchmark",
         "",
+        "> Superseded for the RAN use case: these are single real-valued matrices (batch 1). The Part A precoder needs batched complex Hermitian Grams; see `experiments_v2/exp15`, `exp17` and `exp24` and `docs/PART_A_IMPROVEMENTS.md`.",
+        "",
         f"- Host: {platform.processor() or platform.machine()}, "
         f"{torch.get_num_threads()} torch threads, CPU only",
         "- Dataset: random well-conditioned matrices `A = G/sqrt(n) + 2I`, float32",
