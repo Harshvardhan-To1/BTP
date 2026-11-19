@@ -38,7 +38,12 @@ SCENARIOS["mm_moderate"] = TrafficConfig(load=0.65, family="markov")
 SCENARIOS["mm_high"] = TrafficConfig(load=0.80, family="markov")
 SCENARIOS["mm_shift"] = TrafficConfig(load=0.80, family="markov", mm_tail_alpha=1.5)
 
-FAMILIES = ("synthetic", "3gpp", "markov")
+# Trace-driven family (traffic_real5g.py): measured per-user 5G throughput and CQI (Raca et al., MMSys 2020),
+# disjoint session pools for training/validation and test seeds.
+SCENARIOS["real_moderate"] = TrafficConfig(load=0.65, family="real5g")
+SCENARIOS["real_high"] = TrafficConfig(load=0.80, family="real5g")
+
+FAMILIES = ("synthetic", "3gpp", "markov", "real5g")
 
 
 def family_of(scenario: str) -> str:
@@ -53,7 +58,7 @@ def scenarios_of(family: str) -> List[str]:
 TRAIN_LOADS = [0.5, 0.65, 0.8, 0.95]
 VAL_SCENARIOS = ["moderate", "high"]
 VAL_SCENARIOS_BY_FAMILY = {"synthetic": ["moderate", "high"], "3gpp": ["tgpp_moderate", "tgpp_high"],
-                           "markov": ["mm_moderate", "mm_high"]}
+                           "markov": ["mm_moderate", "mm_high"], "real5g": ["real_moderate", "real_high"]}
 
 DEFAULT_SLOTS = 20000
 DEFAULT_WARMUP = 1000

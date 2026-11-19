@@ -28,7 +28,7 @@ def main(argv=None):
     ap.add_argument("--delay", type=int, default=2)
     ap.add_argument("--slots", type=int, default=16000)
     ap.add_argument("--max-iter", type=int, default=300)
-    ap.add_argument("--family", default="synthetic", choices=["synthetic", "3gpp", "markov"])
+    ap.add_argument("--family", default="synthetic", choices=["synthetic", "3gpp", "markov", "real5g"])
     ap.add_argument("--target", default="rstar", choices=["rstar", "sustain"],
                     help="forecast target: deadline-feasible rate r* or the sustainable rate max(r*, horizon mean)")
     args = ap.parse_args(argv)
