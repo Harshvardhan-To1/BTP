@@ -8,7 +8,7 @@
 
 Part~A reduces the number of bits each cell puts on the fronthaul. Part~B decides how a shared link is divided among cells when even the compressed load is larger than the link. The work was built in three steps, each answering the question raised by the previous one (Figure~\ref{fig:b-roadmap}):
 \begin{itemize}
-  \item \textbf{B1: the KKT newsvendor rule.} Forecast each cell's \emph{deadline-feasible rate} as a range and split the link so that every cell carries the same priority-weighted risk. This is our NCC 2027 submission and the best of 12 controllers on two traffic families.
+  \item \textbf{B1: the KKT newsvendor rule.} Forecast each cell's \emph{deadline-feasible rate} as a range and split the link so that every cell carries the same priority-weighted risk. This is our NCC 2027 submission. It is the best of the 12 reference controllers of that comparison on two traffic families, a set that did not yet contain the strongest baselines of the next step, which do beat it.
   \item \textbf{Extended study.} A POMDP formulation, Markov-fluid theory of the deadline-feasible rate, a third traffic family, and the two strongest implementable baselines from queueing control and policy search: predictive MaxWeight and a cross-entropy-learned policy.
   \item \textbf{B2: a Bayesian, link-aware Transformer forecaster (LCQT).} A forecaster designed for the shared link, with a Bayesian mixture layer and a differentiable KKT layer.
   \item \textbf{B3: the back-pressure newsvendor (BPN).} A two-stage policy that contains both strongest baselines exactly and combines back-pressure ordering with newsvendor margins; it beats both of them in all 10 scenarios of three traffic families.

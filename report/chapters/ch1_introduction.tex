@@ -202,7 +202,7 @@ The project addresses both bottlenecks with one guiding principle: \emph{keep th
     $\bullet$ 8-method inversion benchmark, learned InverseNets\\
     $\bullet$ RMT-WS warm-start complex inversion\\
     $\bullet$ Fused C/AVX-512/OpenMP RZF precoder kernel\\
-    $\bullet$ RU-side precoding: $-72\,\%$ fronthaul};
+    $\bullet$ RU-side precoding: $-72\,\%$ downlink fronthaul};
   \node[lever,fill=accent!6] (B) at (7.4,0) {%
     \textbf{\textcolor{accent}{Part B: share one link well}}\\[3pt]
     $\bullet$ Deadline-feasible rate $\rstar$ as the demand target\\
@@ -223,13 +223,13 @@ The project addresses both bottlenecks with one guiding principle: \emph{keep th
 
 The main contributions of this project are:
 \begin{enumerate}
-  \item \textbf{Structure-aware IQ compression.} Two encoders with error bounds: CSEE (delay-domain sparsity, $O(MN\log N)$) and RAS-BFP (randomised SRHT sketch and QR, $O(rMN)$), reaching 6.4--8.1$\times$ compression relative to 16-bit I/Q at about $-20$~dB NMSE, 3--4$\times$ more than O-RAN BFP and 3--6$\times$ faster than truncated SVD.
+  \item \textbf{Structure-aware IQ compression.} Two encoders with error bounds: CSEE (delay-domain sparsity, $O(MN\log N)$) and RAS-BFP (randomised SRHT sketch and QR, $O(rMN)$), for the reference-symbol IQ used for channel estimation. Verified at link level, CSEE loses less than 0.05\,\% of the sum-rate at 31$\times$ and RAS-BFP less than 0.8\,\% at 4$\times$, against about 2$\times$ for O-RAN BFP; both encode faster than truncated SVD at 64 antennas. Applied to the reference symbols of each uplink slot, this saves 4--20\,\% of the uplink fronthaul bits on top of BFP.
   \item \textbf{Fast complex inversion for the precoder.} An 8-method CPU screening benchmark with two learned Newton--Schulz inverters; RMT-WS, a random-matrix-guided Chebyshev/Newton--Schulz inversion with warm-start tracking, a Doppler law and a residual certificate, needing 6 GEMMs where Neumann-type schemes need more than 10.
-  \item \textbf{Kernel engineering.} A fused C/AVX-512/OpenMP RZF precoder that runs 10--15$\times$ faster than numpy + LAPACK and fits the whole precoder for up to 16 users in the 0.5~ms slot; together with RU-side precoding this cuts the fronthaul rate by 72\,\% at 99.7\,\% of the exact sum-rate.
-  \item \textbf{The KKT newsvendor rule (B1).} Forecasting the deadline-feasible rate $\rstar$ as a range and splitting the link at equal priority-weighted risk, with four proven properties; best of the 12 reference controllers of the NCC comparison in all scenarios of two traffic families (submitted to NCC 2027).
+  \item \textbf{Kernel engineering.} A fused C/AVX-512/OpenMP RZF precoder that runs 1.6--3.9$\times$ faster than a C precoder on OpenBLAS/LAPACK on one core and 1.9--11$\times$ on four, and is the only implementation we measured that fits the whole precoder for 16 users in the 0.5~ms slot; this makes per-slot RU-side precoding possible, which cuts the downlink fronthaul rate by 72\,\% at 99.7\,\% of the exact sum-rate.
+  \item \textbf{The KKT newsvendor rule (B1).} Forecasting the deadline-feasible rate $\rstar$ as a range and splitting the link at equal priority-weighted risk, with four proven properties; best of the 12 reference controllers of the NCC comparison in all scenarios of two traffic families (submitted to NCC 2027); the stronger baselines added later beat it, which led to B3.
   \item \textbf{Theory and stronger baselines.} A POMDP formulation, Markov-fluid bounds that link $\rstar$ to effective bandwidth, a third traffic family, and the strongest implementable baselines (predictive MaxWeight and cross-entropy policy search).
   \item \textbf{A Bayesian, link-aware Transformer forecaster (B2).} LCQT with deadline-aware patch tokens, FiLM conditioning, cross-cell attention, non-crossing quantiles, a Bayesian mixture layer and a differentiable KKT layer.
-  \item \textbf{The back-pressure newsvendor (B3).} A two-stage policy class that contains both strongest baselines exactly, learned with equal search effort, which beats them in all 10 scenarios of three traffic families by 3--25\,\%.
+  \item \textbf{The back-pressure newsvendor (B3).} A two-stage policy class that contains both strongest baselines exactly, learned with equal search effort, which beats them in all 10 scenarios of three traffic families by 3--25\,\%, and by 6--7\,\% on held-out real 5G traces.
 \end{enumerate}
 
 \section{Organization of the Report}

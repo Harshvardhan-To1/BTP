@@ -22,7 +22,7 @@ with $M = 64$ antennas, $N = 1200$ subcarriers (a 20~MHz carrier at numerology~0
 \end{equation}
 All compression ratios in this report are measured against this 16-bit baseline.
 
-\paragraph{Which IQ is compressed.} Delay-domain sparsity and low rank are properties of the channel $H$. When $X$ carries random QAM data, $H \odot X$ is neither sparse in delay nor low-rank, so data-symbol IQ stays on O-RAN BFP. The proposed encoders target the IQ that carries channel information: reference symbols (DMRS and SRS) and the channel matrices shipped for RU-side precoding (Section~\ref{sec:ru-precoding}). For a reference symbol the pilot sequence $X$ is known and unit-modulus, so the O-RU de-rotates the received block, $Y \odot \bar X = H + \tilde W$, which is delay-sparse and low-rank. This channel-plus-noise matrix is the one compressed in all experiments. The target NMSE of about $-20$~dB matches the noise floor at the 20~dB operating SNR, so the compression error is comparable to the estimation noise that the channel estimate already contains.
+\paragraph{Which IQ is compressed.} Delay-domain sparsity and low rank are properties of the channel $H$. When $X$ carries random QAM data, $H \odot X$ is neither sparse in delay nor low-rank, so data-symbol IQ stays on O-RAN BFP. The proposed encoders target the IQ that carries channel information: reference symbols (DMRS and SRS) and the channel matrices shipped for RU-side precoding (Section~\ref{sec:ru-precoding}). For a reference symbol the pilot sequence $X$ is known and unit-modulus, so the O-RU de-rotates the received block, $Y \odot \bar X = H + \tilde W$, which is delay-sparse and low-rank. This channel-plus-noise matrix is the one compressed in all experiments. Reference symbols are a small part of the fronthaul: an NR uplink slot of 14 OFDM symbols typically carries one or two DMRS symbols and at most one SRS symbol~\cite{ts38211}, so the encoders act on 1--3 of the 14 symbols and data symbols stay on BFP. Section~\ref{sec:ra-share} converts the compression ratios into a saving on the total fronthaul. The target NMSE of about $-20$~dB matches the noise floor at the 20~dB operating SNR, so the compression error is comparable to the estimation noise that the channel estimate already contains.
 
 The signal has two structures that BFP does not use:
 \begin{itemize}
@@ -46,7 +46,7 @@ Figure~\ref{fig:a-pipeline} shows where our encoders sit: in the O-RU, after the
   \node[b,fill=good!8,right=0.45cm of dec] (eq) {Channel est.,\\equalisation,\\decoding};
   \draw[->,thick] (ant) -- (fft);
   \draw[->,thick] (fft) -- node[above]{$Y$} (enc);
-  \draw[->,line width=2pt,accent] (enc) -- node[above,text=accent]{fronthaul} node[below,text=accent,font=\scriptsize,align=center]{6.4--8.1$\times$\\fewer bits} (dec);
+  \draw[->,line width=2pt,accent] (enc) -- node[above,text=accent]{fronthaul} node[below,text=accent,font=\scriptsize,align=center]{4--31$\times$ fewer\\reference-symbol bits} (dec);
   \draw[->,thick] (dec) -- (eq);
   \node[draw,dashed,rounded corners,fit=(ant)(fft)(enc),inner sep=6pt,label={[font=\footnotesize\bfseries]above:O-RU}] {};
   \node[draw,dashed,rounded corners,fit=(dec)(eq),inner sep=6pt,label={[font=\footnotesize\bfseries]above:O-DU}] {};
@@ -98,22 +98,23 @@ With an SRHT sketch of $r$ rows (plus oversampling) and $Y_r$ the best rank-$r$ 
 \end{equation}
 The truncation error of the theorem above falls with $r$, while the quantisation error falls as $2^{-2b}$, so on the budget line $r\,b = B_{\rm total}/(2(M+N))$ the encoder picks the pair $(r, b)$ that minimises the sum of the two terms. This is a one-dimensional search over $r \le r_{\max}$, done once per configuration.
 
-The cost of RAS-BFP is $O(rMN)$, against $O(MN\min(M,N))$ for a truncated SVD, while it reaches the same compression ratio (Table~\ref{tab:a-methods}).
+The cost of RAS-BFP is $O(rMN)$, against $O(MN\min(M,N))$ for a truncated SVD, and it reaches the same ratio at the $-20$~dB NMSE target. At link level, however, it needs twice the rank of SVD to be lossless, so its operating point is 4$\times$ (Table~\ref{tab:a-methods} and Section~\ref{sec:ra-link}).
 
 \begin{table}[H]
 \caption{IQ compression methods compared in Part~A.}
 \label{tab:a-methods}
 \centering
-\begin{tabular}{llll}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
 \toprule
-Method & Structure exploited & Complexity & Theory \\
+Method & Structure exploited & Complexity & Theory & \makecell{Link-level\\operating point} \\
 \midrule
-O-RAN BFP & dynamic range & $O(MN)$ & empirical quantisation \\
-Truncated SVD & low rank & $O(MN\min(M,N))$ & Eckart--Young~\cite{eckart1936} \\
-\ours \textbf{CSEE (ours)} & delay sparsity & $O(MN\log N)$ & Theorem~3.1 \\
-\ours \textbf{RAS-BFP (ours)} & low rank & $O(rMN)$ & Theorem~3.2 \\
+O-RAN BFP & dynamic range & $O(MN)$ & empirical quantisation & 2$\times$ \\
+Truncated SVD & low rank & $O(MN\min(M,N))$ & Eckart--Young~\cite{eckart1936} & 8$\times$ \\
+\ours \textbf{CSEE (ours)} & delay sparsity & $O(MN\log N)$ & Theorem~3.1 & \textbf{31$\times$} \\
+\ours \textbf{RAS-BFP (ours)} & low rank & $O(rMN)$ & Theorem~3.2 & \textbf{4$\times$} \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \section{Matrix-Inversion Benchmark and Learned Inverters}
@@ -226,7 +227,7 @@ The location of the precoder has a large effect on the fronthaul rate (Figure~\r
   \draw[->,line width=1.6pt,good!70!black] (du2) -- node[above,text=good!50!black]{$K = 16$ layers + 8-bit weights / slot} node[below,text=good!50!black]{32.8 Gbit/s ($-72\,\%$)} (ru2);
   \node[anchor=east,font=\footnotesize\bfseries] at (-1.6,-2.0) {(b)};
 \end{tikzpicture}
-\caption{(a) DU-side precoding sends every antenna stream over the fronthaul; (b) RU-side precoding sends only the layer streams plus per-slot weights, cutting the fronthaul rate by 72\,\% (100~MHz, $M=64$, $K=16$, BFP-9).}
+\caption{(a) DU-side precoding sends every antenna stream over the fronthaul; (b) RU-side precoding sends only the layer streams plus per-slot weights, cutting the downlink fronthaul rate by 72\,\% (100~MHz, $M=64$, $K=16$, BFP-9).}
 \label{fig:ru-prec}
 \end{figure}
 

@@ -85,7 +85,8 @@ Time-domain CPRI compression~\cite{guo2013,nieman2013} & \no & \yes & \no & \yes
 Information-theoretic C-RAN~\cite{park2014} & \yes & \yes & \yes & \no & \half & \no \\
 Truncated SVD~\cite{eckart1936} & \yes & \yes & \yes & \no & \yes & \no \\
 CsiNet (CSI feedback)~\cite{wen2018} & \yes & \no & \no & \half & \yes & \no \\
-\textbf{CSEE / RAS-BFP (ours)} & \yes & \yes & \yes & \yes & \yes & \yes \\
+\textbf{CSEE (ours)} & \yes & \yes & \yes & \yes & \yes & \yes \\
+\textbf{RAS-BFP (ours)} & \yes & \yes & \yes & \yes & \half & \yes \\
 \midrule
 Neumann / Newton inverse~\cite{wu2013,prabhu2013,shao2016} &  & \yes & \half & \half &  &  \\
 TPE with MP interval~\cite{kammoun2014} &  & \yes & \half & \half &  &  \\
@@ -120,7 +121,7 @@ Predictive back-pressure~\cite{huang2016} & \no & \yes & \no & \no & \yes & \yes
 \paragraph{Closest work and how we differ.}
 \begin{itemize}
   \item \textbf{CSEE.} The closest ideas are compressive sparse channel estimation~\cite{berger2010} and CsiNet~\cite{wen2018}. Both use delay or angular sparsity, but for estimation or UE feedback. CSEE uses it as a fronthaul transport code inside the 7-2x U-plane, with no training, a closed-form error bound, and a link-level check showing that 31$\times$ compression loses less than 0.05\,\% sum rate (Section~\ref{sec:ra-link}).
-  \item \textbf{RAS-BFP.} The closest work is truncated SVD and information-theoretic multivariate compression~\cite{park2014}. Both use the cross-antenna structure but cost too much per slot. RAS-BFP keeps the low-rank gain at 3--6$\times$ lower cost than SVD by using the randomised range finder~\cite{halko2011}, and keeps BFP's packet format.
+  \item \textbf{RAS-BFP.} The closest work is truncated SVD and information-theoretic multivariate compression~\cite{park2014}. Both use the cross-antenna structure but cost too much per slot. RAS-BFP gets the low-rank gain at lower cost by using the randomised range finder~\cite{halko2011} and keeps BFP's packet format. At link level it is lossless to within 0.8\,\% at 4$\times$, twice the BFP ratio, and encodes 2.2$\times$ faster than SVD at 64 antennas.
   \item \textbf{RMT-WS.} The closest work is the TPE detector with a Marchenko--Pastur interval~\cite{kammoun2014} and Neumann/Newton inverters~\cite{wu2013,shao2016}. RMT-WS adds a warm start from the previous slot, a safety certificate that falls back when the warm start is poor, and a Doppler law for when warm starting pays off.
   \item \textbf{Fused DU kernel.} The closest systems are BigStation and Agora~\cite{yang2013bigstation,ding2020agora}, which run baseband processing on CPUs with library calls per subcarrier group. Our kernel is 1.6--3.9$\times$ faster than an equivalent C~LAPACK baseline on one thread and 1.9--11$\times$ on four, and is the only implementation we measured that fits the 0.5~ms slot with 16 users and 64 antennas (Table~\ref{tab:hw-strong}).
   \item \textbf{KKT rule (B1).} The closest work is DeepCog and AZTEC~\cite{bega2019,bega2020} and quantile allocation~\cite{kasuluru2024,larumbe2026}. These forecast volume and choose a single global or per-stream level. B1 forecasts the deadline-feasible rate and sets a different quantile for each cell from one Lagrange multiplier on the shared link, a multi-item newsvendor~\cite{hadley1963} applied to fronthaul.
@@ -142,7 +143,7 @@ Predictive back-pressure~\cite{huang2016} & \no & \yes & \no & \no & \yes & \yes
 \toprule
 Area & State of the art & This project \\
 \midrule
-IQ compression & BFP ($\approx$2$\times$); CPRI time-domain ($\approx$3$\times$); truncated SVD (slow); CsiNet (needs training) & CSEE / RAS-BFP: 6.4--8.1$\times$, error bounds, 3--6$\times$ faster than SVD; CSEE at 31$\times$ within 0.05\,\% of uncompressed sum rate \\
+IQ compression & BFP ($\approx$2$\times$); CPRI time-domain ($\approx$3$\times$); truncated SVD (slow); CsiNet (needs training) & CSEE at 31$\times$ and RAS-BFP at 4$\times$ within 0.05\,\% and 0.8\,\% of the uncompressed sum-rate, with error bounds and faster than SVD; 4--20\,\% fewer uplink bits on top of BFP \\
 Precoder inversion & Neumann / Newton series, $>$8--10 GEMMs; TPE with fixed MP interval & RMT-WS: 6 GEMMs, warm-start tracking, certificate, Doppler law \\
 DU implementation & numpy + LAPACK: 3.2~ms; C LAPACK: 0.96~ms per slot & fused C/AVX-512 kernel: 0.226~ms per slot, only one within 0.5~ms \\
 Evaluation traffic & synthetic or private traces & synthetic, 3GPP, Markov and public real 5G traces with disjoint train/test sessions \\

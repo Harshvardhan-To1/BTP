@@ -39,7 +39,7 @@ Complex precoding & antennas / users & $M \in \{64,128\}$, $K \in \{8,16,32\}$ \
 \section{IQ Compression Results}
 \label{sec:ra-comp}
 
-Table~\ref{tab:a-comp} reports the compression ratio (CR, against 16-bit I/Q) and the normalised mean-square error (NMSE) on the de-rotated channel IQ. The structure-aware encoders reach 6.4--8.1$\times$ compression at about $-20$~dB NMSE, 3--4 times the ratio of the O-RAN standard (about 2$\times$). RAS-BFP achieves the \emph{same} 8.1$\times$ ratio as the truncated SVD while encoding 3--4$\times$ faster, and CSEE is 4--6$\times$ faster than SVD. At the knee of its Pareto curve ($K=60$), CSEE reaches about 32$\times$ at $-19$~dB NMSE.
+Table~\ref{tab:a-comp} reports the compression ratio (CR, against 16-bit I/Q) and the normalised mean-square error (NMSE) on the de-rotated channel IQ. At the $-20$~dB NMSE target the structure-aware encoders reach 6.4--8.1$\times$, 3--4 times the ratio of the O-RAN standard (about 2$\times$). RAS-BFP matches the 8.1$\times$ ratio of truncated SVD at this target while encoding 3--4$\times$ faster, and CSEE is 4--6$\times$ faster than SVD. NMSE is only a proxy, though: Section~\ref{sec:ra-link} shows that RAS-BFP needs rank 24 (4$\times$) to be lossless at link level, while CSEE stays lossless up to 31$\times$. The ratios we quote elsewhere are these link-level operating points. At the knee of its Pareto curve ($K=60$), CSEE reaches about 32$\times$ at $-19$~dB NMSE.
 
 \begin{table}[H]
 \caption{Compression of de-rotated reference-symbol IQ at a target NMSE of about $-20$~dB ($M=64$, $N=1200$, SNR 20~dB, TDL-A); ratios against 16-bit I/Q.}
@@ -104,6 +104,29 @@ Perfect channel knowledge & n/a & 70.8 & 97.3 & 46.8 & 73.1 \\
 \end{table}
 
 Table~\ref{tab:a-link} turns the noise-floor argument into a measurement. At 31$\times$, CSEE gives the same sum-rate as uncompressed IQ with the same projection applied at the DU, to within 0.05\,\%. Its quantisation and tap truncation therefore cost nothing at link level. Both CSEE settings even beat raw uncompressed IQ by 6--23\,\% in the uplink at 10--20~dB, because keeping only the strong delay taps also removes estimation noise. RAS-BFP needs a lower ratio for the same guarantee. At $r = 12$ it meets the $-20$~dB NMSE target on the received IQ but loses 8--12\,\% uplink sum-rate, since the randomised range finder keeps less of the weak channel directions than an exact SVD. At $r = 24$ (4.0$\times$, still twice the BFP ratio) its loss is below 0.8\,\% in every case, so $r = 24$ is the operating point we recommend when the compressed IQ feeds the precoder directly.
+
+\subsection{Share of the total fronthaul}
+\label{sec:ra-share}
+
+The encoders act only on reference symbols, so their saving on the whole link is smaller than their compression ratio. Table~\ref{tab:a-share} computes it for the uplink of a 100~MHz, 64-antenna cell, which carries 118.4~Gbit/s with BFP-9 on every symbol (BFP-9 is 1.71$\times$ against 16-bit I/Q). Reference symbols are sent with the proposed encoder at its link-level operating point and data symbols stay on BFP-9.
+
+\begin{table}[H]
+\caption{Saving on the total uplink fronthaul (118.4~Gbit/s with BFP-9; 100~MHz, $M=64$) when only reference-symbol IQ is compressed.}
+\label{tab:a-share}
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+Reference symbols per 14-symbol slot & RAS-BFP, 4$\times$ & CSEE, 6.4$\times$ & CSEE, 31$\times$ \\
+\midrule
+1 DMRS & 4.1\,\% (4.8~Gbit/s) & 5.2\,\% (6.2~Gbit/s) & 6.7\,\% (8.0~Gbit/s) \\
+2 DMRS & 8.2\,\% (9.7~Gbit/s) & 10.5\,\% (12.4~Gbit/s) & 13.5\,\% (16.0~Gbit/s) \\
+2 DMRS + 1 SRS & 12.2\,\% (14.5~Gbit/s) & 15.7\,\% (18.6~Gbit/s) & \textbf{20.2\,\% (24.0~Gbit/s)} \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Part~A's encoders therefore remove 4--20\,\% of the uplink bits on top of BFP, depending on the reference-signal configuration. The saving grows with the share of reference symbols, so it is largest for high-mobility cells that use additional DMRS positions and frequent SRS, which are also the cells where channel estimates matter most. In the downlink, the larger lever is where the precoder runs (Section~\ref{sec:ra-ru}).
 
 \section{Matrix-Inversion Benchmark Results}
 \label{sec:ra-bench}
@@ -281,10 +304,10 @@ numpy + LAPACK (whole precoder) & time per slot, $K=16$ & 3.21~ms & \textbf{0.22
 \section{Fronthaul Impact of RU-Side Precoding}
 \label{sec:ra-ru}
 
-Table~\ref{tab:a-ru} and Figure~\ref{fig:exp10} quantify the architectures of Figure~\ref{fig:ru-prec} for a 100~MHz carrier with $M=64$, $K=16$ and BFP-9 IQ. Precoding at the radio unit with 8-bit weights refreshed every slot cuts the fronthaul from 118.4 to 32.8~Gbit/s ($-72\,\%$, 3.6$\times$ lighter) at 99.7\,\% of the exact RZF sum-rate. Refreshing the weights less often is not an option at mobility (every 4 slots gives only 70\,\% of the rate at 30~km/h), so per-slot weights are required, and this is exactly the workload our fast precoder handles.
+Table~\ref{tab:a-ru} and Figure~\ref{fig:exp10} quantify the architectures of Figure~\ref{fig:ru-prec} for a 100~MHz carrier with $M=64$, $K=16$ and BFP-9 IQ. Precoding at the radio unit with 8-bit weights refreshed every slot cuts the downlink fronthaul from 118.4 to 32.8~Gbit/s ($-72\,\%$, 3.6$\times$ lighter) at 99.7\,\% of the exact RZF sum-rate. Refreshing the weights less often is not an option at mobility (every 4 slots gives only 70\,\% of the rate at 30~km/h), so per-slot weights are required, and this is exactly the workload our fast precoder handles.
 
 \begin{table}[H]
-\caption{Fronthaul rate and sum-rate by precoding architecture (100~MHz, $M=64$, $K=16$, BFP-9).}
+\caption{Downlink fronthaul rate and sum-rate by precoding architecture (100~MHz, $M=64$, $K=16$, BFP-9).}
 \label{tab:a-ru}
 \centering
 \begin{tabular}{lcc}
@@ -307,4 +330,4 @@ RU precodes, 16 layers + 6-bit weights & 32.0~Gbit/s ($-73\,\%$) & 96.7\,\% \\
 
 \section{Summary}
 
-This chapter presented the simulation results of Part~A. The structure-aware encoders compress reference-symbol and channel IQ 6.4--8.1$\times$ against 16-bit I/Q (32$\times$ at the CSEE knee), 3--4 times the ratio of the O-RAN standard, and run 3--6$\times$ faster than SVD. The inversion screening selected a learned Newton--Schulz family, with the lowest mean and a 2$\times$ lower tail latency than LAPACK at $n = 100$. RMT-WS inverts realistic complex Grams in 6 GEMMs instead of more than 10, tracks users at every speed with a certificate that never accepted an unsafe step, and is robust at 8-bit precision. Together with the fused kernel of Chapter~\ref{ch:impl} it enables RU-side precoding with a 72\,\% lighter fronthaul at 99.7\,\% of the exact sum-rate.
+This chapter presented the simulation results of Part~A. Verified at link level, CSEE compresses reference-symbol IQ 31$\times$ against 16-bit I/Q with less than 0.05\,\% sum-rate loss and RAS-BFP 4$\times$ with less than 0.8\,\%, against about 2$\times$ for the O-RAN standard, and both encode faster than SVD. On the whole uplink this saves 4--20\,\% of the bits on top of BFP. The inversion screening selected a learned Newton--Schulz family, with the lowest mean and a 2$\times$ lower tail latency than LAPACK at $n = 100$. RMT-WS inverts realistic complex Grams in 6 GEMMs instead of more than 10, tracks users at every speed with a certificate that never accepted an unsafe step, and is robust at 8-bit precision. Together with the fused kernel of Chapter~\ref{ch:impl} it enables RU-side precoding with a 72\,\% lighter downlink fronthaul at 99.7\,\% of the exact sum-rate.

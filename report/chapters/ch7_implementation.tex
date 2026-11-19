@@ -6,7 +6,7 @@
 
 \section{Introduction}
 
-A precoder or controller that is accurate in simulation is only useful if it meets the real-time budget of the O-DU. This chapter describes the implementation side of the project: the hand-optimised C/AVX-512/OpenMP kernel that computes the whole RZF precoder of Eq.~\eqref{eq:rzf} for 273 PRBs in a fraction of the 0.5~ms slot (Sections~\ref{sec:hw-platform}--\ref{sec:hw-results}), and the software framework used for every experiment of this report (Section~\ref{sec:sw}).
+A precoder or controller that is accurate in simulation is only useful if it meets the real-time budget of the O-DU. This chapter describes the implementation side of the project: the hand-optimised C/AVX-512/OpenMP kernel that computes the whole RZF precoder of Eq.~\eqref{eq:rzf} for 273 PRBs in a fraction of the 0.5~ms slot (Sections~\ref{sec:hw-platform}--\ref{sec:hw-results}). Against a C precoder built on OpenBLAS and LAPACK Cholesky with the same threads, it is 1.6--3.9$\times$ faster on one core and 1.9--11$\times$ on four, and it is the only implementation we measured that fits the slot for 16 users (0.224 against 0.96~ms), and the software framework used for every experiment of this report (Section~\ref{sec:sw}).
 
 \section{Measurement Platform}
 \label{sec:hw-platform}
@@ -184,4 +184,4 @@ results/ & all CSV files, logs and figures \\
 
 \section{Discussion and Analysis}
 
-This chapter presented the implementation and the measured CPU results of the project. The fused C/AVX-512/OpenMP kernel turns the RZF precoder from a computation that is six times too slow for the slot into one that uses less than half of it, with float64-level accuracy. This is what makes per-slot RU-side precoding, with its 72\,\% fronthaul saving, practical on a general-purpose CPU O-DU. On the Part~B side, every controller runs well within its 10~ms decision interval in Python (3.5~ms for the KKT rule with GBM, 2.2--3.5~ms for BPN), and the fully tested, reproducible framework makes every result of this report traceable to its data.
+This chapter presented the implementation and the measured CPU results of the project. The fused C/AVX-512/OpenMP kernel turns the RZF precoder from a computation that is six times too slow for the slot into one that uses less than half of it, with float64-level accuracy. This is what makes per-slot RU-side precoding, with its 72\,\% downlink fronthaul saving, practical on a general-purpose CPU O-DU. On the Part~B side, every controller runs well within its 10~ms decision interval in Python (3.5~ms for the KKT rule with GBM, 2.2--3.5~ms for BPN), and the fully tested, reproducible framework makes every result of this report traceable to its data.
