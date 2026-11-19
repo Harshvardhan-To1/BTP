@@ -75,6 +75,36 @@ Figure~\ref{fig:exp2} shows how encode time scales with the array size: truncate
 \caption{Complexity and SNR robustness of the encoders: the proposed methods scale near-linearly and keep their accuracy across SNR.}
 \end{figure}
 
+\subsection{Link-level check: sum-rate with compressed channel estimates}
+\label{sec:ra-link}
+
+NMSE is only a proxy, so we also measured what compression does to the link. Eight users each send a reference symbol over a TDL-A channel ($M = 64$, $N = 1200$, estimation SNR 20~dB). Each user's de-rotated IQ is compressed on its own, decompressed at the DU and used as that user's channel estimate. The DU builds an uplink MMSE combiner and a downlink RZF precoder per subcarrier, and the sum-rate is computed on the \emph{true} channel (20 drops). The reference is uncompressed 16-bit IQ. A second reference ships uncompressed IQ and applies the same delay-domain projection as CSEE at the DU, so the gap between CSEE and this row is the cost of compression alone.
+
+\begin{table}[H]
+\caption{Sum-rate (bit/s/Hz, 8 users) with channel estimates taken from compressed reference-symbol IQ, evaluated on the true channel; change against uncompressed IQ in brackets.}
+\label{tab:a-link}
+\centering\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+Fronthaul IQ & CR & UL MMSE, 10 dB & UL MMSE, 20 dB & DL RZF, 10 dB & DL RZF, 20 dB \\
+\midrule
+Uncompressed (16-bit) & 1$\times$ & 64.6 & 73.8 & 45.7 & 65.9 \\
+O-RAN BFP ($b=8$) & 2.0$\times$ & 64.6 (0.0\,\%) & 73.8 (0.0\,\%) & 45.7 (0.0\,\%) & 65.9 (0.0\,\%) \\
+Truncated SVD ($r=12$) & 8.0$\times$ & 68.2 (+5.6\,\%) & 83.4 (+13.0\,\%) & 46.4 (+1.6\,\%) & 70.1 (+6.3\,\%) \\
+\ours \textbf{CSEE} ($K=300$) & \textbf{6.2$\times$} & \textbf{68.5 (+6.0\,\%)} & \textbf{84.8 (+14.9\,\%)} & \textbf{46.4 (+1.6\,\%)} & \textbf{70.4 (+6.8\,\%)} \\
+\ours \textbf{CSEE} ($K=60$) & \textbf{31$\times$} & \textbf{69.5 (+7.5\,\%)} & \textbf{91.1 (+23.4\,\%)} & \textbf{46.5 (+1.7\,\%)} & \textbf{71.6 (+8.6\,\%)} \\
+\ours RAS-BFP ($r=24$) & 4.0$\times$ & 64.4 ($-0.4$\,\%) & 73.2 ($-0.8$\,\%) & 45.7 (0.0\,\%) & 65.7 ($-0.3$\,\%) \\
+\ours RAS-BFP ($r=12$) & 8.0$\times$ & 59.6 ($-7.8$\,\%) & 64.8 ($-12.2$\,\%) & 44.5 ($-2.6$\,\%) & 60.6 ($-8.1$\,\%) \\
+\midrule
+Uncompressed + DU delay projection ($K=60$) & 1$\times$ & 69.5 & 91.1 & 46.5 & 71.6 \\
+Perfect channel knowledge & n/a & 70.8 & 97.3 & 46.8 & 73.1 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Table~\ref{tab:a-link} turns the noise-floor argument into a measurement. At 31$\times$, CSEE gives the same sum-rate as uncompressed IQ with the same projection applied at the DU, to within 0.05\,\%. Its quantisation and tap truncation therefore cost nothing at link level. Both CSEE settings even beat raw uncompressed IQ by 6--23\,\% in the uplink at 10--20~dB, because keeping only the strong delay taps also removes estimation noise. RAS-BFP needs a lower ratio for the same guarantee. At $r = 12$ it meets the $-20$~dB NMSE target on the received IQ but loses 8--12\,\% uplink sum-rate, since the randomised range finder keeps less of the weak channel directions than an exact SVD. At $r = 24$ (4.0$\times$, still twice the BFP ratio) its loss is below 0.8\,\% in every case, so $r = 24$ is the operating point we recommend when the compressed IQ feeds the precoder directly.
+
 \section{Matrix-Inversion Benchmark Results}
 \label{sec:ra-bench}
 

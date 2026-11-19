@@ -555,13 +555,44 @@ Family & $\eta$ & $a$ & $(p^0_{\rm LL},\ p^0_{\rm eMBB})$ \\
 S (bursty) & 6 (strict back-pressure) & 0.98 & (0.41, 0.45) \\
 G (3GPP) & 0 (reservation) & 0.31 & (0.94, 0.73) \\
 M (Markov) & 0 (reservation) & 0.34 & (0.84, 0.31) \\
+R (real 5G traces) & 0.15 (near reservation) & 0.39 & (0.86, 0.28) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
+\subsection{Real 5G traffic traces and an overfitting check}
+\label{sec:rb-real}
+
+All families so far are generated. To test BPN on measured traffic we built a fourth, trace-driven family R from a public 5G dataset of a commercial Irish operator~\cite{raca2020beyond}: 166 client-side sessions of Netflix and Amazon Prime streaming and file download, static and driving, with downlink throughput and CQI logged about once per second. Each cell aggregates six sessions at random start offsets. Each user costs its measured rate divided by the spectral efficiency of its measured CQI (LTE CQI table), so both the traffic and the per-cell fronthaul cost per bit come from the measurements. Each one-second sample is replayed for one 10~ms control interval, which keeps the real sequence of rates and compresses time by 100$\times$. Cells are scaled to the scenario load with the LL / eMBB shares of the other families and clipped at their own air-interface peak. The sessions are split once: two thirds train the GBM forecaster and the policy searches, and the test seeds draw only from the remaining third, so no test session is ever seen in training.
+
+BPN v2 tunes 8 parameters, so a large lead could come from fitting the search episodes. We therefore re-ran every CEM search, for BPN v2 and for both strongest baselines, twice on family R: once on the usual 8 search episodes and once on only 2. All controllers were then tested on the same 20 test seeds (Table~\ref{tab:b3-real}).
+
+\begin{table}[H]
+\caption{Family R (real 5G traces): $V_w$ in \% on 20 test seeds from held-out sessions, with each CEM search run on 8 or on 2 episodes.}
+\label{tab:b3-real}
+\centering
+\begin{tabular}{lcc}
+\toprule
+Controller & R moderate (0.65) & R high (0.80) \\
+\midrule
+B1 KKT rule (GBM) & 4.20 & 8.79 \\
+Predictive MaxWeight, CEM (8 / 2 episodes) & 4.58 / 4.58 & 9.04 / 9.04 \\
+Class-level policy, CEM (8 / 2 episodes) & 3.77 / 3.74 & 8.03 / 8.05 \\
+\ours \textbf{BPN v2, 8 episodes} & \textbf{3.54} & \textbf{7.47} \\
+\ours BPN v2, 2 episodes & 3.74 & 7.80 \\
+\midrule
+Oracle-informed KKT (reference) & 1.12 & 3.95 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On measured traffic, BPN v2 is again the best implementable controller. It has 6.1\,\% and 7.0\,\% lower $V_w$ than the best baseline, the class-level policy, at moderate and high load, winning 19 and 20 of 20 seeds, and 15--16\,\% lower $V_w$ than the B1 rule on 20 of 20 seeds (Holm--Wilcoxon $p < 0.001$ throughout). The search also picks a near-reservation structure ($\eta = 0.15$), as it did for the long bursts of families G and M (Table~\ref{tab:b3-theta}).
+
+The overfitting check points the other way from overfitting. If the 8-parameter fit had memorised its episodes, the 8-episode BPN would generalise worse than the 2-episode one. Instead it is 4--5\,\% \emph{better} on the unseen test sessions and wins 18 of 20 seeds at both loads ($p \le 0.0005$). More training data helps BPN, while the 2--3-parameter baselines are already saturated and do not change. Even with only 2 episodes, BPN still beats the B1 rule by 11\,\% (19 and 20 of 20 seeds) and beats the best baseline at high load by 3.1\,\% ($p = 0.04$ after Holm). At moderate load it ties the best baseline. The gap to the oracle-informed rule is larger on real traffic than on the generated families, because measured streaming traffic is harder to forecast.
+
 \section{Summary}
 
-Table~\ref{tab:b-summary} summarises Part~B. The KKT newsvendor rule (B1) is the best of the 12 reference controllers in every scenario of two traffic families; the Bayesian LCQT (B2) improves it on every seed at low to high load and gives the best-calibrated forecasts; and the back-pressure newsvendor (B3), a learned policy that contains both strongest baselines, beats them in all 10 scenarios of three traffic families, with the best result of the project at every load.
+Table~\ref{tab:b-summary} summarises Part~B. The KKT newsvendor rule (B1) is the best of the 12 reference controllers in every scenario of two traffic families; the Bayesian LCQT (B2) improves it on every seed at low to high load and gives the best-calibrated forecasts; and the back-pressure newsvendor (B3), a learned policy that contains both strongest baselines, beats them in all 10 scenarios of three traffic families, with the best result of the project at every load, and keeps its lead on measured 5G traffic.
 
 \begin{table}[H]
 \caption{Part B headline results.}
@@ -578,6 +609,7 @@ Family G (3GPP) & Result reproduces on standards-based traffic; also best under 
 Extended study & POMDP view; $\rstar$ linked to effective bandwidth; KKT rule wins all 10 scenarios of the NCC comparison set \\
 B2: Bayesian LCQT & $-4.5$\,\% pinball, best calibration; $-21$ / $-6$ / $-1.4$\,\% $V_w$ at low / moderate / high load, 20/20 seeds \\
 \textbf{B3: back-pressure newsvendor} & \textbf{Beats predictive MaxWeight and policy search in 10/10 scenarios of 3 families ($-3$ to $-25$\,\%, $p \le 0.024$)}; within 6--10\,\% of the oracle-informed rule at high load \\
+Real 5G traces (family R) & BPN v2 $-6$ / $-7$\,\% vs the best baseline and $-15$\,\% vs B1 on held-out sessions ($p < 0.001$); tuning on fewer episodes makes it worse, not better, so the gain is not overfitting \\
 \bottomrule
 \end{tabularx}
 \end{table}

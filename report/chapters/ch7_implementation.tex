@@ -115,6 +115,30 @@ $K$, $M$ & numpy + LAPACK & Our kernel, 1 thread & \textbf{Our kernel, 4 threads
 \label{fig:hw-pipeline}
 \end{figure}
 
+\subsection{Against stronger baselines}
+
+The numpy + LAPACK baseline pays Python and per-call overhead, so we also compared against two stronger baselines for the same whole precoder. The first is numpy's batched \texttt{solve}, which avoids the explicit inverse. The second is a C precoder written directly on OpenBLAS and LAPACK: per PRB one \texttt{cherk} for the Gram matrix, one \texttt{cpotrf} Cholesky factorisation and two \texttt{ctrsm} triangular solves for $W = H^H G^{-1}$, with the PRBs split over the same OpenMP threads and OpenBLAS single-threaded inside each call. All three give the same weights to $2$--$4\times10^{-7}$ relative error. Table~\ref{tab:hw-strong} lists the results (median of 200 runs).
+
+\begin{table}[H]
+\caption{Whole-precoder time per slot against stronger baselines (273 PRBs, complex64, same 4-core AVX-512 Xeon).}
+\label{tab:hw-strong}
+\centering\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+$K$, $M$ & numpy \texttt{solve} & C LAPACK, 1 thr & C LAPACK, 4 thr & Ours, 1 thr & \textbf{Ours, 4 thr} & Ours vs C LAPACK (1 / 4 thr) \\
+\midrule
+8, 64 & 2.63~ms & 1.05~ms & 0.77~ms & 0.27~ms & \textbf{0.067~ms} & 3.9$\times$ / 11.4$\times$ \\
+\ours 16, 64 & 6.76~ms & 2.30~ms & 0.96~ms & 0.92~ms & \textbf{0.224~ms} & 2.5$\times$ / 4.3$\times$ \\
+32, 64 & 18.0~ms & 5.88~ms & 1.73~ms & 3.70~ms & 0.94~ms & 1.6$\times$ / 1.9$\times$ \\
+16, 128 & 12.8~ms & 4.36~ms & 1.37~ms & 1.58~ms & \textbf{0.39~ms} & 2.8$\times$ / 3.5$\times$ \\
+32, 128 & 41.6~ms & 10.9~ms & 2.98~ms & 6.22~ms & 1.58~ms & 1.8$\times$ / 1.9$\times$ \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+The batched \texttt{solve} is slower than numpy + LAPACK, so the explicit-inverse baseline above was already the faster numpy option. The C LAPACK precoder is a much harder opponent. The fused kernel still beats it at every size: by 1.6--3.9$\times$ on one thread and 1.9--11$\times$ on four. The margin is largest for few users, where per-call library overhead dominates, and it narrows to about 2$\times$ at $K = 32$, where the arithmetic dominates. What matters for the slot budget is that only the fused kernel fits the 0.5~ms slot at $K = 16$ with $M = 64$ (0.224 against 0.96~ms) and with $M = 128$ (0.39 against 1.37~ms).
+
 \subsection{Inverse kernels}
 
 Figure~\ref{fig:hw-inv} isolates the inverse. The C kernels are an order of magnitude faster than numpy/LAPACK, and the fused Newton--Schulz step of RMT-WS is the fastest inverse of all (0.115~ms per slot at $K=16$, against 0.124~ms for a tuned C Cholesky inverse and 1.6~ms for LAPACK). This is the per-slot warm-start update of Chapter~\ref{ch:parta-methods} running at hardware speed.
@@ -133,7 +157,7 @@ The complex64 kernel reproduces the float64 exact precoder with a sum-rate loss 
 \section{Software Framework and Reproducibility}
 \label{sec:sw}
 
-All results of this report are produced by an open, fully reproducible Python/C code base (Table~\ref{tab:repo}). The Part~B simulator is slot-accurate: it generates the three traffic families, applies the stale observations and the held budgets, runs FIFO queues with deadline drops for every cell and records every metric. Every number in our papers is generated as a macro from the result CSV files, so text and data cannot diverge.
+All results of this report are produced by an open, fully reproducible Python/C code base (Table~\ref{tab:repo}). The Part~B simulator is slot-accurate: it generates the three traffic families and replays the measured 5G traces, applies the stale observations and the held budgets, runs FIFO queues with deadline drops for every cell and records every metric. Every number in our papers is generated as a macro from the result CSV files, so text and data cannot diverge.
 
 \begin{table}[H]
 \caption{Structure of the project repository.}
