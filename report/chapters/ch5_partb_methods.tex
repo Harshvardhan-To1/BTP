@@ -6,12 +6,12 @@
 
 \section{Introduction}
 
-Part~A reduces the number of bits each cell puts on the fronthaul. Part~B decides how a shared link is divided among cells when even the compressed load is larger than the link. The work was built in three steps, each answering the question raised by the previous one (Figure~\ref{fig:b-roadmap}):
+Part~A reduces the number of bits each cell puts on the fronthaul. Part~B deals with what happens when even the compressed load is larger than a shared link, and decides how that link is divided among the cells. We built this work in stages, and each stage was a response to a weakness found in the one before it (Figure~\ref{fig:b-roadmap}):
 \begin{itemize}
-  \item \textbf{B1: the KKT newsvendor rule.} Forecast each cell's \emph{deadline-feasible rate} as a range and split the link so that every cell carries the same priority-weighted risk. This is our NCC 2027 submission. It is the best of the 12 reference controllers of that comparison on two traffic families, a set that did not yet contain the strongest baselines of the next step, which do beat it.
-  \item \textbf{Extended study.} A POMDP formulation, Markov-fluid theory of the deadline-feasible rate, a third traffic family, and the two strongest implementable baselines from queueing control and policy search: predictive MaxWeight and a cross-entropy-learned policy.
-  \item \textbf{B2: a Bayesian, link-aware Transformer forecaster (LCQT).} A forecaster designed for the shared link, with a Bayesian mixture layer and a differentiable KKT layer.
-  \item \textbf{B3: the back-pressure newsvendor (BPN).} A two-stage policy that contains both strongest baselines exactly and combines back-pressure ordering with newsvendor margins; it beats both of them in all 10 scenarios of three traffic families.
+  \item \textbf{B1: the KKT newsvendor rule.} We forecast each cell's \emph{deadline-feasible rate} as a range and split the link so that every cell carries the same priority-weighted risk. This rule is our NCC 2027 submission. Among the 12 reference controllers of that comparison it was the best on two traffic families. That set did not yet include the strongest baselines of the next step, and those baselines do beat it.
+  \item \textbf{Extended study.} Here we wrote the problem as a POMDP, developed a Markov-fluid theory of the deadline-feasible rate and added a third traffic family. We also implemented the two strongest baselines we could find in queueing control and policy search, namely predictive MaxWeight and a policy learned by the cross-entropy method.
+  \item \textbf{B2: a Bayesian, link-aware Transformer forecaster (LCQT).} This forecaster is designed for the shared link. It has a Bayesian mixture layer and a differentiable KKT layer.
+  \item \textbf{B3: the back-pressure newsvendor (BPN).} This is a two-stage policy that contains both strongest baselines exactly. It orders cells by back-pressure and then adds newsvendor margins, and it beats both baselines in all 10 scenarios of three traffic families.
 \end{itemize}
 
 \begin{figure}[H]
@@ -35,9 +35,9 @@ Part~A reduces the number of bits each cell puts on the fronthaul. Part~B decide
 
 \subsection{Cells, link and decision}
 
-Eight 7-2x cells share one 25~Gbit Ethernet aggregation link (Figure~\ref{fig:shared}). Three cells are low-latency (LL) with a deadline of 2~ms and priority weight 3; five are eMBB with a deadline of 10~ms and weight 1. After reserving 3\,\% of the link for control, management and synchronisation planes, the capacity is $C = 12.125$~Mbit per 0.5~ms slot. The sum of the cells' peak demands is $2.44\,C$: the link is deliberately over-subscribed, as operators do to benefit from statistical multiplexing.
+Eight 7-2x cells share one 25~Gbit Ethernet aggregation link (Figure~\ref{fig:shared}). Three of them are low-latency (LL) cells with a deadline of 2~ms and priority weight 3. The other five are eMBB cells with a deadline of 10~ms and weight 1. We reserve 3\,\% of the link for the control, management and synchronisation planes, which leaves a capacity of $C = 12.125$~Mbit per 0.5~ms slot. The peak demands of the cells add up to $2.44\,C$. This over-subscription is deliberate. Operators do the same in practice to gain from statistical multiplexing.
 
-Every $T = 20$ slots (10~ms) a coordinator sets a budget $r_i$ (bits per slot) for each cell, which is held for the whole interval. The coordinator observes the cells' queues, head-of-line ages, demand history and spectral efficiency with a telemetry delay of $\tau = 2$ slots (1~ms), so each budget must cover a lead time of $H = T + \tau$ slots that it has not seen (Figure~\ref{fig:timing}).
+A coordinator acts every $T = 20$ slots (10~ms). At each decision it sets a budget $r_i$ (bits per slot) for every cell, and that budget stays fixed for the whole interval. The coordinator sees the cells' queues, head-of-line ages, demand history and spectral efficiency, but only after a telemetry delay of $\tau = 2$ slots (1~ms). Each budget must therefore cover a lead time of $H = T + \tau$ slots that the coordinator has not observed (Figure~\ref{fig:timing}).
 
 \begin{figure}[H]
 \centering
@@ -54,20 +54,20 @@ Every $T = 20$ slots (10~ms) a coordinator sets a budget $r_i$ (bits per slot) f
 \label{fig:timing}
 \end{figure}
 
-Deciding in advance is not a design choice but a constraint of real deployments: near-real-time RIC and E2 control loops operate at 10~ms or slower, switch traffic shaping is not reconfigured every slot, and the DU schedulers of different cells cannot consult each other inside the sub-millisecond processing pipeline.
+We did not choose to decide in advance. Real deployments force it. Near-real-time RIC and E2 control loops run at 10~ms or slower, and traffic shaping in a switch is not reconfigured every slot. The DU schedulers of different cells also have no way to consult each other inside the sub-millisecond processing pipeline.
 
 \subsection{Fronthaul demand}
 
-The fronthaul cost of one PRB-layer per slot with $b$-bit BFP is
+With $b$-bit BFP, one PRB-layer costs the following number of fronthaul bits per slot:
 \begin{equation}
   \beta(b) = (12\cdot 2\cdot b + 8)\cdot 14\cdot\kappa,
   \label{eq:beta}
 \end{equation}
-with packet overhead $\kappa = 1.08$; $\beta(9) = 3387$ bits, and 6-, 12- and 14-bit mantissas scale it by $0.68$, $1.32$ and $1.54$. \emph{This is where Part~A enters Part~B}: compression sets $\beta$ and thus the load. A cell with user bits $a_i(t)$ and spectral efficiency $\eta_i(t)$ (bits per PRB-layer) has fronthaul demand
+where $\kappa = 1.08$ is the packet overhead. This gives $\beta(9) = 3387$ bits, and 6-, 12- and 14-bit mantissas scale this by $0.68$, $1.32$ and $1.54$. \emph{Part~A enters Part~B at this point}, because the compression setting fixes $\beta$ and with it the load. A cell with user bits $a_i(t)$ and spectral efficiency $\eta_i(t)$ (bits per PRB-layer) then has fronthaul demand
 \begin{equation}
   d_i(t) = \lceil a_i(t)/\eta_i(t)\rceil\,\beta,
 \end{equation}
-so two cells with the same user traffic can differ by a factor 2--3 in fronthaul load. A full cell (273 PRBs, 4 layers) peaks at about 7.4~Gbit/s.
+so the fronthaul load of two cells with the same user traffic can differ by a factor of 2--3. A full cell (273 PRBs, 4 layers) peaks at about 7.4~Gbit/s.
 
 \subsection{Constraints, queues and metric}
 
@@ -75,16 +75,16 @@ The budgets satisfy
 \begin{equation}
   \sum_i r_i \le C, \qquad 0 \le r_i \le \mathrm{cap}_i = 273\,L_i\,\beta .
 \end{equation}
-Each cell has a FIFO queue at the DU; bits that wait longer than $D_i$ slots are dropped and counted as \emph{deadline violations}. Because budgets enforce capacity, the link itself never queues; congestion appears as DU queueing and drops. The primary metric, fixed before any tuning, is the priority-weighted violation ratio
+Each cell keeps a FIFO queue at the DU. Bits that wait longer than $D_i$ slots are dropped and counted as \emph{deadline violations}. The budgets already respect the capacity, so the link itself never builds a queue. Congestion shows up instead as queueing and drops at the DU. Our primary metric was fixed before any tuning. It is the priority-weighted violation ratio
 \begin{equation}
   V_w = \frac{\sum_i w_i\,\mathrm{violated}_i}{\sum_i w_i\,\mathrm{arrived}_i},
 \end{equation}
-so a dropped LL bit counts three times. We also report per-class violations, link utilisation, unused allocation, DU delay, Jain fairness and decision time.
+in which a dropped LL bit counts three times. Alongside it we report per-class violations, link utilisation, unused allocation, DU delay, Jain fairness and decision time.
 
 \section{Key Idea 1: the Deadline-Feasible Rate}
 \label{sec:rstar}
 
-What should a forecaster predict? Not the traffic volume: a 2~ms cell with a burst needs far more than its average rate. We forecast the smallest constant rate at which no bit misses its deadline.
+What should a forecaster predict? The traffic volume is the obvious choice, but it is the wrong one, since a 2~ms cell hit by a burst needs far more than its average rate. We instead forecast the smallest constant rate at which no bit misses its deadline.
 
 \begin{definition}[Deadline-feasible rate]
 For arrivals $a_1,\dots,a_H$ and deadline $D$ slots,
@@ -94,7 +94,7 @@ For arrivals $a_1,\dots,a_H$ and deadline $D$ slots,
 \end{equation}
 \end{definition}
 
-Eq.~\eqref{eq:rstar} is the network-calculus service-curve condition~\cite{leboudec2001}: every window of arrivals must be served within its length plus the deadline. It is tight (verified to one PRB-layer in tests). With a long deadline $\rstar$ approaches the mean rate, because bursts can be smoothed; with a short deadline it approaches the peak burst rate. For example, a single burst of 8 units with an average of 1 per slot needs $\rstar = 8/2 = 4$ for $D=1$ slot, but only $8/8 = 1$ for $D=7$ slots (Figure~\ref{fig:rstar}). For our 2~ms cells, $\rstar$ is typically 2--3$\times$ the mean and strongly right-skewed.
+Eq.~\eqref{eq:rstar} is the service-curve condition of network calculus~\cite{leboudec2001}. It says that every window of arrivals must be served within its own length plus the deadline. The condition is tight, and our tests confirm this to within one PRB-layer. When the deadline is long, bursts can be smoothed out and $\rstar$ approaches the mean rate. When it is short, $\rstar$ approaches the peak burst rate. Take a single burst of 8 units with an average of 1 per slot. It needs $\rstar = 8/2 = 4$ for $D=1$ slot, but only $8/8 = 1$ for $D=7$ slots (Figure~\ref{fig:rstar}). In our 2~ms cells $\rstar$ is usually 2--3$\times$ the mean, and its distribution is strongly right-skewed.
 
 \begin{figure}[H]
 \centering
@@ -110,38 +110,38 @@ Eq.~\eqref{eq:rstar} is the network-calculus service-curve condition~\cite{lebou
 \label{fig:rstar}
 \end{figure}
 
-Every deadline-aware controller asks for the same quantity:
+All deadline-aware controllers request the same quantity,
 \begin{equation}
   \text{need}_i = B_i + \rstar_i, \qquad B_i = \frac{\text{backlog}_i}{\text{slack}_i},
 \end{equation}
-the rate needed to clear what is already queued before its deadline, plus $\rstar_i$ for what has not arrived yet. Controllers differ only in how they estimate $\rstar_i$ and how they split a shortage. Since a single number is a poor basis for reserving a skewed quantity, we forecast a \emph{range}.
+which is the rate needed to clear the current queue before its deadline, plus $\rstar_i$ for traffic that has not arrived yet. The controllers differ only in how they estimate $\rstar_i$ and in how they split a shortage. A single number is a poor basis for reserving a skewed quantity, so we forecast a \emph{range}.
 
 \section{Key Idea 2: a Quantile Forecaster}
 \label{sec:gbm}
 
-The target is $y_i = \rstar(d_i[t-\tau : t+T], D_i)/\mathrm{cap}_i$, the deadline-feasible rate of the coming horizon normalised by the cell's peak. The 28 features use only past slots: the last six horizon means (and their mean, standard deviation and maximum), two exponentially weighted averages, the last four slot demands, $\rstar$ of the last three horizons, the relative spectral efficiency, $D_i/H$ and a one-hot cell identifier, normalised by configuration constants only. One histogram gradient-boosting quantile regressor is trained per level $\alpha \in \{0.05, 0.25, 0.5, 0.75, 0.9, 0.95\}$ (300 trees, 15 leaves) on 101k rows from 16 training traces; training takes 12~s on a CPU. Training, validation and test seeds are disjoint (1000--1015, 2000--2003 and 3000--3019).
+The target is $y_i = \rstar(d_i[t-\tau : t+T], D_i)/\mathrm{cap}_i$, which is the deadline-feasible rate of the coming horizon divided by the cell's peak. All 28 features are computed from past slots. They are the last six horizon means (with their mean, standard deviation and maximum), two exponentially weighted averages, the last four slot demands, $\rstar$ of the last three horizons, the relative spectral efficiency, $D_i/H$ and a one-hot cell identifier. Normalisation uses configuration constants only. For each level $\alpha \in \{0.05, 0.25, 0.5, 0.75, 0.9, 0.95\}$ we train one histogram gradient-boosting quantile regressor (300 trees, 15 leaves) on 101k rows from 16 training traces. Training takes 12~s on a CPU. The training, validation and test seeds do not overlap (1000--1015, 2000--2003 and 3000--3019).
 
 \section{Key Idea 3: the KKT (Constrained Newsvendor) Rule}
 \label{sec:kkt}
 
 \subsection{Objective and solution}
 
-Given the forecast distribution $F_i$ of $\rstar_i$ for each cell, we maximise the expected priority-weighted need that is served in the interval:
+Suppose each cell comes with a forecast distribution $F_i$ of $\rstar_i$. We then maximise the expected priority-weighted need served in the interval,
 \begin{equation}
   \max_{r}\ \sum_i w_i\,\mathbb{E}\big[\min(B_i + \rstar_i,\ r_i)\big]
   \quad \text{s.t.}\ \sum_i r_i \le C,\ \ 0\le r_i\le \mathrm{cap}_i .
   \label{eq:nv}
 \end{equation}
-The function $\mathbb{E}[\min(B_i + \rstar_i, r)]$ is concave in $r$ with derivative $w_i\,(1 - F_i(r - B_i))$, which is the weighted probability that the marginal bit of budget is actually needed. The problem is separable and concave, so the KKT conditions give its \emph{global} optimum in closed form:
+The function $\mathbb{E}[\min(B_i + \rstar_i, r)]$ is concave in $r$. Its derivative is $w_i\,(1 - F_i(r - B_i))$, the weighted probability that the last bit of budget is actually used. Because the problem is separable and concave, the KKT conditions give its \emph{global} optimum in closed form:
 \begin{equation}
   \boxed{\; r_i(\lambda) = \mathrm{clip}\Big(B_i + F_i^{-1}\big(1 - \lambda/w_i\big),\ 0,\ \mathrm{cap}_i\Big)\;}
   \label{eq:kkt}
 \end{equation}
-A single scalar $\lambda \ge 0$, the shadow price of link capacity, is found by a 60-step bisection so that $\sum_i r_i(\lambda) = C$; if the link is not full, $\lambda = 0$ and every cell receives its full predictive support. $F_i^{-1}$ is interpolated piecewise-linearly through the six forecast quantiles. The cost is $O(NK + N n_{\rm iter})$, a few tens of microseconds for eight cells.
+Only one scalar has to be found. It is $\lambda \ge 0$, the shadow price of link capacity, and a 60-step bisection chooses it so that $\sum_i r_i(\lambda) = C$. If the link is not full, $\lambda = 0$ and every cell gets its full predictive support. We interpolate $F_i^{-1}$ piecewise-linearly through the six forecast quantiles. The cost is $O(NK + N n_{\rm iter})$, which comes to a few tens of microseconds for eight cells.
 
-\paragraph{Interpretation.} Eq.~\eqref{eq:kkt} cuts every cell at the \emph{same priority-weighted risk}. A cell with a wide forecast or a high priority receives more margin above its backlog; a cell with a confident forecast receives about its median. The margins are \emph{derived} from the forecast and the link constraint, not tuned.
+\paragraph{Interpretation.} Eq.~\eqref{eq:kkt} cuts every cell at the \emph{same priority-weighted risk}. A cell with a wide forecast or a high priority gets a larger margin above its backlog, while a cell with a confident forecast gets roughly its median. Nobody tunes these margins by hand. They are \emph{derived} from the forecast and the link constraint.
 
-\paragraph{Toy example.} Suppose bisection returns $\lambda = 0.6$. An LL cell ($w=3$) is funded to the $1 - 0.6/3 = 0.8$ quantile of its forecast; an eMBB cell ($w=1$) to its $1-0.6 = 0.4$ quantile (Figure~\ref{fig:kkt-toy}).
+\paragraph{Toy example.} Say the bisection returns $\lambda = 0.6$. An LL cell ($w=3$) is then funded up to the $1 - 0.6/3 = 0.8$ quantile of its forecast, and an eMBB cell ($w=1$) up to its $1-0.6 = 0.4$ quantile (Figure~\ref{fig:kkt-toy}).
 
 \begin{figure}[H]
 \centering
@@ -165,7 +165,7 @@ A single scalar $\lambda \ge 0$, the shadow price of link capacity, is found by 
 
 \subsection{Properties}
 
-The rule has four properties; the proofs are given in Appendix~\ref{app:proofs}.
+We prove four properties of the rule. The proofs are in Appendix~\ref{app:proofs}.
 
 \begin{proposition}[Feasibility]\label{prop:feas}
 For any forecast and any $\lambda$, the budgets satisfy the caps, and the bisection output satisfies $\sum_i r_i \le C$: the link is never overloaded.
@@ -189,7 +189,7 @@ The loss due to a miscalibrated forecast grows at most linearly in $\epsilon$.
 
 \subsection{Control loop}
 
-Figure~\ref{fig:loop} shows the complete loop executed every 10~ms. Edge cases are handled explicitly: non-finite forecasts fall back to window quantiles, a cell with zero demand gets zero budget plus a share of any headroom, and when the link is not binding every cell receives its full predictive support.
+Figure~\ref{fig:loop} shows the full loop, which runs every 10~ms. We handle the edge cases explicitly. If a forecast is not finite, the controller falls back to window quantiles. A cell with zero demand gets zero budget plus a share of any headroom. When the link is not binding, every cell gets its full predictive support.
 
 \begin{figure}[H]
 \centering
@@ -222,21 +222,21 @@ Figure~\ref{fig:loop} shows the complete loop executed every 10~ms. Edge cases a
 
 \subsection{The control problem as a POMDP}
 
-With state $s(t) = (Q(t), Z(t), \eta(t))$, made up of queue age profiles, hidden traffic state and spectral efficiencies, the controller solves at epochs $t_k = kT$
+Let the state be $s(t) = (Q(t), Z(t), \eta(t))$, which collects the queue age profiles, the hidden traffic state and the spectral efficiencies. At epochs $t_k = kT$ the controller solves
 \begin{equation}
   \min_{\pi}\ \mathbb{E}_\pi\Big[\sum_k \sum_{t=t_k}^{t_k+T-1} \sum_i w_i\,\mathrm{dropped}_i(t)\Big],
   \qquad r(t_k) = \pi\big(s(t_k - \tau),\text{history}\big).
 \end{equation}
-This partially observable MDP is intractable: the continuous state has hundreds of dimensions, the traffic law is unknown and each action is held for $T$ slots. We therefore implemented the three main families of approximations:
+This partially observable MDP cannot be solved directly. Its continuous state has hundreds of dimensions, the traffic law is unknown, and each action is held for $T$ slots. We implemented the three main families of approximations instead:
 \begin{enumerate}
-  \item \textbf{One-step stochastic programs}: the KKT newsvendor rule (Section~\ref{sec:kkt}) on a learned or model-based distribution, including a Markov chain fitted online.
-  \item \textbf{Lyapunov drift}: MaxWeight~\cite{tassiulas1992} and \textbf{predictive MaxWeight}~\cite{huang2016}, which serves cells in order of $w_i\,(Q_i + \ell H m_i)$, the queue the cell \emph{will} have with forecast median $m_i$, each up to $Q_i/T + (1+\mu)\,m_i$.
-  \item \textbf{Direct policy search}: a class-level policy in which each cell reserves $B_i + F_i^{-1}(p_{c(i)})$ and the shortage is shared by weighted water-filling with a learned LL weight; its three parameters $(p_{\rm LL}, p_{\rm eMBB}, w_{\rm LL})$ are learned with the cross-entropy method (CEM)~\cite{rubinstein1999} on training seeds. It is a small, reliable analogue of a deep-RL xApp.
+  \item \textbf{One-step stochastic programs.} The KKT newsvendor rule (Section~\ref{sec:kkt}) applied to a learned or model-based distribution, including a Markov chain fitted online.
+  \item \textbf{Lyapunov drift.} MaxWeight~\cite{tassiulas1992} and \textbf{predictive MaxWeight}~\cite{huang2016}. The latter serves cells in order of $w_i\,(Q_i + \ell H m_i)$, the queue the cell \emph{will} have given forecast median $m_i$, and gives each cell up to $Q_i/T + (1+\mu)\,m_i$.
+  \item \textbf{Direct policy search.} A class-level policy in which each cell reserves $B_i + F_i^{-1}(p_{c(i)})$ and any shortage is shared by weighted water-filling with a learned LL weight. Its three parameters $(p_{\rm LL}, p_{\rm eMBB}, w_{\rm LL})$ are learned on training seeds with the cross-entropy method (CEM)~\cite{rubinstein1999}. One can think of it as a small and reliable analogue of a deep-RL xApp.
 \end{enumerate}
 
 \subsection{Markov-fluid theory of the deadline-feasible rate}
 
-For Markov-modulated traffic with phase chain $P$ (stationary distribution $\pi$), per-phase log-MGF $\psi_k(\theta)$ and $\Phi(\theta) = \mathrm{diag}(e^{\psi_k(\theta)})$, we derived:
+Consider Markov-modulated traffic with phase chain $P$ (stationary distribution $\pi$), per-phase log-MGF $\psi_k(\theta)$ and $\Phi(\theta) = \mathrm{diag}(e^{\psi_k(\theta)})$. For this model we derived the following results.
 \begin{itemize}
   \item the window log-MGF $\Lambda_l(\theta) = \log\big(\pi^{\mathsf T}\Phi(P\Phi)^{l-1}\mathbf 1\big)$ and the effective bandwidth $\alpha(\theta) = \log\rho(P\Phi(\theta))/\theta$~\cite{kesidis1993,kelly1996};
   \item a \textbf{Chernoff--union bound} on the deadline-feasible rate,
@@ -248,25 +248,25 @@ For Markov-modulated traffic with phase chain $P$ (stationary distribution $\pi$
   \begin{equation}
     (D+1)(\rstar - r)^+ \le V(r) \le \textstyle\sum_t (a_t - r)^+,
   \end{equation}
-  where $V(r)$ is the volume violated at constant rate $r$. Hence the newsvendor surrogate~\eqref{eq:nv} is a lower bound on the violated volume.
+  where $V(r)$ is the volume violated at constant rate $r$. It follows that the newsvendor surrogate~\eqref{eq:nv} is a lower bound on the violated volume.
 \end{itemize}
-The bounds are valid in all validation runs but conservative by a factor 25--100 at 2--10~ms deadlines, which is a strong argument for \emph{learning} the distribution of $\rstar$ rather than computing it from a model.
+The bounds held in every validation run. They are, however, conservative by a factor of 25--100 at 2--10~ms deadlines. That gap is a strong reason to \emph{learn} the distribution of $\rstar$ from data instead of computing it from a model.
 
 \section{B2: LCQT, a Bayesian Link-Aware Quantile Transformer}
 \label{sec:lcqt}
 
 \subsection{Architecture}
 
-LCQT (Figure~\ref{fig:lcqt}) is a drop-in replacement for the GBM forecaster, built from established components (PatchTST patches~\cite{nie2023}, iTransformer-style attention across variates~\cite{liu2024}, TFT-style multi-quantile output~\cite{lim2021}, FiLM conditioning~\cite{perez2018film}, deep ensembles~\cite{lakshminarayanan2017} and MC dropout~\cite{gal2016}), with six modifications for the shared fronthaul link:
+LCQT (Figure~\ref{fig:lcqt}) can replace the GBM forecaster directly. It is assembled from established components: PatchTST patches~\cite{nie2023}, iTransformer-style attention across variates~\cite{liu2024}, TFT-style multi-quantile output~\cite{lim2021}, FiLM conditioning~\cite{perez2018film}, deep ensembles~\cite{lakshminarayanan2017} and MC dropout~\cite{gal2016}. We made six changes to adapt it to the shared fronthaul link.
 \begin{enumerate}
-  \item \textbf{Deadline-aware patch tokens}: 352 slots of history are cut into 16 patches of $H=22$ slots; each patch token carries its own $\rstar$ at the cell's deadline together with its mean and maximum. A summary token holds the 28 GBM features.
-  \item \textbf{Deadline/priority FiLM}: one network serves both LL and eMBB cells, modulated by $(D_i/H, p_i)$.
-  \item \textbf{Link-aware cross-cell attention}: after the temporal encoder, attention runs over the eight cells that share the link.
-  \item \textbf{Non-crossing quantile head}: $q_k = q_{k-1} + \mathrm{softplus}(a_k)$ guarantees monotone quantiles.
-  \item \textbf{Bayesian mixture layer}: three trained seeds $\times$ eight dropout passes form a posterior whose \emph{mixture} distribution is passed to the allocation rule.
-  \item \textbf{Differentiable KKT layer}: the network can be trained through the coupled capacity constraint.
+  \item \textbf{Deadline-aware patch tokens.} The 352 slots of history are cut into 16 patches of $H=22$ slots. Each patch token carries its own $\rstar$ at the cell's deadline, along with its mean and maximum. A separate summary token holds the 28 GBM features.
+  \item \textbf{Deadline/priority FiLM.} A single network serves both LL and eMBB cells and is modulated by $(D_i/H, p_i)$.
+  \item \textbf{Link-aware cross-cell attention.} After the temporal encoder, attention runs over the eight cells that share the link.
+  \item \textbf{Non-crossing quantile head.} Writing $q_k = q_{k-1} + \mathrm{softplus}(a_k)$ makes the quantiles monotone by construction.
+  \item \textbf{Bayesian mixture layer.} Three trained seeds $\times$ eight dropout passes form a posterior, and its \emph{mixture} distribution is what the allocation rule receives.
+  \item \textbf{Differentiable KKT layer.} This lets the network be trained through the coupled capacity constraint.
 \end{enumerate}
-The model has 63k parameters (44k without the cross-cell layer) and trains in about 6 minutes on a 4-core CPU (40 epochs, AdamW with a one-cycle schedule, early stopping on validation pinball loss), on the same seeds and target as the GBM.
+The model has 63k parameters (44k without the cross-cell layer). It uses the same seeds and target as the GBM and trains in about 6 minutes on a 4-core CPU, with 40 epochs of AdamW on a one-cycle schedule and early stopping on validation pinball loss.
 
 \begin{figure}[H]
 \centering
@@ -300,26 +300,26 @@ The model has 63k parameters (44k without the cross-cell layer) and trains in ab
 
 \subsection{Bayesian mixture layer}
 
-Posterior samples $s = 1,\dots,MS$ (ensemble members $\times$ dropout passes) give quantile functions $Q_i^{(s)}$. Instead of averaging their quantiles, which would discard the disagreement between samples, the KKT rule receives the mixture distribution
+The posterior samples $s = 1,\dots,MS$ (ensemble members $\times$ dropout passes) each give a quantile function $Q_i^{(s)}$. Averaging their quantiles would throw away the disagreement between samples. We pass the KKT rule the mixture distribution instead,
 \begin{equation}
   \hat F_i(x) = \frac{1}{MS}\sum_s F_i^{(s)}(x).
 \end{equation}
-A cell whose forecast the posterior is unsure about therefore receives a wider margin at the same price $\lambda^\ast$. Dropout is seeded per decision slot, so runs remain exactly reproducible.
+so a cell whose forecast the posterior is unsure about gets a wider margin at the same price $\lambda^\ast$. Dropout is seeded per decision slot, which keeps runs exactly reproducible.
 
 \subsection{Differentiable KKT layer and decision-focused training}
 
-In the forward pass $\lambda^\ast$ is found by bisection. In the backward pass we apply the implicit function theorem to the binding link constraint $g(\lambda,q) = \sum_i r_i(\lambda,q) - C = 0$:
+The forward pass finds $\lambda^\ast$ by bisection. For the backward pass we apply the implicit function theorem to the binding link constraint $g(\lambda,q) = \sum_i r_i(\lambda,q) - C = 0$, which gives
 \begin{equation}
   \frac{\partial\lambda^\ast}{\partial q} = -\frac{\partial g/\partial q}{\partial g/\partial \lambda},
 \end{equation}
-implemented as one Newton step from the detached root. The decision-focused model (DF-LCQT) is trained on the shortfall-sandwich lower bound of the dropped bits, $\sum_i p_i (D_i+1)(B_i + \rstar_i - r_i)^+$, plus a pinball regulariser. Because the contexts $(B_i, w_i)$ depend on the policy, they are logged in closed loop on training seeds and refreshed with one DAgger round. Unit tests confirm that the layer matches the numpy allocator to $10^{-6}$ and that $\partial \sum_i r_i / \partial q = 0$ when the link is full (budget only moves between cells).
+and in code this is one Newton step from the detached root. The decision-focused model (DF-LCQT) is trained on the shortfall-sandwich lower bound of the dropped bits, $\sum_i p_i (D_i+1)(B_i + \rstar_i - r_i)^+$, with a pinball regulariser added. The contexts $(B_i, w_i)$ depend on the policy. For that reason we log them in closed loop on training seeds and refresh them with one DAgger round. Unit tests check that the layer agrees with the numpy allocator to $10^{-6}$. They also check that $\partial \sum_i r_i / \partial q = 0$ when the link is full, since budget can then only move between cells.
 
 \section{B3: The Back-Pressure Newsvendor}
 \label{sec:bpn}
 
 \subsection{Motivation}
 
-A budget is a per-cell cap: capacity reserved for a 2~ms cell's upper quantile and then not used is lost to all other cells. A pure reservation rule therefore protects LL cells strongly but leaves eMBB short. Back-pressure (MaxWeight) fills the link in order of queue pressure with median demands and wastes less, but it ignores deadlines and forecast uncertainty. The back-pressure newsvendor (BPN) combines the two: \emph{fill a base in back-pressure order, then spend the leftover capacity on newsvendor margins} (Figure~\ref{fig:bpn}).
+A budget acts as a per-cell cap. If capacity is reserved for the upper quantile of a 2~ms cell and then goes unused, no other cell can have it. A pure reservation rule protects LL cells well for this reason, but it leaves the eMBB cells short. Back-pressure (MaxWeight) fills the link in order of queue pressure using median demands. It wastes less capacity, yet it ignores both deadlines and forecast uncertainty. The back-pressure newsvendor (BPN) puts the two ideas together. It \emph{fills a base in back-pressure order and then spends the leftover capacity on newsvendor margins} (Figure~\ref{fig:bpn}).
 
 \begin{figure}[H]
 \centering
@@ -344,23 +344,23 @@ A budget is a per-cell cap: capacity reserved for a 2~ms cell's upper quantile a
 
 \subsection{The policy}
 
-\paragraph{Stage 1.} The base rate $b_i = a\,Q_i/T + (1-a)\,B_i$ mixes MaxWeight's queue drain rate with the deadline-aware backlog rate. Each cell's base demand adds a class-specific base quantile of its forecast, $d_i = b_i + (1+\mu)\hat F_i^{-1}(p^0_{c(i)})$. When the base demands exceed the link, the shortage is shared in proportion to $v_{c}(\pi_i/\bar\pi)^{\eta}$, with pressure $\pi_i = Q_i + \ell H m_i$ (queue plus look-ahead $\times$ forecast median). The exponent $\eta$ moves continuously from class-weighted water-filling ($\eta = 0$, reservation) to strict back-pressure ordering ($\eta = \eta_{\max}$).
+\paragraph{Stage 1.} The base rate $b_i = a\,Q_i/T + (1-a)\,B_i$ blends MaxWeight's queue drain rate with the deadline-aware backlog rate. To get each cell's base demand we add a class-specific base quantile of its forecast, $d_i = b_i + (1+\mu)\hat F_i^{-1}(p^0_{c(i)})$. If the base demands exceed the link, the shortage is shared in proportion to $v_{c}(\pi_i/\bar\pi)^{\eta}$. Here the pressure is $\pi_i = Q_i + \ell H m_i$, the queue plus look-ahead $\times$ forecast median. Changing the exponent $\eta$ moves the policy smoothly from class-weighted water-filling ($\eta = 0$, reservation) to strict back-pressure ordering ($\eta = \eta_{\max}$).
 
-\paragraph{Stage 2.} The capacity left after stage~1 is distributed by the KKT rule: $r_i = \max(r_i^{(1)},\ b_i + \hat F_i^{-1}(1 - \lambda/\omega_{c(i)}))$, with $\lambda$ set by bisection so that $\sum_i r_i = C$.
+\paragraph{Stage 2.} The KKT rule distributes whatever capacity is left after stage~1. Each cell gets $r_i = \max(r_i^{(1)},\ b_i + \hat F_i^{-1}(1 - \lambda/\omega_{c(i)}))$, and bisection sets $\lambda$ so that $\sum_i r_i = C$.
 
 \subsection{Both strongest baselines are special cases}
 
-With the right parameters BPN \emph{is} each of the strongest baselines (verified exactly under shortage by unit tests):
+For suitable parameters BPN \emph{is} each of the strongest baselines. Unit tests verify this exactly under shortage. The settings are:
 \begin{itemize}
   \item predictive MaxWeight: $a = 1$, $p^0 = 0.5$, $\mu$ = its margin, $\eta = \eta_{\max}$;
   \item the CEM class-level policy: $a = 0$, $p^0$ = its class levels, $v_{\rm LL} = w_{\rm LL}$, $\eta = 0$.
 \end{itemize}
-Consequently, a search over the BPN parameters that starts from the tuned optimum of each baseline can only match or improve on both.
+A search over the BPN parameters that starts from the tuned optimum of each baseline can then only match or improve on both of them.
 
 \subsection{Learning with equal search effort}
 
-The eight parameters are learned with CEM on training seeds only (8 episodes per candidate, the same search as for the baselines), with two starts at the tuned optima of the two contained baselines. To keep the comparison fair, both baselines were \emph{re-tuned with the same CEM search} (``CEM-tuned''), so every controller received equal tuning effort. We report two versions: BPN~v1 (6 parameters, stage~1 always strict back-pressure) and BPN~v2 (8 parameters with the sharing exponent $\eta$ and margin $\mu$), which contains the reservation policy as well.
+We learn the eight parameters with CEM on training seeds only, using 8 episodes per candidate, which is the same search used for the baselines. The search is started twice, once at the tuned optimum of each contained baseline. For a fair comparison, both baselines were also \emph{re-tuned with the same CEM search} (``CEM-tuned''), so every controller had equal tuning effort. Two versions are reported. BPN~v1 has 6 parameters and always uses strict back-pressure in stage~1. BPN~v2 has 8 parameters, adding the sharing exponent $\eta$ and the margin $\mu$, and it contains the reservation policy as well.
 
 \section{Summary}
 
-This chapter developed the Part~B controllers. The deadline-feasible rate turns deadlines into a demand target; a calibrated quantile forecaster represents its uncertainty; the closed-form KKT rule splits the link at equal priority-weighted risk with four proven properties. The extended study framed the problem as a POMDP, derived Markov-fluid bounds and introduced the strongest baselines. LCQT adds a link-aware Bayesian Transformer forecaster with a differentiable KKT layer, and the back-pressure newsvendor unifies reservation and back-pressure in one learned policy class that contains both strongest baselines. Chapter~\ref{ch:partb-results} evaluates all of them.
+This chapter developed the Part~B controllers. The deadline-feasible rate turns deadlines into a demand target, and a calibrated quantile forecaster describes how uncertain that target is. The closed-form KKT rule then splits the link at equal priority-weighted risk, and we proved four properties for it. In the extended study we framed the problem as a POMDP, derived Markov-fluid bounds and introduced the strongest baselines. LCQT contributes a link-aware Bayesian Transformer forecaster with a differentiable KKT layer. The back-pressure newsvendor brings reservation and back-pressure into one learned policy class that contains both strongest baselines. Chapter~\ref{ch:partb-results} evaluates all of these methods.

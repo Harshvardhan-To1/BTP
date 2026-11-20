@@ -6,7 +6,7 @@
 
 \section{Introduction}
 
-Part~A reduces the fronthaul load at its source and makes the O-DU fast enough to work with the reduced data. It has two threads. The first thread (Sections~\ref{sec:a-model}--\ref{sec:rasbfp}) compresses the per-slot channel IQ by exploiting its structure: low numerical rank across antennas and sparsity in the delay domain. The second thread (Sections~\ref{sec:a-bench}--\ref{sec:ru-precoding}) makes the per-slot precoder computation fit inside the 0.5~ms slot: a screening benchmark of eight inversion methods including our learned inverters, the RMT-WS warm-start complex inversion method, and an analysis of where precoding should run to minimise fronthaul load. The optimised C kernel that implements the precoder is described in Chapter~\ref{ch:impl}.
+Part~A attacks the fronthaul load at its source and then makes the O-DU fast enough to work with the reduced data. The work falls into two threads. In the first (Sections~\ref{sec:a-model}--\ref{sec:rasbfp}) we compress the per-slot channel IQ using the structure it already has, namely a low numerical rank across antennas and sparsity in the delay domain. The second thread (Sections~\ref{sec:a-bench}--\ref{sec:ru-precoding}) is about fitting the per-slot precoder computation inside the 0.5~ms slot. It covers a screening benchmark of eight inversion methods including our learned inverters, the RMT-WS warm-start complex inversion method, and an analysis of where precoding should run to keep the fronthaul load small. The optimised C kernel that implements the precoder is described in Chapter~\ref{ch:impl}.
 
 \section{System Model for IQ Compression}
 \label{sec:a-model}
@@ -16,23 +16,23 @@ After OFDM demodulation, the O-RU holds for every slot the frequency-domain rece
   Y = H \odot X + W \in \mathbb{C}^{M\times N},
   \label{eq:a-model}
 \end{equation}
-with $M = 64$ antennas, $N = 1200$ subcarriers (a 20~MHz carrier at numerology~0), channel $H$, transmitted symbols $X$ and noise $W$. The channel follows the 3GPP TR 38.901 TDL-A delay profile~\cite{tr38901} with exponential spatial correlation across antennas. With 16-bit I and Q samples ($b = 16$), $N_{\rm sym} = 14$ symbols per slot and $R_{\rm slot} = 1000$ slots/s, the raw antenna-domain fronthaul rate is
+where $M = 64$ is the number of antennas, $N = 1200$ the number of subcarriers (a 20~MHz carrier at numerology~0), $H$ the channel, $X$ the transmitted symbols and $W$ the noise. We draw the channel from the 3GPP TR 38.901 TDL-A delay profile~\cite{tr38901} and add exponential spatial correlation across antennas. If I and Q are 16-bit samples ($b = 16$), with $N_{\rm sym} = 14$ symbols per slot and $R_{\rm slot} = 1000$ slots/s, the raw antenna-domain fronthaul rate is
 \begin{equation}
   R_{\rm raw} = 2\, M\, N\, N_{\rm sym}\, b\, R_{\rm slot} \approx 34.4~\text{Gbit/s per cell}.
 \end{equation}
-All compression ratios in this report are measured against this 16-bit baseline.
+Every compression ratio in this report is measured against this 16-bit baseline.
 
-\paragraph{Which IQ is compressed.} Delay-domain sparsity and low rank are properties of the channel $H$. When $X$ carries random QAM data, $H \odot X$ is neither sparse in delay nor low-rank, so data-symbol IQ stays on O-RAN BFP. The proposed encoders target the IQ that carries channel information: reference symbols (DMRS and SRS) and the channel matrices shipped for RU-side precoding (Section~\ref{sec:ru-precoding}). For a reference symbol the pilot sequence $X$ is known and unit-modulus, so the O-RU de-rotates the received block, $Y \odot \bar X = H + \tilde W$, which is delay-sparse and low-rank. This channel-plus-noise matrix is the one compressed in all experiments. Reference symbols are a small part of the fronthaul: an NR uplink slot of 14 OFDM symbols typically carries one or two DMRS symbols and at most one SRS symbol~\cite{ts38211}, so the encoders act on 1--3 of the 14 symbols and data symbols stay on BFP. Section~\ref{sec:ra-share} converts the compression ratios into a saving on the total fronthaul. The target NMSE of about $-20$~dB matches the noise floor at the 20~dB operating SNR, so the compression error is comparable to the estimation noise that the channel estimate already contains.
+\paragraph{Which IQ is compressed.} Delay-domain sparsity and low rank belong to the channel $H$, not to the data. When $X$ carries random QAM data, $H \odot X$ is neither sparse in delay nor low-rank, and so data-symbol IQ stays on O-RAN BFP. Our encoders target the IQ that carries channel information, i.e.\ the reference symbols (DMRS and SRS) and the channel matrices shipped for RU-side precoding (Section~\ref{sec:ru-precoding}). On a reference symbol the pilot sequence $X$ is known and has unit modulus. The O-RU can then de-rotate the received block, $Y \odot \bar X = H + \tilde W$, which is delay-sparse and low-rank. This channel-plus-noise matrix is what we compress in all experiments. Reference symbols are a small part of the fronthaul. An NR uplink slot of 14 OFDM symbols usually carries one or two DMRS symbols and at most one SRS symbol~\cite{ts38211}, so the encoders act on 1--3 of the 14 symbols and data symbols remain on BFP. Section~\ref{sec:ra-share} turns the compression ratios into a saving on the total fronthaul. The target NMSE of about $-20$~dB matches the noise floor at the 20~dB operating SNR. The compression error is thus of the same order as the estimation noise already in the channel estimate.
 
-The signal has two structures that BFP does not use:
+BFP ignores two kinds of structure in the signal:
 \begin{itemize}
-  \item \textbf{Low rank.} Correlated antennas make the numerical rank $r$ of $Y$ much smaller than $\min(M,N)$.
-  \item \textbf{Delay-domain sparsity.} A TDL channel has only a few strong taps, so after an inverse FFT along subcarriers most of the energy of $Y$ sits in a few delay bins.
+  \item \textbf{Low rank.} Because the antennas are correlated, the numerical rank $r$ of $Y$ is much smaller than $\min(M,N)$.
+  \item \textbf{Delay-domain sparsity.} A TDL channel has just a few strong taps. After an inverse FFT along subcarriers, most of the energy of $Y$ therefore lies in a few delay bins.
 \end{itemize}
 
-\paragraph{Baseline: O-RAN BFP.} The O-RAN compression standard~\cite{oran_cus} groups the 12 subcarriers of a PRB, stores one shared exponent and a $b$-bit mantissa for each I and Q value. It shortens numbers but does not reduce their count, giving about $16/b$, i.e.\ $\approx$2$\times$ at $b=8$.
+\paragraph{Baseline: O-RAN BFP.} The O-RAN compression standard~\cite{oran_cus} groups the 12 subcarriers of a PRB and stores one shared exponent plus a $b$-bit mantissa for each I and Q value. The numbers become shorter, but there are just as many of them. The gain is about $16/b$, i.e.\ $\approx$2$\times$ at $b=8$.
 
-Figure~\ref{fig:a-pipeline} shows where our encoders sit: in the O-RU, after the FFT, replacing (or wrapping) BFP; the decoder runs in the O-DU before equalisation.
+Figure~\ref{fig:a-pipeline} shows where our encoders are placed. They sit in the O-RU after the FFT and replace (or wrap) BFP, while the decoder runs in the O-DU before equalisation.
 
 \begin{figure}[H]
 \centering
@@ -58,7 +58,7 @@ Figure~\ref{fig:a-pipeline} shows where our encoders sit: in the O-RU, after the
 \section{CSEE: Delay-Domain Sparse Encoder}
 \label{sec:csee}
 
-CSEE transforms each antenna row of $Y$ to the delay domain, keeps the strongest taps and quantises them:
+CSEE moves each antenna row of $Y$ into the delay domain. It then keeps the strongest taps and quantises them, in four steps.
 \begin{enumerate}
   \item $Y_d = \mathrm{IFFT}_N(Y)$ (row-wise, along subcarriers).
   \item Select the support $S = \mathrm{TopK}(|Y_d|)$ of the $K$ largest-magnitude delay coefficients.
@@ -72,12 +72,12 @@ Let $\sigma^2_{\rm tail}$ be the energy of the discarded delay coefficients and 
   \mathrm{NMSE}_{\rm CSEE} \le \frac{\sigma^2_{\rm tail}}{\sigma^2_Y} + \frac{\Delta^2}{12}\,\frac{K}{MN\sigma_Y^2}.
 \end{equation}
 \end{theorem}
-The first term is the truncation error, the second the quantisation error; both are controlled by $K$ and the mantissa width. Because the FFT is unitary, the error in the delay domain equals the error in the frequency domain. The complexity is $O(MN\log N)$, dominated by the FFTs.
+The first term is the truncation error and the second is the quantisation error. We control both through $K$ and the mantissa width. Since the FFT is unitary, an error in the delay domain is the same as the error in the frequency domain. The FFTs dominate the cost, which is $O(MN\log N)$.
 
 \section{RAS-BFP: Randomised Sketch and QR Encoder}
 \label{sec:rasbfp}
 
-RAS-BFP computes a low-rank factorisation of $Y$ with a randomised sketch, which is far cheaper than an SVD:
+RAS-BFP builds a low-rank factorisation of $Y$ from a randomised sketch. This costs far less than an SVD. The steps are as follows.
 \begin{enumerate}
   \item Sketch with a subsampled randomised Hadamard transform (SRHT): $Z = \Omega Y \in \mathbb{C}^{r\times N}$.
   \item Thin QR of the sketch: $Z^H = QR$, with $Q \in \mathbb{C}^{N\times r}$ orthonormal.
@@ -92,13 +92,13 @@ With an SRHT sketch of $r$ rows (plus oversampling) and $Y_r$ the best rank-$r$ 
 \end{equation}
 \end{theorem}
 
-\paragraph{Rank under a bit budget.} $L$ and $Q$ hold $r(M+N)$ complex values, so with $b$-bit mantissas for I and Q the payload is $2b\,r(M+N)$ bits plus one exponent per block. For a total budget $B_{\rm total}$ the largest feasible rank is therefore
+\paragraph{Rank under a bit budget.} Together, $L$ and $Q$ hold $r(M+N)$ complex values. With $b$-bit mantissas for I and Q the payload comes to $2b\,r(M+N)$ bits, plus one exponent per block. Given a total budget $B_{\rm total}$, the largest rank we can afford is
 \begin{equation}
   r_{\max} = \left\lfloor \frac{B_{\rm total}}{2b\,(M+N)} \right\rfloor .
 \end{equation}
-The truncation error of the theorem above falls with $r$, while the quantisation error falls as $2^{-2b}$, so on the budget line $r\,b = B_{\rm total}/(2(M+N))$ the encoder picks the pair $(r, b)$ that minimises the sum of the two terms. This is a one-dimensional search over $r \le r_{\max}$, done once per configuration.
+The truncation error in the theorem above decreases with $r$. The quantisation error decreases as $2^{-2b}$. On the budget line $r\,b = B_{\rm total}/(2(M+N))$ the encoder picks the pair $(r, b)$ with the smallest sum of the two terms. It is a one-dimensional search over $r \le r_{\max}$ and is done once per configuration.
 
-The cost of RAS-BFP is $O(rMN)$, against $O(MN\min(M,N))$ for a truncated SVD, and it reaches the same ratio at the $-20$~dB NMSE target. At link level, however, it needs twice the rank of SVD to be lossless, so its operating point is 4$\times$ (Table~\ref{tab:a-methods} and Section~\ref{sec:ra-link}).
+RAS-BFP costs $O(rMN)$, compared with $O(MN\min(M,N))$ for a truncated SVD, and it achieves the same ratio at the $-20$~dB NMSE target. At link level the picture is different. There it needs twice the rank of SVD before it becomes lossless, which puts its operating point at 4$\times$ (Table~\ref{tab:a-methods} and Section~\ref{sec:ra-link}).
 
 \begin{table}[H]
 \caption{IQ compression methods compared in Part~A.}
@@ -120,20 +120,20 @@ Truncated SVD & low rank & $O(MN\min(M,N))$ & Eckart--Young~\cite{eckart1936} & 
 \section{Matrix-Inversion Benchmark and Learned Inverters}
 \label{sec:a-bench}
 
-MMSE equalisation, ZF/RZF precoding, channel estimation and our own encoders all need a matrix inverse or decomposition \emph{every slot}. To choose the right family of methods for a 0.5~ms budget we first ran a screening benchmark of eight methods on the CPU.
+MMSE equalisation, ZF/RZF precoding, channel estimation and our own encoders each need a matrix inverse or a decomposition \emph{every slot}. Before settling on a family of methods for a 0.5~ms budget, we ran a screening benchmark of eight methods on the CPU.
 
-\paragraph{Dataset.} Matrices $A = G/\sqrt{n} + 2I$ with $G_{ij}\sim\mathcal N(0,1)$, $n \in \{10, 100, 500\}$, 1000 matrices per size, float32. These real, well-conditioned matrices are deliberately simple: the screening compares method \emph{families} under identical conditions, and the selected family is then evaluated on the real complex RZF workload (Section~\ref{sec:rzf}) and as a C kernel (Chapter~\ref{ch:impl}). 80\,\% are used to train the learned models and timing is measured on 200 held-out matrices, one matrix at a time after warm-up, on CPU only. Metrics: mean, median and 95th-percentile time.
+\paragraph{Dataset.} We use matrices $A = G/\sqrt{n} + 2I$ with $G_{ij}\sim\mathcal N(0,1)$ and $n \in \{10, 100, 500\}$, with 1000 matrices per size in float32. These matrices are real and well conditioned, and they were kept simple on purpose. The screening only compares method \emph{families} under identical conditions. The selected family is later tested on the real complex RZF workload (Section~\ref{sec:rzf}) and as a C kernel (Chapter~\ref{ch:impl}). The learned models are trained on 80\,\% of the matrices, and timing is measured on 200 held-out matrices, one at a time after warm-up, on the CPU only. We report the mean, median and 95th-percentile time.
 
-\paragraph{Classical methods (6).} LAPACK \texttt{getri} through numpy, LU (scipy), QR, SVD, Gauss--Jordan elimination and the Newton--Schulz iteration.
+\paragraph{Classical methods (6).} These are LAPACK \texttt{getri} called through numpy, LU (scipy), QR, SVD, Gauss--Jordan elimination and the Newton--Schulz iteration.
 
 \paragraph{Our learned inverters (2).}
 \begin{itemize}
   \item \textbf{InverseNet-NS}: the Newton--Schulz iteration unrolled for 8 steps,
   \[ X_{k+1} = X_k(\beta_k I - \gamma_k A X_k), \qquad X_0 = \alpha A^T/(\|A\|_1\|A\|_\infty), \]
-  with learned step coefficients $(\beta_k,\gamma_k)$ and a learned scale $\alpha$ of the initial guess.
-  \item \textbf{InverseNet-Ultra}: a small hyper-network predicts the initial guess $X_0 = a_s A^T/\|A\|_F^2 + i_s I$ from four matrix statistics (trace, Frobenius, 1- and $\infty$-norm), followed by 6 learned Newton--Schulz steps. The better initial guess removes two steps.
+  where the step coefficients $(\beta_k,\gamma_k)$ and the scale $\alpha$ of the initial guess are learned.
+  \item \textbf{InverseNet-Ultra}: a small hyper-network predicts the initial guess $X_0 = a_s A^T/\|A\|_F^2 + i_s I$ from four matrix statistics (trace, Frobenius, 1- and $\infty$-norm). It is followed by 6 learned Newton--Schulz steps. Thanks to the better initial guess, two steps can be dropped.
 \end{itemize}
-The learned iterations keep the mathematical structure of a provably convergent method and learn only its coefficients, so they need very few parameters and generalise across matrices, and their cost is a fixed number of batched matrix multiplications, which is exactly the operation that GPUs, NPUs and tensor cores execute fastest.
+Both learned iterations keep the mathematical structure of a provably convergent method and learn only its coefficients. As a result they need very few parameters and generalise across matrices. Their cost is a fixed number of batched matrix multiplications, and GPUs, NPUs and tensor cores run that operation faster than any other.
 
 \section{The Real Workload: Complex RZF Precoding}
 \label{sec:rzf}
@@ -143,12 +143,12 @@ In the downlink the O-DU (or the O-RU, Section~\ref{sec:ru-precoding}) computes 
   G = HH^H + \alpha I \in \mathbb{C}^{K\times K}, \qquad W = H^H G^{-1} \in \mathbb{C}^{M\times K},
   \label{eq:rzf}
 \end{equation}
-for $K$ users and $M$ antennas, 273 times inside a 0.5~ms slot. To evaluate inversion methods on this workload we built a realistic complex channel simulator (\texttt{cmatinv/}): 3GPP TR 38.901 UMa NLOS path loss and shadowing, which creates a large near-far spread of user powers; the TDL-A 23-tap profile over 100~MHz; per-user angular-spread spatial correlation; an optional Rician line-of-sight component; and Clarke/Jakes channel aging $\rho = J_0(2\pi f_D T)$ for user speeds of 3--120~km/h. Configurations: $M \in \{64, 128\}$, $K \in \{8, 16, 32\}$, 273 PRBs, 30~kHz subcarrier spacing, 3.5~GHz carrier.
+for $K$ users and $M$ antennas, 273 times inside a 0.5~ms slot. To test inversion methods on this workload we wrote a realistic complex channel simulator (\texttt{cmatinv/}). It models 3GPP TR 38.901 UMa NLOS path loss and shadowing, which gives a large near-far spread of user powers. It adds the TDL-A 23-tap profile over 100~MHz, per-user angular-spread spatial correlation, an optional Rician line-of-sight component, and Clarke/Jakes channel aging $\rho = J_0(2\pi f_D T)$ for user speeds of 3--120~km/h. We simulate $M \in \{64, 128\}$ and $K \in \{8, 16, 32\}$ with 273 PRBs, 30~kHz subcarrier spacing and a 3.5~GHz carrier.
 
 \section{RMT-WS: Random-Matrix-Guided Warm-Start Inversion}
 \label{sec:rmtws}
 
-RMT-WS inverts the complex Hermitian Gram matrices of Eq.~\eqref{eq:rzf} with matrix multiplications only, starts from a near-optimal initial guess derived from random-matrix theory, and re-uses the previous slot's inverse whenever the channel has changed little. Figure~\ref{fig:rmtws} shows the flow for one PRB.
+RMT-WS inverts the complex Hermitian Gram matrices of Eq.~\eqref{eq:rzf} using matrix multiplications alone. Its starting point is a near-optimal initial guess obtained from random-matrix theory. When the channel has changed only slightly, it re-uses the inverse from the previous slot instead. Figure~\ref{fig:rmtws} shows the flow for one PRB.
 
 \begin{figure}[htbp]
 \centering
@@ -180,39 +180,39 @@ RMT-WS inverts the complex Hermitian Gram matrices of Eq.~\eqref{eq:rzf} with ma
 \label{fig:rmtws}
 \end{figure}
 
-\paragraph{1. Equilibration.} $\hat G = D^{-1/2} G D^{-1/2}$ with $D = \mathrm{diag}(G)$ gives a unit diagonal and removes the near-far power spread that otherwise ruins every series-based method.
+\paragraph{1. Equilibration.} Setting $\hat G = D^{-1/2} G D^{-1/2}$ with $D = \mathrm{diag}(G)$ gives a unit diagonal. It also removes the near-far power spread, which would otherwise ruin every series-based method.
 
-\paragraph{2. Eigensolve-free spectral interval.} For an i.i.d.\ channel the eigenvalues of $\hat G$ follow the Marchenko--Pastur (MP) law~\cite{marchenko1967} (Figure~\ref{fig:mp} in Chapter~\ref{ch:parta-results}). Correlation and line-of-sight widen the spectrum, which a fixed-ratio MP edge $(1\mp\sqrt{K/M})^2$ cannot capture. We instead match the first two spectral moments: $\hat G$ has spectral mean 1 and variance $v = \|\hat G\|_F^2/K - 1$, which yields
+\paragraph{2. Eigensolve-free spectral interval.} For an i.i.d.\ channel the eigenvalues of $\hat G$ follow the Marchenko--Pastur (MP) law~\cite{marchenko1967} (Figure~\ref{fig:mp} in Chapter~\ref{ch:parta-results}). Correlation and line-of-sight make the spectrum wider, and a fixed-ratio MP edge $(1\mp\sqrt{K/M})^2$ cannot follow this. We match the first two spectral moments instead. The spectral mean of $\hat G$ is 1 and its variance is $v = \|\hat G\|_F^2/K - 1$, from which
 \begin{equation}
   [a,b] = 1 + v/\bar s \mp 2\sqrt{v},
 \end{equation}
-computed with only $K^2$ operations and no eigen-decomposition. Correlated and LoS channels increase $v$ and widen the interval automatically.
+follows. Computing it takes only $K^2$ operations and no eigen-decomposition. Correlated and LoS channels raise $v$, so the interval widens by itself.
 
-\paragraph{3. Cold start.} A Chebyshev polynomial of degree $d$ on $[a,b]$ gives an initial inverse $X_0 = p_d(\hat G)$ whose residual $\|I - \hat G X_0\|$ is minimax-optimal on the interval. Newton--Schulz steps $X \leftarrow X(2I - \hat G X)$ then converge quadratically, using only GEMMs.
+\paragraph{3. Cold start.} A Chebyshev polynomial of degree $d$ on $[a,b]$ provides an initial inverse $X_0 = p_d(\hat G)$. Its residual $\|I - \hat G X_0\|$ is minimax-optimal on the interval. From there, Newton--Schulz steps $X \leftarrow X(2I - \hat G X)$ converge quadratically and need nothing but GEMMs.
 
-\paragraph{4. Warm-start tracking.} Consecutive slots have strongly correlated channels at pedestrian speed, so the previous inverse, rescaled by the new diagonal, is an excellent starting point that needs only one or two Newton steps.
+\paragraph{4. Warm-start tracking.} At pedestrian speed the channels of consecutive slots are strongly correlated. The previous inverse, rescaled by the new diagonal, is then a very good starting point and needs just one or two Newton steps.
 
-\paragraph{5. Residual certificate.} With two Gaussian probe vectors, $\hat r = \|(I - \hat G X)z\|/\|z\|$ costs $4K^2$ multiply-accumulates (about $4/K$ of a GEMM). It predicts the number of Newton steps needed, $\lceil \log_2(\ln\varepsilon / \ln \hat r)\rceil$, and if $\hat r > 0.3$ it declares the warm start non-contractive and runs the cold start instead. This makes RMT-WS safe at every user speed.
+\paragraph{5. Residual certificate.} We use two Gaussian probe vectors. Evaluating $\hat r = \|(I - \hat G X)z\|/\|z\|$ then costs $4K^2$ multiply-accumulates, or about $4/K$ of a GEMM. The estimate predicts how many Newton steps are needed, $\lceil \log_2(\ln\varepsilon / \ln \hat r)\rceil$. If $\hat r > 0.3$, the warm start is declared non-contractive and the cold start runs in its place. With this check RMT-WS is safe at every user speed.
 
-\paragraph{Doppler-to-warm-start law.} A first-order expansion of the AR(1) aging channel gives the initial residual of the warm start
+\paragraph{Doppler-to-warm-start law.} Expanding the AR(1) aging channel to first order gives the initial residual of the warm start as
 \begin{equation}
   r_0 \approx c\cdot 2\sqrt{\frac{K}{M-K}}\,\sqrt{1-\rho}, \qquad 1-\rho \approx (\pi f_D T)^2,
   \label{eq:doppler}
 \end{equation}
-so $r_0$ grows linearly with the user speed. Eq.~\eqref{eq:doppler} is a design rule: for a given array and user count the O-DU knows in advance up to which speed the warm start pays off (about 39~km/h for $M=64$, $K=16$; 60~km/h for $K=8$; 23~km/h for $K=32$).
+and $r_0$ therefore grows linearly with the user speed. We use Eq.~\eqref{eq:doppler} as a design rule. For a given array and user count, the O-DU knows in advance up to which speed the warm start pays off (about 39~km/h for $M=64$, $K=16$; 60~km/h for $K=8$; 23~km/h for $K=32$).
 
-\paragraph{Certificate guarantee.} The probe estimate $\hat r^2$ is unbiased for $\|R\|_F^2/K$ with $R = I - \hat G X$. A Laurent--Massart tail bound for weighted $\chi^2$ sums gives
+\paragraph{Certificate guarantee.} With $R = I - \hat G X$, the probe estimate $\hat r^2$ is an unbiased estimate of $\|R\|_F^2/K$. Applying a Laurent--Massart tail bound for weighted $\chi^2$ sums, we get
 \begin{equation}
   \Pr\big(\hat r^2 \le (1-d)\, r^2\big) \le e^{-p d^2 s/2},
 \end{equation}
-where $p$ is the number of probes and $s$ the stable rank of $R$; in an audit of 480 PRB cases from 3 to 120~km/h no accepted warm start was non-contractive.
+where $p$ is the number of probes and $s$ is the stable rank of $R$. We audited 480 PRB cases between 3 and 120~km/h and found no accepted warm start that was non-contractive.
 
-\paragraph{Why RMT-WS suits the O-DU.} It adapts automatically to correlated and near-far channels, needs no eigen-decomposition, consists only of matrix multiplications (ideal for GPU, NPU and tensor-core hardware), adapts its cost to the user speed, and carries a built-in accuracy certificate.
+\paragraph{Why RMT-WS suits the O-DU.} The method adjusts by itself to correlated and near-far channels and needs no eigen-decomposition. It is built from matrix multiplications only, which fits GPU, NPU and tensor-core hardware well. Its cost scales with the user speed, and it comes with its own accuracy certificate.
 
 \section{Where Should Precoding Run? RU-Side Precoding}
 \label{sec:ru-precoding}
 
-The location of the precoder has a large effect on the fronthaul rate (Figure~\ref{fig:ru-prec}). If the O-DU precodes, it must send all $M=64$ antenna streams of IQ samples over the fronthaul. If the O-RU precodes (the O-RAN ``category B'' radio), the fronthaul carries only the $K=16$ layer streams plus the beamforming weights $W$. At mobility the weights must be refreshed every slot, so this architecture is only viable with a fast per-slot precoder computation. That is what RMT-WS and the fused kernel of Chapter~\ref{ch:impl} provide.
+Where the precoder runs has a large effect on the fronthaul rate (Figure~\ref{fig:ru-prec}). When the O-DU precodes, all $M=64$ antenna streams of IQ samples have to cross the fronthaul. When the O-RU precodes instead (the O-RAN ``category B'' radio), the fronthaul only carries the $K=16$ layer streams and the beamforming weights $W$. Under mobility the weights must be refreshed every slot, so the architecture only works with a fast per-slot precoder. RMT-WS and the fused kernel of Chapter~\ref{ch:impl} provide one.
 
 \begin{figure}[H]
 \centering
@@ -233,4 +233,4 @@ The location of the precoder has a large effect on the fronthaul rate (Figure~\r
 
 \section{Summary}
 
-This chapter presented the Part~A system model and methods: two structure-aware encoders with error bounds (CSEE and RAS-BFP), an eight-method inversion screening benchmark with learned inverters, the RMT-WS warm-start complex inversion with its Doppler law and certificate, and the RU-side precoding architecture enabled by fast per-slot precoding. Chapter~\ref{ch:parta-results} presents their simulation results.
+This chapter set out the system model and methods of Part~A. We introduced two structure-aware encoders with error bounds, CSEE and RAS-BFP, and an eight-method inversion screening benchmark with learned inverters. We then described the RMT-WS warm-start complex inversion with its Doppler law and certificate, and the RU-side precoding architecture that fast per-slot precoding makes possible. The simulation results for these methods are given in Chapter~\ref{ch:parta-results}.
