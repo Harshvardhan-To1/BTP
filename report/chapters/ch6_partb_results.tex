@@ -6,18 +6,18 @@
 
 \section{Introduction}
 
-This chapter evaluates the Part~B controllers in closed loop. Section~\ref{sec:rb-protocol} describes the traffic families, the reference controllers and the statistical protocol. Sections~\ref{sec:rb-main}--\ref{sec:rb-overhead} report the B1 results: the main comparison, where the gain comes from, ablations, the 3GPP traffic family, robustness, the interaction with Part~A compression and the decision overhead. Section~\ref{sec:rb-ext} reports the extended study, Section~\ref{sec:rb-b2} the Bayesian Transformer forecaster, and Section~\ref{sec:rb-b3} the back-pressure newsvendor, which is the final and best controller of the project.
+This chapter presents the closed-loop evaluation of the Part~B controllers. Section~\ref{sec:rb-protocol} first describes the traffic families, the reference controllers and the statistical protocol. The B1 results follow in Sections~\ref{sec:rb-main}--\ref{sec:rb-overhead}. They cover the main comparison, the source of the gain, the ablations, the 3GPP traffic family, robustness, the interaction with Part~A compression and the decision overhead. Section~\ref{sec:rb-ext} then reports the extended study and Section~\ref{sec:rb-b2} the Bayesian Transformer forecaster. Section~\ref{sec:rb-b3} covers the back-pressure newsvendor, which is the final and best controller of the project.
 
 \section{Evaluation Protocol}
 \label{sec:rb-protocol}
 
 \subsection{Traffic families}
 
-Three independent traffic families are used, so that the conclusions do not depend on one traffic model:
+We use three independent traffic families, so that no conclusion rests on a single traffic model:
 \begin{itemize}
-  \item \textbf{Family S (synthetic, bursty).} Gamma background traffic plus ON/OFF bursts with heavy-tailed Pareto sojourns ($\alpha_{\rm on} = 1.5$, $\alpha_{\rm off} = 1.8$)~\cite{willinger1997}, slow load regimes and spectral-efficiency drift. Five scenarios: low (offered load 0.50), moderate (0.65), high (0.80), flash crowds, and a \textbf{held-out distribution shift} never seen in training or tuning.
-  \item \textbf{Family G (standards-based, nothing hand-designed).} 3GPP TR 38.901 UMa geometry with 7 interfering sites and Jakes fading~\cite{tr38901}, the TS 38.214 CQI table~\cite{ts38214}, FTP Model~3 traffic for eMBB~\cite{tr36814} and XR video at 60~fps for LL cells~\cite{tr38838}. Fronthaul demand is the output of a round-robin PRB scheduler. Scenarios: moderate (0.65) and high (0.80) load.
-  \item \textbf{Family M (Markov-modulated).} Markov-modulated Gamma sources with idle, normal and burst phases; scenarios moderate, high, and a semi-Markov held-out shift with Pareto sojourns.
+  \item \textbf{Family S (synthetic, bursty).} Gamma background traffic is combined with ON/OFF bursts whose sojourns are heavy-tailed Pareto ($\alpha_{\rm on} = 1.5$, $\alpha_{\rm off} = 1.8$)~\cite{willinger1997}, together with slow load regimes and drift in spectral efficiency. There are five scenarios: low (offered load 0.50), moderate (0.65), high (0.80), flash crowds, and a \textbf{held-out distribution shift} that is never seen in training or tuning.
+  \item \textbf{Family G (standards-based, nothing hand-designed).} The geometry is 3GPP TR 38.901 UMa with 7 interfering sites and Jakes fading~\cite{tr38901}, and channel quality is mapped with the TS 38.214 CQI table~\cite{ts38214}. eMBB cells carry FTP Model~3 traffic~\cite{tr36814}, and LL cells carry XR video at 60~fps~\cite{tr38838}. The fronthaul demand is the output of a round-robin PRB scheduler. We run this family at moderate (0.65) and high (0.80) load.
+  \item \textbf{Family M (Markov-modulated).} Gamma sources are modulated by a Markov chain with idle, normal and burst phases. The scenarios are moderate and high load, plus a semi-Markov held-out shift with Pareto sojourns.
 \end{itemize}
 
 \subsection{Reference controllers}
@@ -45,11 +45,11 @@ Oracle + KKT & true $\rstar$ (reference only) & KKT rule \\
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:b-controllers} lists the controllers of the B1 comparison. The point forecast is the key ablation: same model, but only one number. The fixed global quantile checks that ``just reserve a high quantile'' is not the trick. Margins $\{0, 0.25, 0.5\}$, EWMA windows and persistence windows were tuned for every baseline on validation seeds (a margin of 0 was best for all). Every baseline redistributes unused capacity and uses the same weights, backlog rate and water-fill as the point-forecast controller. The oracles use the true future $\rstar$ and are shown as references only. The extended study adds predictive MaxWeight, the CEM policy, a model-based Markov-chain KKT rule, a bound-quantile KKT rule and a tuned-weight KKT rule, for 19 controllers in total.
+Table~\ref{tab:b-controllers} lists the controllers of the B1 comparison. The point forecast is the most important ablation, since it uses the same model but passes on only one number. The fixed global quantile is included to check that simply reserving a high quantile is not what makes the method work. For every baseline we tuned the margins $\{0, 0.25, 0.5\}$, the EWMA windows and the persistence windows on validation seeds, and a margin of 0 turned out best for all of them. All baselines redistribute unused capacity and share the weights, backlog rate and water-fill of the point-forecast controller. The oracles use the true future $\rstar$ and serve only as references. The extended study adds predictive MaxWeight, the CEM policy, a model-based Markov-chain KKT rule, a bound-quantile KKT rule and a tuned-weight KKT rule, which brings the total to 19 controllers.
 
 \subsection{Statistical protocol}
 
-Each scenario is simulated for 20 test seeds of 20{,}000 slots (10~s) after 1{,}000 warm-up slots. All controllers see identical traces and identical stale observations. Train, validation and test seeds are disjoint, and every forecaster is frozen before testing. Because seed-to-seed variation is dominated by burst timing that all controllers share, we report paired per-seed comparisons: the mean relative change of $V_w$ with a 95\,\% bootstrap confidence interval, the number of seeds won out of 20, and Holm-corrected Wilcoxon signed-rank tests. Table~\ref{tab:b-params} summarises the simulation parameters.
+Each scenario is run for 20 test seeds of 20{,}000 slots (10~s), after 1{,}000 warm-up slots. All controllers receive the same traces and the same stale observations. The train, validation and test seeds do not overlap, and every forecaster is frozen before testing starts. Most of the variation from seed to seed comes from burst timing, which all controllers share, so we report paired per-seed comparisons. For each pair we give the mean relative change of $V_w$ with a 95\,\% bootstrap confidence interval, the number of seeds won out of 20, and a Wilcoxon signed-rank test with Holm correction. The simulation parameters are collected in Table~\ref{tab:b-params}.
 
 \begin{table}[H]
 \caption{Part~B simulation parameters.}
@@ -75,7 +75,7 @@ Statistics & paired bootstrap 95\,\% CI, Holm-corrected Wilcoxon \\
 \section{B1: Main Result on Family S}
 \label{sec:rb-main}
 
-Table~\ref{tab:b-main} reports $V_w$ for every controller and scenario. The proposed KKT rule is the best implementable controller in all five scenarios, including flash crowds and the held-out shift. At high load it reaches 8.00\,\%, against 9.70\,\% for the point forecast, 9.20\,\% for reactive proportional and 11.54\,\% for MaxWeight. Figure~\ref{fig:b-main} shows the same data graphically.
+Table~\ref{tab:b-main} lists $V_w$ for every controller in every scenario. Among the implementable controllers, the proposed KKT rule is best in all five scenarios, and this includes flash crowds and the held-out shift. At high load it reaches 8.00\,\%. The point forecast gives 9.70\,\% at the same load, reactive proportional 9.20\,\% and MaxWeight 11.54\,\%. Figure~\ref{fig:b-main} plots the same data.
 
 \begin{table}[H]
 \caption{B1 main result, Family S: $V_w$ [\%] (mean $\pm$ std over 20 test seeds; lower is better).}
@@ -107,7 +107,7 @@ Proposed, window quantiles (no ML) & 0.25 $\pm$ 0.13 & 2.57 $\pm$ 0.64 & 8.72 $\
 \label{fig:b-main}
 \end{figure}
 
-Table~\ref{tab:b-paired} gives the paired per-seed reductions. Against the point forecast, the fixed quantile, MaxWeight and the deadline-aware reactive controller the proposed rule wins every scenario, including the held-out shift, on every one of the 20 seeds, with $p < 0.01$: 11--43\,\% fewer weighted violations than the point forecast, 22--54\,\% fewer than the fixed quantile, 19--70\,\% fewer than deadline-aware reactive and 18--83\,\% fewer than MaxWeight. Figure~\ref{fig:b-paired} visualises these reductions.
+Table~\ref{tab:b-paired} gives the paired reductions per seed. We compared the proposed rule with the point forecast, the fixed quantile, MaxWeight and the deadline-aware reactive controller. It wins against each of them in every scenario, the held-out shift included, on all of the 20 seeds and with $p < 0.01$. Compared with the point forecast it has 11--43\,\% fewer weighted violations. The reduction is 22--54\,\% against the fixed quantile, 19--70\,\% against deadline-aware reactive and 18--83\,\% against MaxWeight. These reductions are plotted in Figure~\ref{fig:b-paired}.
 
 \begin{table}[H]
 \caption{Paired per-seed reduction of $V_w$ by the proposed rule, Family S (mean relative change, seeds won out of 20; ** Holm--Wilcoxon $p < 0.01$, * $p < 0.05$).}
@@ -138,7 +138,7 @@ Window quantiles (no ML) & $-37$\,\% 20/20** & $-16$\,\% 20/20** & $-8$\,\% 20/2
 \section{Where the Gain Comes From}
 \label{sec:rb-where}
 
-Table~\ref{tab:b-class} breaks the high-load result down for the deadline-aware controllers. The proposed rule has the lowest eMBB loss (12.3\,\%) and the highest link utilisation (72.2\,\%), because it adds margin only where the forecast is wide; one global quantile level over-protects LL and wastes a third of its allocation. The proposed rule also has the highest Jain fairness (0.997).
+Table~\ref{tab:b-class} breaks down the high-load result for the deadline-aware controllers. The proposed rule has the lowest eMBB loss (12.3\,\%) and the highest link utilisation (72.2\,\%). This is because it adds margin only where the forecast is wide. A single global quantile level, in contrast, over-protects LL and wastes a third of its allocation. The proposed rule also has the highest Jain fairness (0.997).
 
 \begin{table}[H]
 \caption{Deadline-aware controllers, Family S, high load (20 seeds).}
@@ -166,17 +166,17 @@ Fixed global quantile & 22.0\,\% & 67.0\,\% & 0.985 \\
 \section{Ablations}
 \label{sec:rb-abl}
 
-The ablations isolate each design choice (everything else fixed):
+Each ablation below changes one design choice and keeps everything else fixed:
 \begin{enumerate}
-  \item \textbf{A range versus a single number} (same model, same rule family): $-11$\,\% to $-43$\,\%, 20/20 seeds everywhere. \emph{Representing uncertainty matters.}
-  \item \textbf{Per-cell KKT level versus one tuned global level} (same forecast): $-22$\,\% to $-54$\,\%. \emph{The level must be set per cell by the link constraint}, and that is exactly what the KKT rule does.
-  \item \textbf{GBM versus window (no-ML) quantiles} under the same KKT rule: GBM adds $-7$\,\% to $-37$\,\% on nominal traffic. Even the no-ML version beats the point forecast in every scenario, so the rule itself carries the method and the learned forecaster adds on top.
+  \item \textbf{A range versus a single number} (same model, same rule family): $-11$\,\% to $-43$\,\%, with 20/20 seeds in every scenario. This shows that \emph{representing uncertainty matters}.
+  \item \textbf{Per-cell KKT level versus one tuned global level} (same forecast): $-22$\,\% to $-54$\,\%. So \emph{the level has to be set per cell by the link constraint}, which is what the KKT rule does.
+  \item \textbf{GBM versus window (no-ML) quantiles} under the same KKT rule: GBM adds $-7$\,\% to $-37$\,\% on nominal traffic. Even the no-ML version beats the point forecast in every scenario. The rule itself therefore carries the method, and the learned forecaster improves on it further.
 \end{enumerate}
 
 \section{B1 on Family G: Standards-Based 3GPP Traffic}
 \label{sec:rb-g}
 
-Table~\ref{tab:b-g} and Figure~\ref{fig:b-g} show that the result reproduces on traffic we did not design: the proposed rule is the best implementable controller at both loads on 20/20 seeds. At high load it is 11\,\% better than the point forecast, 31\,\% better than deadline-aware reactive and 50\,\% better than reactive proportional. On this family our rule is also the best under the \emph{unweighted} violation ratio (14.3--14.4\,\% for the two variants), and a forecaster transferred from Family~S without retraining still beats every reactive controller.
+Table~\ref{tab:b-g} and Figure~\ref{fig:b-g} show that the result carries over to traffic we did not design ourselves. The proposed rule is the best implementable controller at both loads, on 20/20 seeds. At high load it is 11\,\% better than the point forecast, 31\,\% better than deadline-aware reactive and 50\,\% better than reactive proportional. On this family our rule is also the best under the \emph{unweighted} violation ratio (14.3--14.4\,\% for the two variants). A forecaster trained on Family~S and used here without retraining still beats every reactive controller.
 
 \begin{table}[H]
 \caption{Family G (3GPP): $V_w$ [\%] at moderate and high load, and the unweighted ratio at high load.}
@@ -211,7 +211,7 @@ Transfer (trained on S) & 6.99 & 9.89 & 14.3 \\
 \section{Forecast Quality, Robustness and Operating Regime}
 \label{sec:rb-robust}
 
-\paragraph{Forecast calibration.} On validation data the GBM quantiles cover 5.6 / 25.6 / 50.7 / 75.3 / 89.9 / 94.9\,\% at nominal levels 5 / 25 / 50 / 75 / 90 / 95\,\%, so the forecaster is calibrated to within about one percentage point. The pinball loss is 0.0224 against 0.0293 for a window median (Figure~\ref{fig:b-fq}).
+\paragraph{Forecast calibration.} On validation data the GBM quantiles cover 5.6 / 25.6 / 50.7 / 75.3 / 89.9 / 94.9\,\% at nominal levels 5 / 25 / 50 / 75 / 90 / 95\,\%, which means the forecaster is calibrated to within about one percentage point. Its pinball loss is 0.0224, compared with 0.0293 for a window median (Figure~\ref{fig:b-fq}).
 
 \begin{figure}[H]
 \centering
@@ -220,7 +220,7 @@ Transfer (trained on S) & 6.99 & 9.89 & 14.3 \\
 \label{fig:b-fq}
 \end{figure}
 
-\paragraph{Robustness to miscalibration.} To test Proposition~\ref{prop:robust} in practice we shifted every forecast quantile level by $\epsilon$ before allocation (Table~\ref{tab:b-miscal}, Figure~\ref{fig:b-miscal}). Under-reserving is almost harmless, because a common shift is absorbed by the price $\lambda$; over-reserving degrades gradually. Even with $\epsilon = 0.3$ the rule still matches the point forecast (9.46\,\%) and beats deadline-aware reactive (10.78\,\%).
+\paragraph{Robustness to miscalibration.} To check Proposition~\ref{prop:robust} in practice, we shifted every forecast quantile level by $\epsilon$ before the allocation step (Table~\ref{tab:b-miscal}, Figure~\ref{fig:b-miscal}). Under-reserving does almost no harm, because the price $\lambda$ absorbs a common shift. Over-reserving makes things worse, but only gradually. Even at $\epsilon = 0.3$ the rule still matches the point forecast (9.46\,\%) and beats deadline-aware reactive (10.78\,\%).
 
 \begin{table}[H]
 \caption{$V_w$ [\%] when every quantile level is shifted by $\epsilon$ (10 seeds).}
@@ -243,7 +243,7 @@ shift & 10.96 & 11.10 & 11.13 & 11.53 & 12.50 \\
 \label{fig:b-miscal}
 \end{figure}
 
-\paragraph{Control interval and telemetry delay.} Table~\ref{tab:b-interval} sweeps the control interval and the telemetry delay (10 seeds). For every interval from 2 to 10~ms, which is the operating range of a near-RT RIC, the KKT rule is the best controller, and at $T = 2$~ms it even beats the oracle water-fill. Its advantage is largest with fresh telemetry ($-16$\,\% against reactive proportional at $\tau = 0$).
+\paragraph{Control interval and telemetry delay.} Table~\ref{tab:b-interval} varies the control interval and the telemetry delay (10 seeds). The KKT rule is the best controller for every interval from 2 to 10~ms, which is the operating range of a near-RT RIC. At $T = 2$~ms it even beats the oracle water-fill. The advantage is largest when telemetry is fresh ($-16$\,\% against reactive proportional at $\tau = 0$).
 
 \begin{table}[H]
 \caption{Sensitivity to control interval $T$ and telemetry delay $\tau$, Family S high load, $V_w$ [\%].}
@@ -267,12 +267,12 @@ $\tau$ & & & vs.\ reactive prop. \\
 \end{tabular}
 \end{table}
 
-\paragraph{Priority weight.} The rule exploits the operator's priority: as the LL weight rises from 3 to 5, its $V_w$ at high load falls from 8.00 to 6.93\,\%, while reactive proportional rises from 9.20 to 10.56\,\%. The more an operator values low-latency traffic, the larger the advantage of the proposed rule.
+\paragraph{Priority weight.} The rule makes use of the operator's priority setting. When the LL weight is raised from 3 to 5, its $V_w$ at high load drops from 8.00 to 6.93\,\%, while that of reactive proportional grows from 9.20 to 10.56\,\%. So the more weight an operator puts on low-latency traffic, the larger the advantage of the proposed rule becomes.
 
 \section{Part A $\times$ Part B: Compression Width and Allocation}
 \label{sec:rb-ab}
 
-The two parts of the project meet in $\beta(b)$ of Eq.~\eqref{eq:beta}. Table~\ref{tab:b-ab} keeps the user traffic fixed and change only the BFP width. Compression sets the load regime; allocation decides the loss inside it. Going from 9- to 6-bit mantissas lowers the load from 0.65 to 0.44, and at 0.65 load the proposed rule halves the loss of reactive proportional (1.96 vs 3.90\,\%). Part~A keeps the link in the operating range where the allocation rule of Part~B is most effective, which is why the two parts belong together.
+The two parts of the project meet in the term $\beta(b)$ of Eq.~\eqref{eq:beta}. In Table~\ref{tab:b-ab} the user traffic is kept fixed and only the BFP width is changed. Compression determines the load regime, and allocation determines the loss within that regime. Moving from 9- to 6-bit mantissas lowers the load from 0.65 to 0.44. At 0.65 load the proposed rule cuts the loss of reactive proportional by half (1.96 vs 3.90\,\%). Part~A therefore keeps the link in the operating range where the Part~B allocation rule works best, and this is why the two parts belong together.
 
 \begin{table}[H]
 \caption{Compression width versus allocation rule (same user traffic), $V_w$ [\%].}
@@ -292,7 +292,7 @@ BFP width & offered load & Reactive prop. & Point forecast & \textbf{Proposed} \
 \section{Decision Overhead}
 \label{sec:rb-overhead}
 
-Figure~\ref{fig:b-time} reports the decision time per 10~ms epoch in Python on a 4-core CPU. The KKT rule itself takes less than 0.1~ms; the whole proposed controller, including 28 features per cell and $6\times300$ trees, takes 3.5~ms, well inside the 10~ms interval. A vectorised numpy tree traversal that we wrote is 6.7$\times$ faster than scikit-learn's \texttt{predict} (1.8 vs 12~ms).
+Figure~\ref{fig:b-time} shows the decision time per 10~ms epoch, measured in Python on a 4-core CPU. The KKT rule alone needs less than 0.1~ms. The complete proposed controller, which computes 28 features per cell and evaluates $6\times300$ trees, needs 3.5~ms. This is well inside the 10~ms interval. We also wrote a vectorised numpy tree traversal, and it runs 6.7$\times$ faster than scikit-learn's \texttt{predict} (1.8 vs 12~ms).
 
 \begin{figure}[H]
 \centering
@@ -304,7 +304,7 @@ Figure~\ref{fig:b-time} reports the decision time per 10~ms epoch in Python on a
 \section{Extended Study Results}
 \label{sec:rb-ext}
 
-Table~\ref{tab:b-ext} compares the best controllers of the extended study across all ten scenarios of the three families, and Figure~\ref{fig:b-ext} shows all 19 controllers. Within the NCC comparison set, the KKT rule wins all 10 scenarios and is the best controller with nothing to tune. A Markov chain fitted online, with no training data at all, comes within 3--9\,\% of the learned rule. Two controllers from the queueing and policy-search literature that use the \emph{same} forecaster go further: the CEM policy is best in 6 of 10 scenarios and predictive MaxWeight in 3 (all on bursty Family~S). These two controllers are the strongest baselines of the project; B3 beats both of them.
+Table~\ref{tab:b-ext} compares the best controllers of the extended study over all ten scenarios of the three families, and Figure~\ref{fig:b-ext} shows all 19 controllers. Within the NCC comparison set the KKT rule wins all 10 scenarios, and it is the best controller that has nothing to tune. A Markov chain fitted online, without any training data, comes within 3--9\,\% of the learned rule. Two controllers from the queueing and policy-search literature do better while using the \emph{same} forecaster. The CEM policy is best in 6 of 10 scenarios and predictive MaxWeight in 3, all of them on bursty Family~S. These two are the strongest baselines of the project, and B3 beats both of them.
 
 \begin{table}[H]
 \caption{Extended study: $V_w$ [\%] of the strongest controllers across three families.}
@@ -336,7 +336,7 @@ M shift 0.80 & 5.52 & 4.80 & 4.17 & 5.39 & 5.31 \\
 \label{fig:b-ext}
 \end{figure}
 
-A diagnosis of the KKT multiplier explains the structure of the remaining gap. At high load the link is binding in 99.8--100\,\% of epochs, and $\lambda^\ast \ge w_{\rm eMBB}$ in 50--58\,\% of them: in half the epochs every eMBB cell already sits at its lowest quantile, so re-tuning the LL weight gains only 1--4\,\%. The CEM policy gains instead from \emph{decoupled} per-class levels and a different sharing rule. It is a question of structure, not of a constant. Figure~\ref{fig:b-regime} summarises the operating regimes: reservation wins for short intervals and for long bursts (FTP files, XR frames), back-pressure for short bursts at 10--20~ms intervals. Figure~\ref{fig:b-theory} validates the Markov-fluid theory: the shortfall sandwich is never violated and the Chernoff bound is valid.
+Looking at the KKT multiplier explains why the remaining gap has this shape. At high load the link is binding in 99.8--100\,\% of epochs, and $\lambda^\ast \ge w_{\rm eMBB}$ holds in 50--58\,\% of them. In half the epochs, then, every eMBB cell is already at its lowest quantile, and re-tuning the LL weight gains only 1--4\,\%. The CEM policy gains for a different reason, namely its \emph{decoupled} per-class levels and a different sharing rule. The gap comes from the structure of the rule and cannot be closed by changing a constant. Figure~\ref{fig:b-regime} maps out the operating regimes. Reservation wins for short intervals and for long bursts (FTP files, XR frames), while back-pressure wins for short bursts at 10--20~ms intervals. In Figure~\ref{fig:b-theory} the Markov-fluid theory is checked against simulation. The shortfall sandwich is never violated and the Chernoff bound holds.
 
 \begin{figure}[H]
 \centering
@@ -358,7 +358,7 @@ A diagnosis of the KKT multiplier explains the structure of the remaining gap. A
 
 \subsection{Forecast quality}
 
-Table~\ref{tab:b2-fq} evaluates all forecasters on the same validation rows and on the held-out shift. The Transformer cuts the pinball loss by 4.5\,\% and the 90\,\% interval width by 8\,\% at higher coverage than the GBM. The Bayesian ensemble $\times$ MC-dropout mixture gives the best calibration of all models: the highest 90\,\% coverage in distribution (0.919) and under shift (0.808), and the best LL upper-tail coverage under shift (0.873).
+Table~\ref{tab:b2-fq} evaluates all forecasters on the same validation rows and on the held-out shift. Compared with the GBM, the Transformer lowers the pinball loss by 4.5\,\% and the width of the 90\,\% interval by 8\,\%, and its coverage is still higher. The Bayesian ensemble $\times$ MC-dropout mixture is the best calibrated of all models. It has the highest 90\,\% coverage both in distribution (0.919) and under shift (0.808), as well as the best LL upper-tail coverage under shift (0.873).
 
 \begin{table}[H]
 \caption{Forecast quality on identical validation rows; ``shift'' is the held-out out-of-distribution test.}
@@ -385,7 +385,7 @@ DF-LCQT (decision-focused) & 0.0224 & 0.0273 & 0.907 & 1.38 & 0.830 & 0.822 \\
 
 \subsection{Closed-loop results}
 
-Table~\ref{tab:b2-cl} reports the closed loop on Family~S with the same traces and seeds for every row (the GBM rows were re-run and match the stored runs exactly, since the simulator is deterministic). The Bayesian LCQT is the best KKT-rule variant: 0.12 / 2.02 / 7.89\,\% at low / moderate / high load. Paired against GBM + KKT (Table~\ref{tab:b2-paired}) it improves the proposed method on every one of the 20 seeds at low, moderate and high load ($-20.8$\,\%, $-6.1$\,\%, $-1.4$\,\%). The patch Transformer provides the main gain and the Bayesian mixture a consistent additional gain.
+Table~\ref{tab:b2-cl} gives the closed-loop results on Family~S, with the same traces and seeds in every row. We re-ran the GBM rows, and they match the stored runs exactly because the simulator is deterministic. The Bayesian LCQT is the best variant of the KKT rule, with 0.12 / 2.02 / 7.89\,\% at low / moderate / high load. In the paired comparison with GBM + KKT (Table~\ref{tab:b2-paired}) it improves on the proposed method on every one of the 20 seeds at low, moderate and high load ($-20.8$\,\%, $-6.1$\,\%, $-1.4$\,\%). The main gain comes from the patch Transformer, and the Bayesian mixture adds a consistent further gain.
 
 \begin{table}[H]
 \caption{B2 closed loop, Family S: $V_w$ [\%] (mean of 20 test seeds).}
@@ -423,14 +423,14 @@ high & $\mathbf{-1.4\,\%}$ [1.0, 1.8] & 20/20 \\
 \end{table}
 
 
-The B2 study also produced a clear scientific finding: with the best forecaster we could build, the KKT rule improves only modestly at high load, while CEM and predictive MaxWeight remain 14--28\,\% lower. The remaining gap is therefore not forecast error but \emph{decision structure}, and that is precisely what B3 changes, keeping the B2 forecaster.
+The B2 study also gave a clear scientific finding. Even with the best forecaster we could build, the KKT rule improves only modestly at high load, and CEM and predictive MaxWeight stay 14--28\,\% lower. The remaining gap is caused by the \emph{decision structure} and not by forecast error. B3 changes this structure and keeps the B2 forecaster.
 
 \section{B3 Results: the Back-Pressure Newsvendor}
 \label{sec:rb-b3}
 
 \subsection{Diagnosis}
 
-Table~\ref{tab:b3-diag} breaks down the high-load result of Family~S by class. The KKT rule leaves eMBB short (12.3\,\%) and uses the link least (72.2\,\%), because reserved-but-unused LL capacity is lost. Back-pressure controllers waste less. BPN combines the strengths of both: among implementable controllers it reaches the lowest $V_w$ (5.23\,\%), the lowest eMBB violation (4.8--4.9\,\%) and the highest link utilisation (76.1\,\%). That utilisation is even higher than that of the oracle-informed KKT rule (74.8\,\%).
+Table~\ref{tab:b3-diag} breaks down the high-load result of Family~S by class. The KKT rule leaves eMBB short (12.3\,\%) and has the lowest link utilisation (72.2\,\%), because LL capacity that is reserved but not used is lost. Back-pressure controllers waste less. BPN gets the advantages of both approaches. Among the implementable controllers it has the lowest $V_w$ (5.23\,\%), the lowest eMBB violation (4.8--4.9\,\%) and the highest link utilisation (76.1\,\%). Its utilisation is even higher than that of the oracle-informed KKT rule (74.8\,\%).
 
 \begin{table}[H]
 \caption{Why BPN wins: per-class breakdown, Family S high load (20 test seeds), all in \%.}
@@ -451,7 +451,7 @@ Pred.\ MaxWeight (CEM-tuned) & 5.98 & 5.9 & 75.5 \\
 
 \subsection{Family S}
 
-Table~\ref{tab:b3-s} compares BPN with both strongest baselines, each in its best tuning, for three forecasters. With the same forecaster, BPN beats both strongest baselines in every scenario. At high load, BPN with the GBM forecaster reaches 5.23\,\% against 5.98\,\% for CEM-tuned predictive MaxWeight and 6.58\,\% for the re-searched CEM policy. This is within 6--10\,\% of the oracle-informed KKT rule that knows the true future $\rstar$. The B2 Transformer now pays off more than it did with the KKT rule: with the Bayesian LCQT forecaster BPN reaches 5.05\,\% at high load, 8.34\,\% under flash crowds and 8.92\,\% under the held-out shift, the best results of the whole project.
+Table~\ref{tab:b3-s} compares BPN with both of the strongest baselines, each in its best tuning, for three forecasters. When the forecaster is the same, BPN beats both baselines in every scenario. At high load, BPN with the GBM forecaster reaches 5.23\,\%, while CEM-tuned predictive MaxWeight reaches 5.98\,\% and the re-searched CEM policy 6.58\,\%. This puts BPN within 6--10\,\% of the oracle-informed KKT rule, which knows the true future $\rstar$. The B2 Transformer is also worth more here than it was with the KKT rule. With the Bayesian LCQT forecaster, BPN reaches 5.05\,\% at high load, 8.34\,\% under flash crowds and 8.92\,\% under the held-out shift. These are the best results of the whole project.
 
 \begin{table}[H]
 \caption{B3, Family S: $V_w$ [\%] (mean of 20 test seeds).}
@@ -484,7 +484,7 @@ Forecaster & Controller & low & moderate & high & flash & shift \\
 
 \subsection{Generalisation to Families G and M}
 
-Table~\ref{tab:b3-gm} repeats the comparison on the 3GPP and Markov families. BPN~v2 is the best controller on G moderate, G high and M high, and BPN variants are best in all five scenarios. The version comparison is instructive: BPN~v1 has a stage~1 that is always strict back-pressure, which cannot represent reservation, and reservation is what long 3GPP bursts (FTP files, XR frames) require. BPN~v2 adds the sharing exponent $\eta$ and therefore contains the reservation policy as well; it is the version that generalises across all three families. Its training cost is lower than the best baseline's on every family (S 0.0387 vs 0.0436, G 0.0527 vs 0.0555, M 0.0196 vs 0.0226).
+Table~\ref{tab:b3-gm} repeats the comparison on the 3GPP and Markov families. BPN~v2 is the best controller on G moderate, G high and M high, and one of the BPN variants is best in each of the five scenarios. The difference between the versions matters here. In BPN~v1, stage~1 is always strict back-pressure. It therefore cannot represent reservation, and reservation is what the long 3GPP bursts (FTP files, XR frames) need. BPN~v2 adds the sharing exponent $\eta$, so it contains the reservation policy as well, and it is this version that generalises across all three families. On every family its training cost is lower than that of the best baseline (S 0.0387 vs 0.0436, G 0.0527 vs 0.0555, M 0.0196 vs 0.0226).
 
 \begin{table}[H]
 \caption{B3 on Families G (3GPP) and M (Markov): $V_w$ [\%], GBM forecaster.}
@@ -507,7 +507,7 @@ CEM class-level (re-searched) & 4.51 & 7.05 & 0.94 & 3.94 & 4.22 \\
 
 \subsection{BPN v2 against the best baseline in every scenario}
 
-Table~\ref{tab:b3-best} and Figure~\ref{fig:b3-best} give the headline result of the project. ``Best baseline'' is, in each scenario separately, the better of predictive MaxWeight and the CEM class-level policy, each in its own best tuning. BPN~v2 beats the best baseline in all 10 scenarios of all three traffic families, by 3.4\,\% to 25.3\,\%, winning 20 of 20 seeds in eight scenarios and 19 of 20 at G high; every comparison is significant after Holm correction ($p \le 0.024$). The grey bars of Figure~\ref{fig:b3-best} show how far the B1 rule was from these baselines and how BPN turns that gap into a lead.
+Table~\ref{tab:b3-best} and Figure~\ref{fig:b3-best} give the main result of the project. Here the ``best baseline'' is chosen separately in each scenario as the better of predictive MaxWeight and the CEM class-level policy, each in its own best tuning. BPN~v2 beats this best baseline in all 10 scenarios of all three traffic families, by 3.4\,\% to 25.3\,\%. It wins 20 of 20 seeds in eight scenarios and 19 of 20 at G high, and every comparison is significant after Holm correction ($p \le 0.024$). The grey bars in Figure~\ref{fig:b3-best} show how far behind these baselines the B1 rule was, and how BPN turns that gap into a lead.
 
 \begin{table}[H]
 \caption{BPN v2 versus the best baseline in each scenario (paired, 20 test seeds, Holm--Wilcoxon).}
@@ -542,7 +542,7 @@ M shift & $\mathbf{-8.2\,\%}$ & 20/20 \\
 
 \subsection{What the policy learned}
 
-Because both baselines are special cases of BPN, its learned parameters are directly interpretable (Table~\ref{tab:b3-theta}). On bursty Family~S the search drives the sharing exponent to $\eta = 6$, strict back-pressure order, with an almost pure drain-rate base ($a = 0.98$). On the 3GPP and Markov families, with long FTP files and XR frames, it chooses $\eta = 0$, which means reservation, with high LL base quantiles. The search recovers the regime map of the extended study on its own: back-pressure for short bursts, reservation for long ones. BPN is therefore not a black box; it tells the operator which structure suits its traffic. It decides in 2.2--3.5~ms per epoch in Python, inside the 10~ms interval.
+Since both baselines are special cases of BPN, its learned parameters can be interpreted directly (Table~\ref{tab:b3-theta}). On bursty Family~S the search pushes the sharing exponent to $\eta = 6$, which is strict back-pressure order, with an almost pure drain-rate base ($a = 0.98$). On the 3GPP and Markov families, with their long FTP files and XR frames, it picks $\eta = 0$, which means reservation, together with high LL base quantiles. In this way the search finds the regime map of the extended study by itself, with back-pressure for short bursts and reservation for long ones. BPN is therefore not a black box, because its parameters tell the operator which structure suits the traffic. It takes 2.2--3.5~ms per epoch to decide in Python, which is inside the 10~ms interval.
 
 \begin{table}[H]
 \caption{Learned BPN v2 structure per traffic family.}
@@ -555,13 +555,44 @@ Family & $\eta$ & $a$ & $(p^0_{\rm LL},\ p^0_{\rm eMBB})$ \\
 S (bursty) & 6 (strict back-pressure) & 0.98 & (0.41, 0.45) \\
 G (3GPP) & 0 (reservation) & 0.31 & (0.94, 0.73) \\
 M (Markov) & 0 (reservation) & 0.34 & (0.84, 0.31) \\
+R (real 5G traces) & 0.15 (near reservation) & 0.39 & (0.86, 0.28) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
+\subsection{Real 5G traffic traces and an overfitting check}
+\label{sec:rb-real}
+
+All the families so far are generated. To test BPN on measured traffic we built a fourth family, R, driven by traces from a public 5G dataset of a commercial Irish operator~\cite{raca2020beyond}. The dataset contains 166 client-side sessions of Netflix and Amazon Prime streaming and of file download, both static and while driving, with downlink throughput and CQI logged about once per second. Each cell aggregates six sessions started at random offsets. The cost of each user is its measured rate divided by the spectral efficiency of its measured CQI (from the LTE CQI table), so the traffic and the per-cell fronthaul cost per bit both come from the measurements. Each one-second sample is replayed for one 10~ms control interval. This keeps the real sequence of rates but compresses time by 100$\times$, and it has two consequences. First, the rate changes between consecutive intervals by as much as it really changes in one second. The forecaster's task is therefore harder than it would be with real timing, where a cell's rate is nearly constant over 100 intervals and the last value would be an excellent forecast. Second, the one-second samples contain no bursts on the millisecond scale. Family R thus tests how controllers deal with measured session-level structure (application mix, mobility, CQI) rather than packet-level burstiness, which families S, G and M already cover. So family R is a stress test of the slow dynamics and not a replay of real fronthaul timing. Cells are scaled to the scenario load using the LL / eMBB shares of the other families, and they are clipped at their own air-interface peak. The sessions are split only once. Two thirds are used to train the GBM forecaster and to run the policy searches, and the test seeds draw only from the remaining third, so no test session is ever seen in training.
+
+BPN v2 tunes 8 parameters, so a large lead might simply come from fitting the search episodes. To check this we re-ran every CEM search on family R twice, for BPN v2 and for both strongest baselines. One run used the usual 8 search episodes and the other used only 2. All controllers were then tested on the same 20 test seeds (Table~\ref{tab:b3-real}).
+
+\begin{table}[H]
+\caption{Family R (real 5G traces): $V_w$ in \% on 20 test seeds from held-out sessions, with each CEM search run on 8 or on 2 episodes.}
+\label{tab:b3-real}
+\centering
+\begin{tabular}{lcc}
+\toprule
+Controller & R moderate (0.65) & R high (0.80) \\
+\midrule
+B1 KKT rule (GBM) & 4.20 & 8.79 \\
+Predictive MaxWeight, CEM (8 / 2 episodes) & 4.58 / 4.58 & 9.04 / 9.04 \\
+Class-level policy, CEM (8 / 2 episodes) & 3.77 / 3.74 & 8.03 / 8.05 \\
+\ours \textbf{BPN v2, 8 episodes} & \textbf{3.54} & \textbf{7.47} \\
+\ours BPN v2, 2 episodes & 3.74 & 7.80 \\
+\midrule
+Oracle-informed KKT (reference) & 1.12 & 3.95 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On measured traffic BPN v2 is again the best implementable controller. Its $V_w$ is 6.1\,\% and 7.0\,\% lower than that of the best baseline, the class-level policy, at moderate and high load, and it wins 19 and 20 of 20 seeds. Against the B1 rule its $V_w$ is 15--16\,\% lower on 20 of 20 seeds, with Holm--Wilcoxon $p < 0.001$ in every case. The search again picks a near-reservation structure ($\eta = 0.15$), as it did for the long bursts of families G and M (Table~\ref{tab:b3-theta}).
+
+The overfitting check gives the opposite of what overfitting would predict. Had the 8-parameter fit memorised its episodes, the 8-episode BPN would generalise worse than the 2-episode one. It is instead 4--5\,\% \emph{better} on the unseen test sessions and wins 18 of 20 seeds at both loads ($p \le 0.0005$). BPN benefits from more training data, whereas the 2--3-parameter baselines are already saturated and do not change. With only 2 episodes BPN still beats the B1 rule by 11\,\% (19 and 20 of 20 seeds), and it beats the best baseline at high load by 3.1\,\% ($p = 0.04$ after Holm). At moderate load it ties with the best baseline. The gap to the oracle-informed rule is larger on real traffic than on the generated families, because measured streaming traffic is harder to forecast.
+
 \section{Summary}
 
-Table~\ref{tab:b-summary} summarises Part~B. The KKT newsvendor rule (B1) is the best of the 12 reference controllers in every scenario of two traffic families; the Bayesian LCQT (B2) improves it on every seed at low to high load and gives the best-calibrated forecasts; and the back-pressure newsvendor (B3), a learned policy that contains both strongest baselines, beats them in all 10 scenarios of three traffic families, with the best result of the project at every load.
+Table~\ref{tab:b-summary} collects the main results of Part~B. The KKT newsvendor rule (B1) is the best of the 12 reference controllers of the first comparison in every scenario of two traffic families, although the stronger baselines of the extended study beat it. The Bayesian LCQT (B2) improves it on every seed from low to high load and gives the best-calibrated forecasts. The back-pressure newsvendor (B3) is a learned policy that contains both strongest baselines. It beats them in all 10 scenarios of three traffic families, gives the best result of the project at every load, and keeps its lead on measured 5G traffic.
 
 \begin{table}[H]
 \caption{Part B headline results.}
@@ -572,12 +603,13 @@ Table~\ref{tab:b-summary} summarises Part~B. The KKT newsvendor rule (B1) is the
 \toprule
 Step & Headline result \\
 \midrule
-B1: KKT newsvendor rule & Best of the 12 reference controllers in all scenarios of 2 families; $-11$ to $-43$\,\% vs the forecast median and $-19$ to $-70$\,\% vs deadline-aware reactive, every seed, $p < 0.01$ \\
+B1: KKT newsvendor rule & Best of the 12 first-comparison controllers in all scenarios of 2 families; $-11$ to $-43$\,\% vs the forecast median and $-19$ to $-70$\,\% vs deadline-aware reactive, every seed, $p < 0.01$ \\
 Ablations & The $\rstar$ target and the per-cell KKT split carry the gain; the learned forecaster adds up to 37\,\% \\
 Family G (3GPP) & Result reproduces on standards-based traffic; also best under the unweighted ratio \\
 Extended study & POMDP view; $\rstar$ linked to effective bandwidth; KKT rule wins all 10 scenarios of the NCC comparison set \\
 B2: Bayesian LCQT & $-4.5$\,\% pinball, best calibration; $-21$ / $-6$ / $-1.4$\,\% $V_w$ at low / moderate / high load, 20/20 seeds \\
 \textbf{B3: back-pressure newsvendor} & \textbf{Beats predictive MaxWeight and policy search in 10/10 scenarios of 3 families ($-3$ to $-25$\,\%, $p \le 0.024$)}; within 6--10\,\% of the oracle-informed rule at high load \\
+Real 5G traces (family R) & BPN v2 $-6$ / $-7$\,\% vs the best baseline and $-15$\,\% vs B1 on held-out sessions ($p < 0.001$); tuning on fewer episodes makes it worse, not better, so the gain is not overfitting \\
 \bottomrule
 \end{tabularx}
 \end{table}

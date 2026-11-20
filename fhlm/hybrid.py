@@ -161,19 +161,19 @@ SPACES = {
 }
 
 
-def starts_for(policy: str, forecaster: str, family: str, sp) -> list:
+def starts_for(policy: str, forecaster: str, family: str, sp, tag: str = "") -> list:
     """Search starts: the default mean, and for bpn2 the CEM optima of the two baselines it contains."""
     if policy != "bpn2":
         return [("default", sp["mean0"])]
     starts = []
     try:
-        pm = load_params("pred_maxweight_cem", forecaster, family)
+        pm = load_params("pred_maxweight_cem", forecaster, family, tag)
         starts.append(("pred_maxweight_cem", np.array([0.5, 0.5, np.log(3.0), pm["lookahead"], np.log(3.0), 1.0,
                                                        ETA_GREEDY, pm["margin"]])))
     except FileNotFoundError:
         pass
     try:
-        cl = load_params("cem_policy_v2", forecaster, family)
+        cl = load_params("cem_policy_v2", forecaster, family, tag)
         starts.append(("cem_policy_v2", np.array([cl["p_ll"], cl["p_embb"], np.log(cl["w_ll"]), 1.0, np.log(3.0),
                                                   0.0, 0.0, 0.0])))
     except FileNotFoundError:
@@ -181,14 +181,14 @@ def starts_for(policy: str, forecaster: str, family: str, sp) -> list:
     return starts or [("default", sp["mean0"])]
 
 
-def params_path(policy: str, forecaster: str, family: str) -> str:
+def params_path(policy: str, forecaster: str, family: str, tag: str = "") -> str:
     from .run_experiments import RESULTS_DIR, _fam_suffix
     fc = "" if forecaster == "gbm" else f"_{forecaster}"
-    return os.path.join(RESULTS_DIR, f"hybrid_{policy}{fc}{_fam_suffix(family)}.json")
+    return os.path.join(RESULTS_DIR, f"hybrid_{policy}{fc}{_fam_suffix(family)}{'_' + tag if tag else ''}.json")
 
 
-def load_params(policy: str, forecaster: str, family: str) -> Dict[str, Any]:
-    path = params_path(policy, forecaster, family)
+def load_params(policy: str, forecaster: str, family: str, tag: str = "") -> Dict[str, Any]:
+    path = params_path(policy, forecaster, family, tag)
     if not os.path.exists(path):
         raise FileNotFoundError(f"{path}: run python3 -m fhlm.hybrid cem --policy {policy} --forecaster {forecaster}")
     with open(path) as f:
@@ -232,7 +232,7 @@ def cmd_cem(args):
         df["j"] = df.params.apply(lambda s_: json.loads(s_)["_cem"])
         return df.groupby("j")[PRIMARY_METRIC].mean().reindex(range(len(thetas))).values
 
-    starts = starts_for(args.policy, args.forecaster, args.family, sp)
+    starts = starts_for(args.policy, args.forecaster, args.family, sp, args.tag)
     cands, hists = [], []
     for k, (label, m0) in enumerate(starts):
         print(f"[cem] start {label}: {np.round(m0, 3).tolist()}", flush=True)
@@ -246,7 +246,7 @@ def cmd_cem(args):
     out = {"policy": args.policy, "forecaster": args.forecaster, "family": args.family,
            "selected": sp["to_params"](chosen), "train_cost": float(np.min(costs)), "episodes": episodes,
            "slots": args.slots, "starts": hists}
-    path = params_path(args.policy, args.forecaster, args.family)
+    path = params_path(args.policy, args.forecaster, args.family, args.tag)
     with open(path, "w") as f:
         json.dump(out, f, indent=2)
     print(json.dumps(out["selected"], indent=1), "->", path)
@@ -267,6 +267,7 @@ def main(argv=None):
     ap.add_argument("--pop", type=int, default=20)
     ap.add_argument("--elite", type=int, default=5)
     ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--tag", default="", help="suffix of the parameter file (e.g. k2 for a 2-seed search)")
     args = ap.parse_args(argv)
     if args.command == "cem":
         cmd_cem(args)

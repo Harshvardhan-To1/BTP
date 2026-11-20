@@ -6,27 +6,27 @@
 
 \section{Introduction}
 
-A precoder or controller that is accurate in simulation is only useful if it meets the real-time budget of the O-DU. This chapter describes the implementation side of the project: the hand-optimised C/AVX-512/OpenMP kernel that computes the whole RZF precoder of Eq.~\eqref{eq:rzf} for 273 PRBs in a fraction of the 0.5~ms slot (Sections~\ref{sec:hw-platform}--\ref{sec:hw-results}), and the software framework used for every experiment of this report (Section~\ref{sec:sw}).
+A precoder or controller that is accurate in simulation is of little use unless it also meets the real-time budget of the O-DU. This chapter covers the implementation side of the project. Sections~\ref{sec:hw-platform}--\ref{sec:hw-results} present a hand-optimised C/AVX-512/OpenMP kernel that computes the whole RZF precoder of Eq.~\eqref{eq:rzf} for 273 PRBs in a fraction of the 0.5~ms slot. Compared with a C precoder built on OpenBLAS and LAPACK Cholesky and given the same threads, the kernel is 1.6--3.9$\times$ faster on one core and 1.9--11$\times$ faster on four. It is also the only implementation we measured that fits the slot for 16 users (0.224 against 0.96~ms). Section~\ref{sec:sw} then describes the software framework behind every experiment in this report.
 
 \section{Measurement Platform}
 \label{sec:hw-platform}
 
-All timing measurements were made on a 4-core Intel Xeon server CPU with AVX-512 support, the class of general-purpose processor used in software-defined, cloud-native O-DU deployments. Kernels were compiled with GCC and timed with \texttt{rdtsc} cycle counters for per-stage profiling and with wall-clock time (median of 40 runs) for end-to-end results. The data type is single-precision complex (\texttt{complex64}), as used in O-DU baseband processing; accuracy is always checked against a float64 reference.
+All timing measurements were made on a 4-core Intel Xeon server CPU with AVX-512 support. Processors of this general-purpose class are used in software-defined, cloud-native O-DU deployments. Kernels were compiled with GCC. Per-stage profiling used \texttt{rdtsc} cycle counters, while end-to-end results were timed by wall clock (median of 40 runs). The data type is single-precision complex (\texttt{complex64}), as in O-DU baseband processing, and accuracy was always checked against a float64 reference.
 
 \section{Design of the Fused RZF Precoder Kernel}
 \label{sec:hw-kernel}
 
-The kernel (\texttt{kernels/cmat\_kernels.c}, Python binding \texttt{cmatinv/fastkernels.py}) is a batched complex64 implementation of $G = HH^H + \alpha I$, $G^{-1}$ and $W = H^H G^{-1}$ for all PRBs of a slot. Figure~\ref{fig:kernel} shows its dataflow. The key design decisions are:
+The kernel (\texttt{kernels/cmat\_kernels.c}, Python binding \texttt{cmatinv/fastkernels.py}) is a batched complex64 implementation of $G = HH^H + \alpha I$, $G^{-1}$ and $W = H^H G^{-1}$ for all PRBs of a slot. Its dataflow is shown in Figure~\ref{fig:kernel}. The main design decisions are listed below.
 
 \begin{itemize}
-  \item \textbf{One fused pass per PRB.} $H$ is loaded once; Gram, inverse, $W^T$ and power scaling are computed back-to-back on stack and L1-resident buffers, with no DRAM intermediates.
-  \item \textbf{Hermitian symmetry.} Only the lower triangle of the Gram matrix is computed.
-  \item \textbf{Split real/imaginary planes} (structure of arrays), so that complex arithmetic vectorises cleanly.
-  \item \textbf{In-place Gauss--Jordan sweep inverse.} $K$ rank-1 updates on contiguous, fully vectorised rows, without square-root or division chains; no pivoting is needed because $G \succ 0$ (a Cholesky path is kept behind \texttt{-DUSE\_CHOL}).
+  \item \textbf{One fused pass per PRB.} $H$ is loaded only once. The Gram matrix, the inverse, $W^T$ and the power scaling are then computed back-to-back in stack and L1-resident buffers, so no intermediate result goes to DRAM.
+  \item \textbf{Hermitian symmetry.} We compute only the lower triangle of the Gram matrix.
+  \item \textbf{Split real/imaginary planes} (structure of arrays), which lets the complex arithmetic vectorise cleanly.
+  \item \textbf{In-place Gauss--Jordan sweep inverse.} The inverse is built from $K$ rank-1 updates on contiguous, fully vectorised rows, with no square-root or division chains. Pivoting is not needed because $G \succ 0$. A Cholesky path is still available behind \texttt{-DUSE\_CHOL}.
   \item \textbf{Register-blocked weight formation} $W = H^H X$, with output layout $W^T[S,K,M]$.
-  \item \textbf{AVX-512 code generation} (\texttt{-mprefer-vector-width=512}; GCC defaults to 256-bit vectors).
-  \item \textbf{OpenMP} \texttt{parallel for} across the 273 PRBs and \texttt{omp simd} inner loops.
-  \item \textbf{Fused Newton step} for the RMT-WS warm start, which returns the exact residual $\|I - GX\|_F/\sqrt K$ at no extra cost.
+  \item \textbf{AVX-512 code generation} with \texttt{-mprefer-vector-width=512}, since GCC uses 256-bit vectors by default.
+  \item \textbf{OpenMP} \texttt{parallel for} over the 273 PRBs, with \texttt{omp simd} on the inner loops.
+  \item \textbf{Fused Newton step} for the RMT-WS warm start. It also returns the exact residual $\|I - GX\|_F/\sqrt K$ at no extra cost.
 \end{itemize}
 
 \begin{figure}[H]
@@ -49,7 +49,7 @@ The kernel (\texttt{kernels/cmat\_kernels.c}, Python binding \texttt{cmatinv/fas
 \label{fig:kernel}
 \end{figure}
 
-The inner loop of the sweep inverse illustrates the style of the kernel: one rank-1 update of all rows except the pivot row, written so that the compiler emits fused multiply-add AVX-512 instructions on the split real and imaginary planes.
+The inner loop of the sweep inverse gives a good idea of how the kernel is written. It performs one rank-1 update of every row except the pivot row. The loop is arranged so that the compiler emits fused multiply-add AVX-512 instructions on the split real and imaginary planes.
 
 \begin{lstlisting}
 // inner loop of the in-place Gauss-Jordan sweep inverse (pivot k)
@@ -66,7 +66,7 @@ for (int i = 0; i < K; i++) {
 }
 \end{lstlisting}
 
-The kernel is built with
+We build the kernel with the following command.
 \begin{lstlisting}[language=bash]
 gcc -O3 -march=native -fopenmp -ffast-math \
     -mprefer-vector-width=512 -shared -fPIC cmat_kernels.c -o libcmat.so -lm
@@ -75,21 +75,21 @@ gcc -O3 -march=native -fopenmp -ffast-math \
 \section{Profiling-Driven Optimisation}
 \label{sec:hw-opt}
 
-The kernel was optimised step by step, guided by per-stage cycle counts ($K=16$, $M=64$, one thread):
+We optimised the kernel in steps, using per-stage cycle counts ($K=16$, $M=64$, one thread) to decide what to work on next. The main steps were as follows.
 \begin{enumerate}
-  \item \textbf{Fusion and Hermitian symmetry}: the Gram matrix is formed on the lower triangle only, inside the per-PRB pass.
-  \item \textbf{Register-blocked weight formation} $W = H^H X$ with output $W^T[S,K,M]$: from 0.81 to \textbf{0.42~ms} per slot.
-  \item \textbf{Gauss--Jordan sweep instead of Cholesky}: the inverse drops from 6.4k to \textbf{2.9k cycles} per PRB at $K=16$, and from 21k to 11k cycles at $K=32$.
-  \item \textbf{AVX-512 code generation}: 1.3--1.5$\times$ faster on one thread and 2$\times$ on four threads.
+  \item \textbf{Fusion and Hermitian symmetry.} The Gram matrix is formed on the lower triangle only, inside the per-PRB pass.
+  \item \textbf{Register-blocked weight formation} $W = H^H X$ with output $W^T[S,K,M]$. This brought the time from 0.81 to \textbf{0.42~ms} per slot.
+  \item \textbf{Gauss--Jordan sweep instead of Cholesky.} The inverse drops from 6.4k to \textbf{2.9k cycles} per PRB at $K=16$, and from 21k to 11k cycles at $K=32$.
+  \item \textbf{AVX-512 code generation.} This made the kernel 1.3--1.5$\times$ faster on one thread and 2$\times$ faster on four threads.
 \end{enumerate}
-After tuning, weight formation takes 44--58\,\% of the cycles at about 30 flops/cycle (about half of the AVX-512 peak), the Gram matrix 20--24\,\% at about 28 flops/cycle, and the inverse the rest.
+After tuning, weight formation accounts for 44--58\,\% of the cycles and runs at about 30 flops/cycle, which is roughly half of the AVX-512 peak. The Gram matrix takes 20--24\,\% at about 28 flops/cycle. The inverse uses the remaining cycles.
 
 \section{Experimental Results}
 \label{sec:hw-results}
 
 \subsection{Whole precoder per slot}
 
-Table~\ref{tab:hw-pipeline} and Figure~\ref{fig:hw-pipeline} report the time to compute the complete precoder (Gram, inverse and weights) for all 273 PRBs of a slot. The fused kernel is 10--15$\times$ faster than numpy + LAPACK. For $K = 16$ users and $M = 64$ antennas it takes 0.226~ms, less than half of the 0.5~ms slot, where numpy + LAPACK needs 3.21~ms, six times the slot. With the kernel, $K = 8$ and $K = 16$ at $M = 64$, and $K = 16$ at $M = 128$, fit the slot for the entire precoder. None of these configurations did before. Thread scaling is near-linear: 0.92, 0.45 and 0.23~ms on 1, 2 and 4 threads.
+Table~\ref{tab:hw-pipeline} and Figure~\ref{fig:hw-pipeline} report the time needed to compute the complete precoder (Gram matrix, inverse and weights) for all 273 PRBs of a slot. The fused kernel is 10--15$\times$ faster than numpy + LAPACK. For $K = 16$ users and $M = 64$ antennas it needs 0.226~ms, which is less than half of the 0.5~ms slot. numpy + LAPACK needs 3.21~ms for the same case, or six times the slot. With the kernel, the entire precoder now fits the slot for $K = 8$ and $K = 16$ at $M = 64$ and for $K = 16$ at $M = 128$. None of these configurations fitted before. Thread scaling is close to linear, with 0.92, 0.45 and 0.23~ms on 1, 2 and 4 threads.
 
 \begin{table}[H]
 \caption{Whole-precoder time per slot (273 PRBs, complex64, 4-core AVX-512 Xeon, median of 40 runs).}
@@ -115,9 +115,33 @@ $K$, $M$ & numpy + LAPACK & Our kernel, 1 thread & \textbf{Our kernel, 4 threads
 \label{fig:hw-pipeline}
 \end{figure}
 
+\subsection{Against stronger baselines}
+
+The numpy + LAPACK baseline carries Python and per-call overhead. For a fairer picture we also compared the same whole precoder against two stronger baselines. The first is numpy's batched \texttt{solve}, which avoids forming the explicit inverse. The second is a C precoder written directly on OpenBLAS and LAPACK. For each PRB it calls \texttt{cherk} once for the Gram matrix, \texttt{cpotrf} once for the Cholesky factorisation and \texttt{ctrsm} twice for the triangular solves that give $W = H^H G^{-1}$. The PRBs are split over the same OpenMP threads, and OpenBLAS runs single-threaded inside each call. All three implementations agree on the weights to within $2$--$4\times10^{-7}$ relative error. The results are listed in Table~\ref{tab:hw-strong} (median of 200 runs).
+
+\begin{table}[H]
+\caption{Whole-precoder time per slot against stronger baselines (273 PRBs, complex64, same 4-core AVX-512 Xeon).}
+\label{tab:hw-strong}
+\centering\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+$K$, $M$ & numpy \texttt{solve} & C LAPACK, 1 thr & C LAPACK, 4 thr & Ours, 1 thr & \textbf{Ours, 4 thr} & Ours vs C LAPACK (1 / 4 thr) \\
+\midrule
+8, 64 & 2.63~ms & 1.05~ms & 0.77~ms & 0.27~ms & \textbf{0.067~ms} & 3.9$\times$ / 11.4$\times$ \\
+\ours 16, 64 & 6.76~ms & 2.30~ms & 0.96~ms & 0.92~ms & \textbf{0.224~ms} & 2.5$\times$ / 4.3$\times$ \\
+32, 64 & 18.0~ms & 5.88~ms & 1.73~ms & 3.70~ms & 0.94~ms & 1.6$\times$ / 1.9$\times$ \\
+16, 128 & 12.8~ms & 4.36~ms & 1.37~ms & 1.58~ms & \textbf{0.39~ms} & 2.8$\times$ / 3.5$\times$ \\
+32, 128 & 41.6~ms & 10.9~ms & 2.98~ms & 6.22~ms & 1.58~ms & 1.8$\times$ / 1.9$\times$ \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Batched \texttt{solve} turned out slower than numpy + LAPACK, which means the explicit-inverse baseline used earlier was already the faster numpy option. The C LAPACK precoder is much closer to our kernel. Even so, the fused kernel is faster at every size, by 1.6--3.9$\times$ on one thread and 1.9--11$\times$ on four. The gap is widest when there are few users, because per-call library overhead dominates there. It shrinks to about 2$\times$ at $K = 32$, where the arithmetic itself dominates. For the slot budget, the important result is that only the fused kernel fits the 0.5~ms slot at $K = 16$, both with $M = 64$ (0.224 against 0.96~ms) and with $M = 128$ (0.39 against 1.37~ms).
+
 \subsection{Inverse kernels}
 
-Figure~\ref{fig:hw-inv} isolates the inverse. The C kernels are an order of magnitude faster than numpy/LAPACK, and the fused Newton--Schulz step of RMT-WS is the fastest inverse of all (0.115~ms per slot at $K=16$, against 0.124~ms for a tuned C Cholesky inverse and 1.6~ms for LAPACK). This is the per-slot warm-start update of Chapter~\ref{ch:parta-methods} running at hardware speed.
+Figure~\ref{fig:hw-inv} shows the inverse on its own. The C kernels are an order of magnitude faster than numpy/LAPACK. Among them, the fused Newton--Schulz step of RMT-WS is the fastest, at 0.115~ms per slot for $K=16$, compared with 0.124~ms for a tuned C Cholesky inverse and 1.6~ms for LAPACK. In other words, the per-slot warm-start update of Chapter~\ref{ch:parta-methods} runs at hardware speed.
 
 \begin{figure}[H]
 \centering
@@ -128,12 +152,12 @@ Figure~\ref{fig:hw-inv} isolates the inverse. The C kernels are an order of magn
 
 \subsection{Accuracy}
 
-The complex64 kernel reproduces the float64 exact precoder with a sum-rate loss of about $10^{-6}\,\%$ or less in every tested configuration ($K=16$ at 10 and 30~dB, an ill-conditioned 3$^\circ$-spread channel at 25~dB, $K=32$ at 20~dB and $K=16$, $M=128$ at 30~dB). The speed-up therefore comes at no cost in link performance.
+In every configuration we tested, the complex64 kernel matches the exact float64 precoder with a sum-rate loss of about $10^{-6}\,\%$ or less. The tested cases were $K=16$ at 10 and 30~dB, an ill-conditioned 3$^\circ$-spread channel at 25~dB, $K=32$ at 20~dB, and $K=16$, $M=128$ at 30~dB. The speed-up comes with no loss in link performance.
 
 \section{Software Framework and Reproducibility}
 \label{sec:sw}
 
-All results of this report are produced by an open, fully reproducible Python/C code base (Table~\ref{tab:repo}). The Part~B simulator is slot-accurate: it generates the three traffic families, applies the stale observations and the held budgets, runs FIFO queues with deadline drops for every cell and records every metric. Every number in our papers is generated as a macro from the result CSV files, so text and data cannot diverge.
+All results in this report come from an open Python/C code base that can be fully reproduced (Table~\ref{tab:repo}). The Part~B simulator works at slot accuracy. It generates the three traffic families, replays the measured 5G traces and applies the stale observations and held budgets. For every cell it runs FIFO queues with deadline drops, and it records every metric. Each number in our papers is generated as a macro from the result CSV files, so the text cannot drift away from the data.
 
 \begin{table}[H]
 \caption{Structure of the project repository.}
@@ -156,8 +180,8 @@ results/ & all CSV files, logs and figures \\
 \end{tabularx}
 \end{table}
 
-\paragraph{Verification.} The unit tests check, among other properties, that the link capacity is respected in every slot, that no feature uses future data, that the deadline-feasible rate is tight, that the theoretical bounds hold, that the differentiable KKT layer matches the numpy allocator to $10^{-6}$ with correct gradients, and that BPN reproduces predictive MaxWeight and the CEM policy exactly with the corresponding parameters.
+\paragraph{Verification.} Among other properties, the unit tests check that the link capacity is respected in every slot and that no feature uses future data. They also confirm that the deadline-feasible rate is tight and that the theoretical bounds hold. The differentiable KKT layer is tested against the numpy allocator, which it matches to $10^{-6}$ with correct gradients. Finally, the tests verify that BPN reproduces predictive MaxWeight and the CEM policy exactly when given the corresponding parameters.
 
 \section{Discussion and Analysis}
 
-This chapter presented the implementation and the measured CPU results of the project. The fused C/AVX-512/OpenMP kernel turns the RZF precoder from a computation that is six times too slow for the slot into one that uses less than half of it, with float64-level accuracy. This is what makes per-slot RU-side precoding, with its 72\,\% fronthaul saving, practical on a general-purpose CPU O-DU. On the Part~B side, every controller runs well within its 10~ms decision interval in Python (3.5~ms for the KKT rule with GBM, 2.2--3.5~ms for BPN), and the fully tested, reproducible framework makes every result of this report traceable to its data.
+This chapter has described how the project was implemented and what CPU times we measured. Before the fused C/AVX-512/OpenMP kernel, the RZF precoder was six times too slow for the slot. With the kernel it uses less than half of the slot and keeps float64-level accuracy. Because of this, per-slot RU-side precoding, with its 72\,\% saving in downlink fronthaul, becomes practical on a general-purpose CPU O-DU. On the Part~B side, every controller runs in Python well within its 10~ms decision interval, taking 3.5~ms for the KKT rule with GBM and 2.2--3.5~ms for BPN. The framework is fully tested and reproducible, so every result in this report can be traced back to its data.

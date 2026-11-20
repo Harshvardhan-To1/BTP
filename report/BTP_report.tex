@@ -44,6 +44,7 @@
 \usepackage{makecell}
 \usepackage{fancyhdr}
 \usepackage{cite}
+\usepackage{pdfpages}
 \usepackage[hidelinks]{hyperref}
 
 \renewcommand\bibname{References}
@@ -78,10 +79,13 @@
 % =====================================================================
 % Title page
 % =====================================================================
+% Hard-bound front cover (built from BTP_hardcover.tex)
+\includepdf[pages=1,pagecommand={\thispagestyle{empty}}]{BTP_hardcover.pdf}
+
 \begin{titlepage}
 \begin{center}
 \vspace*{10pt}
-{\Large \bf \btptitle}\\[22pt]
+{\Large \bf Fronthaul Load Management for\\ B5G Wireless Communications}\\[22pt]
 {\large \bf A PROJECT REPORT}\\[30pt]
 \emph{Submitted in partial fulfillment of the requirements\\ for the award of the degree of}\\[6pt]
 {\large \bf BACHELOR OF TECHNOLOGY}\\
@@ -128,9 +132,9 @@ Place: ........................
 \addcontentsline{toc}{chapter}{Preface}
 This report on \textbf{``\btptitle''} is prepared under the guidance of \textbf{\guidename}.
 
-The fronthaul, which links the radio unit on the antenna mast to the processing unit that runs the baseband, is the most demanding transport segment of a modern 5G network. A single 64-antenna cell can push more than 15~Gbit/s of raw IQ samples, and operators connect many such cells through one shared Ethernet link. In this project we have attacked the fronthaul load problem from both of its sides. In Part~A we make the data itself smaller and make the processing unit fast enough to work with it: structure-aware IQ encoders, an adaptive functional split, a random-matrix-guided complex inversion method and a hand-optimised C/AVX-512 precoder kernel. In Part~B we decide, every 10~ms and before the traffic is known, how much of a shared link each cell may use: a deadline-feasible demand target, a calibrated quantile forecaster, a closed-form newsvendor allocation rule, a Bayesian Transformer forecaster and, finally, the back-pressure newsvendor controller that outperforms the strongest known baselines in every scenario we tested.
+In a modern 5G network, the fronthaul is the link between the radio unit on the antenna mast and the processing unit that runs the baseband. It is the most demanding transport segment in the network. One 64-antenna cell can produce more than 15~Gbit/s of raw IQ samples, and operators usually connect many such cells through a single shared Ethernet link. This project looks at the fronthaul load problem from two sides. In Part~A we shrink the data and make the processing unit fast enough to handle it. The tools here are structure-aware IQ encoders, an adaptive functional split, a complex inversion method guided by random matrix theory and a hand-optimised C/AVX-512 precoder kernel. In Part~B we decide every 10~ms, before the traffic is known, how much of a shared link each cell may use. This part builds up from a deadline-feasible demand target and a calibrated quantile forecaster to a closed-form newsvendor allocation rule and a Bayesian Transformer forecaster. It ends with the back-pressure newsvendor controller, which outperformed the strongest known baselines in every scenario we tested.
 
-We have tried to the best of our abilities and knowledge to explain the content in a lucid manner, starting from the basics of the radio access network. We have added block diagrams of the network architecture, the algorithms and the controllers, together with the plots and tables of all experiments, so that the report can be read by someone new to the field.
+We have tried, as far as our ability and knowledge allow, to explain the material clearly, starting from the basics of the radio access network. The report includes block diagrams of the network architecture, the algorithms and the controllers, along with the plots and tables from all experiments, so that a reader new to the field can follow it.
 
 \vspace{2cm}
 \noindent
@@ -155,11 +159,11 @@ Date: \hspace{0.5cm} ......................................
 % =====================================================================
 \chapter*{Acknowledgements}
 \addcontentsline{toc}{chapter}{Acknowledgements}
-We would like to express our sincere gratitude to our project guide, \textbf{\guidename}, for the immeasurable support, encouragement and technical direction throughout this project. The freedom to pursue the problem from compression theory all the way to controller design, and the regular critical feedback on our results, shaped this work. It was a wonderful opportunity to carry out our project under such generous guidance.
+We are sincerely grateful to our project guide, \textbf{\guidename}, for the support, encouragement and technical direction we received over the course of this project. We were given the freedom to follow the problem from compression theory through to controller design, and the regular, critical feedback on our results shaped much of this work. We feel fortunate to have carried out our project under such generous guidance.
 
-We thank the Department of \discipline, IIT Indore, for the computing facilities and for the opportunity to present this work at the mid-term and final evaluations, where the questions of the evaluation committee pushed us towards stronger baselines and a fairer evaluation.
+We thank the Department of \discipline, IIT Indore, for its computing facilities and for the chance to present this work at the mid-term and final evaluations. The questions raised by the evaluation committee there led us to adopt stronger baselines and to make our evaluation fairer.
 
-We would like to thank our friends, who have constantly refreshed and lifted us up with their support and encouragement. A special gratitude and love goes to our families for their unfailing support.
+We also thank our friends, whose support and encouragement kept our spirits up throughout. Finally, we owe special gratitude and love to our families for their unfailing support.
 
 \vspace{2cm}
 \noindent
@@ -171,14 +175,14 @@ IIT Indore
 % =====================================================================
 \chapter*{Abstract}
 \addcontentsline{toc}{chapter}{Abstract}
-In the O-RAN 7-2x functional split, the fronthaul between the radio unit (O-RU) and the distributed unit (O-DU) carries frequency-domain IQ samples for every scheduled resource block, at rates of 7--15~Gbit/s per cell. Operators therefore compress the IQ data and connect many cells through one over-subscribed Ethernet link. This project manages fronthaul load with two complementary levers.
+In the O-RAN 7-2x functional split, the fronthaul between the radio unit (O-RU) and the distributed unit (O-DU) carries frequency-domain IQ samples for every scheduled resource block, at rates of 7--15~Gbit/s per cell. Operators therefore compress the IQ data and connect many cells through one over-subscribed Ethernet link. This project reduces fronthaul load in two complementary ways.
 
-Part~A makes the data smaller and the O-DU faster. Two structure-aware encoders, CSEE (delay-domain sparsity) and RAS-BFP (randomised sketch and QR), compress reference-symbol and channel IQ 6.4--8.1$\times$ relative to 16-bit I/Q at about $-20$~dB NMSE, against about 2$\times$ for O-RAN block floating point, and run 3--6$\times$ faster than truncated SVD. For the per-slot RZF precoder, our random-matrix-guided warm-start inversion (RMT-WS) needs 6 GEMMs where Neumann-type methods need more than 10, and a fused C/AVX-512/OpenMP kernel runs the whole precoder 10--15$\times$ faster than numpy+LAPACK, inside the 0.5~ms slot. Precoding at the radio unit with these per-slot weights cuts the fronthaul by 72\,\% at 99.7\,\% of the exact sum-rate.
+Part~A makes the data smaller and the O-DU faster. O-RAN block floating point compresses the reference-symbol IQ, from which the O-DU estimates the channel, by only about 2$\times$. We propose two structure-aware encoders for it, CSEE (delay-domain sparsity) and RAS-BFP (randomised sketch and QR). In a link-level test of MMSE detection and RZF precoding, CSEE at 31$\times$ loses less than 0.05\,\% of the sum-rate, and RAS-BFP at 4$\times$ less than 0.8\,\%. Reference symbols make up 1--3 of the 14 symbols of an uplink slot, so this removes 4--20\,\% of the uplink fronthaul bits beyond BFP. For the per-slot RZF precoder, our random-matrix-guided warm-start inversion (RMT-WS) needs 6 GEMMs, while Neumann-type methods need more than 10. A fused C/AVX-512/OpenMP kernel computes the whole precoder 1.9--11$\times$ faster than a C precoder on OpenBLAS/LAPACK using the same four cores. It is the only implementation we measured that fits the 0.5~ms slot for 16 users (0.23 against 0.96~ms). This makes per-slot precoding at the radio unit possible, cutting the downlink fronthaul by 72\,\% at 99.7\,\% of the exact sum-rate.
 
-Part~B shares one link among eight cells with 2~ms and 10~ms deadlines. We forecast each cell's deadline-feasible rate as a set of quantiles and split the link with a closed-form KKT (constrained newsvendor) rule that cuts every cell at the same priority-weighted risk; among the twelve reference controllers of our first comparison it is best in all scenarios of two traffic families, 11--43\,\% better than a point forecast on every seed. A Bayesian, link-aware Transformer forecaster improves it further, by 21\,\% at low and 6\,\% at moderate load. Two stronger baselines from the queueing and policy-search literature, predictive MaxWeight and cross-entropy policy search, outperform the KKT rule; this motivated our final controller, the back-pressure newsvendor (BPN). BPN is a learned policy that contains both of these baselines as special cases, and it beats both in all 10 scenarios of three traffic families by 3--25\,\% ($p \le 0.024$).
+Part~B shares one link among eight cells with 2~ms and 10~ms deadlines. We forecast the deadline-feasible rate of each cell as a set of quantiles. A closed-form KKT (constrained newsvendor) rule then splits the link so that every cell is cut at the same priority-weighted risk. Against twelve reference controllers, before the strongest baselines below were added, the KKT rule was best in all scenarios of two traffic families and beat a point forecast by 11--43\,\% on every seed. A Bayesian, link-aware Transformer forecaster improves it further, by 21\,\% at low and 6\,\% at moderate load. Two stronger baselines from the queueing and policy-search literature, predictive MaxWeight and cross-entropy policy search, outperform the KKT rule. Our final controller, the back-pressure newsvendor (BPN), is a learned policy that contains both as special cases. BPN beats both in all 10 scenarios of three traffic families by 3--25\,\% ($p \le 0.024$). On held-out sessions of a public 5G operator dataset, BPN again leads the best baseline by 6--7\,\%. An overfitting check shows that this lead does not come from tuning.
 
 \vspace{2mm}
-\noindent\textbf{\emph{Keywords}} -- O-RAN, fronthaul, split 7-2x, IQ compression, matrix inversion, RZF precoding, SIMD kernels, quantile forecasting, newsvendor, Transformer, back-pressure, resource allocation.
+\noindent\textbf{\emph{Keywords}}: O-RAN, fronthaul, split 7-2x, IQ compression, matrix inversion, RZF precoding, SIMD kernels, quantile forecasting, newsvendor, Transformer, back-pressure, resource allocation.
 
 % =====================================================================
 \tableofcontents
