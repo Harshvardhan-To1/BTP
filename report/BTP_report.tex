@@ -44,6 +44,7 @@
 \usepackage{makecell}
 \usepackage{fancyhdr}
 \usepackage{cite}
+\usepackage{pdfpages}
 \usepackage[hidelinks]{hyperref}
 
 \renewcommand\bibname{References}
@@ -78,10 +79,13 @@
 % =====================================================================
 % Title page
 % =====================================================================
+% Hard-bound front cover (built from BTP_hardcover.tex)
+\includepdf[pages=1,pagecommand={\thispagestyle{empty}}]{BTP_hardcover.pdf}
+
 \begin{titlepage}
 \begin{center}
 \vspace*{10pt}
-{\Large \bf \btptitle}\\[22pt]
+{\Large \bf Fronthaul Load Management for\\ B5G Wireless Communications}\\[22pt]
 {\large \bf A PROJECT REPORT}\\[30pt]
 \emph{Submitted in partial fulfillment of the requirements\\ for the award of the degree of}\\[6pt]
 {\large \bf BACHELOR OF TECHNOLOGY}\\
