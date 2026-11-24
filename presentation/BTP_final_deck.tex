@@ -1086,45 +1086,54 @@ Fixed quantile & 22.0\,\% & 67.0\,\% & 0.985 \\
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{B1 \textbullet\ Ablations and standards-based 3GPP traffic}
+\begin{frame}{Tested on realistic traffic: the 3GPP evaluation models}
 \begin{columns}[T]
-\begin{column}{0.48\textwidth}
-\textbf{What carries the gain?} (all else fixed)\\[4pt]
-\small
-\begin{enumerate}
-  \item \textbf{Range vs single number} (same model): $-11$ to $-43\,\%$, 20/20 seeds everywhere $\Rightarrow$ \emph{representing uncertainty matters}.
-  \item \textbf{Per-cell KKT level vs one global level}: $-22$ to $-54\,\%$ $\Rightarrow$ the level must be set \emph{per cell by the link}.
-  \item \textbf{GBM vs window (no-ML) quantiles}: GBM adds $-7$ to $-37\,\%$; even the no-ML version beats the point forecast everywhere.
-\end{enumerate}
+\begin{column}{0.47\textwidth}
+\textbf{\small Family G: built only from 3GPP models}\\[4pt]
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.25\linewidth}>{\raggedright\arraybackslash}p{0.71\linewidth}@{}}
+\toprule
+Radio channel & \textbf{TR 38.901 UMa}: LOS prob., path loss, shadowing; ISD 500\,m, 3.5\,GHz, 100\,MHz, 6 interfering sites, Jakes fading \\
+Link quality & \textbf{TR 36.942} Shannon bound $\rightarrow$ \textbf{TS 38.214} CQI table \\
+eMBB users & \textbf{FTP Model 3} (TR 36.814): Poisson 0.5\,MB files \\
+LL users & \textbf{XR video} (TR 38.838): 60\,fps, 30\,Mbit/s, frame-size and jitter laws \\
+Demand & per-cell PRB scheduler output $\times$ BFP bits per PRB \\
+\bottomrule
+\end{tabular}
+\vspace{0.3em}
 \begin{takeaway}
-The rule ($\rstar$ target + KKT split) carries the method; the learned forecaster adds on top.
+\textbf{Nothing hand-designed or fitted to our results}: only the user count is set to hit the target load.
 \end{takeaway}
 \end{column}
-\begin{column}{0.5\textwidth}
-\textbf{Family G (3GPP)}, $V_w$ [\%]\\[3pt]
+\begin{column}{0.51\textwidth}
+\textbf{\small Results on Family G}, $V_w$ [\%], 20 test seeds\\[3pt]
 \scriptsize
-\begin{tabular}{lccc}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lcc}
 \toprule
-Method & mod.\ 0.65 & high 0.80 & unweighted \\
+Method & mod.\ 0.65 & high 0.80 \\
 \midrule
-Reactive prop. & 12.05 & 15.94 & 15.0 \\
-MaxWeight & 17.51 & 25.79 & 19.7 \\
-Deadline-aware & 8.95 & 11.53 & 18.5 \\
-Point forecast & 6.00 & 8.98 & 16.6 \\
-Window quantiles & 6.18 & 9.01 & 16.0 \\
-\ours \textbf{Proposed} & \textbf{5.08} & \textbf{8.01} & \textbf{14.4} \\
-Transfer (trained on S) & 6.99 & 9.89 & 14.3 \\
+Reactive proportional & 12.05 & 15.94 \\
+MaxWeight & 17.51 & 25.79 \\
+Deadline-aware reactive & 8.95 & 11.53 \\
+Point forecast & 6.00 & 8.98 \\
+\ours \textbf{B1 KKT rule} & \textbf{5.08} & \textbf{8.01} \\
+B1 forecaster trained on S only & 6.99 & 9.89 \\
+\ours \textbf{B3 BPN v2 (final)} & \textbf{4.24} & \textbf{6.81} \\
 \midrule
-\gray{Oracle + KKT} & \gray{3.47} & \gray{6.06} & \gray{11.1} \\
+\gray{Oracle + KKT} & \gray{3.47} & \gray{6.06} \\
 \bottomrule
 \end{tabular}
 \vspace{0.3em}
 \begin{itemize}\footnotesize
-  \item Reproduces on traffic we did not design: best at both loads, 20/20 seeds.
-  \item High load: $-11\,\%$ vs point, $-31\,\%$ vs deadline-aware, $-50\,\%$ vs reactive.
+  \item Same ranking as on our own traffic: B1 beats every baseline on \textbf{20/20 seeds}; B3 adds a further 3--6\,\%.
+  \item High load: B1 $-31\,\%$ vs deadline-aware, $-50\,\%$ vs reactive.
+  \item Trained only on synthetic traffic, B1 \textbf{still beats every reactive controller}.
 \end{itemize}
 \end{column}
 \end{columns}
+{\tiny Part A uses the same 3GPP channel models (TR 38.901 TDL-A / UMa, 3--120\,km/h). All data is generated from these models; operator traces are future work.}
 \end{frame}
 
 % ---------------------------------------------------------------------
@@ -1501,6 +1510,7 @@ results/ & all CSVs, logs, figures \\
   \item \faBolt\ \ Compiled (C++/ONNX) Bayesian forecaster for the 10\,ms decision loop.
   \item \faSlidersH\ \ Joint per-cell knob: BFP width \emph{and} capacity share every interval.
   \item \faIcon{exchange-alt}\ \ Cross-family transfer and online adaptation over A1.
+  \item \faDatabase\ \ Replay operator / O-RAN testbed fronthaul traces through the same controllers.
 \end{itemize}
 \end{exampleblock}
 \end{column}
@@ -1542,6 +1552,19 @@ Window quantiles (no ML) & $-37\,\%$ 20/20** & $-16\,\%$ 20/20** & $-8\,\%$ 20/2
 \end{tabular}\\[3pt]
 {\tiny mean relative change of $V_w$, seeds won out of 20; ** Holm--Wilcoxon $p<0.01$, * $p<0.05$}\\[6pt]
 \includegraphics[width=0.62\linewidth]{fig8_paired_reduction.png}
+\end{frame}
+
+\begin{frame}[noframenumbering]{Backup: ablations, what carries the B1 gain?}
+\small
+\textbf{All else fixed, Family S, 20 seeds:}
+\begin{enumerate}
+  \item \textbf{Range vs single number} (same model): $-11$ to $-43\,\%$, 20/20 seeds everywhere $\Rightarrow$ \emph{representing uncertainty matters}.
+  \item \textbf{Per-cell KKT level vs one global level}: $-22$ to $-54\,\%$ $\Rightarrow$ the level must be set \emph{per cell by the link}.
+  \item \textbf{GBM vs window (no-ML) quantiles}: GBM adds $-7$ to $-37\,\%$; even the no-ML version beats the point forecast everywhere.
+\end{enumerate}
+\begin{takeaway}
+The rule ($\rstar$ target + KKT split) carries the method; the learned forecaster adds on top.
+\end{takeaway}
 \end{frame}
 
 \begin{frame}[noframenumbering]{Backup: BPN on Families G and M, and all 19 controllers}

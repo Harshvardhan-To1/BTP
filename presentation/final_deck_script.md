@@ -265,10 +265,12 @@ all 20 seeds.
 *[Plot.]* Reactive control is always one interval late. Our rule raises the
 budget as soon as a burst begins, because that is when the forecast widens.
 
-### Slide 27 — B1: ablations and 3GPP traffic  *[0:10 · clock 8:55]*
+### Slide 27 — Tested on realistic 3GPP traffic  *[0:10 · clock 8:55]*
 
-The ablations show the rule itself carries the gain. On standards-based 3GPP
-traffic it is again the best, on all 20 seeds.
+*[Left.]* Family G is built entirely from 3GPP models: UMa channel, CQI,
+FTP downloads, XR video. *[Right.]* B1 is best on all 20 seeds, B3 better
+still, and even a forecaster trained only on synthetic traffic beats every
+reactive controller.
 
 ### Slide 28 — B1: robustness and A × B  *[0:15 · clock 9:10]*
 
