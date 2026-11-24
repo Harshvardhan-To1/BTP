@@ -4,8 +4,8 @@ Script for `presentation/BTP_final_deck.pdf` (title slide, 37 numbered slides,
 thank-you slide, backup). Slide numbers below are the numbers in the
 bottom-right corner of each slide. Every number in the script matches the deck.
 
-The spoken text is about 1,600 words. At a relaxed 140 words a minute it
-runs about **11 minutes 25 seconds**, and at 150 words a minute about 10:40.
+The spoken text is about 1,630 words. At a relaxed 140 words a minute it
+runs about **11 minutes 35 seconds**, and at 150 words a minute about 10:50.
 The per-slide targets add up to **11:40**, leaving 20 seconds of slack. Each
 slide has a target time and a running clock, so you can check whether you
 are on schedule.
@@ -111,19 +111,27 @@ instead of a full SVD.
 **Both encoders give the operator a guaranteed worst-case error before a
 single bit is sent.**
 
-### Slide 9 — Compression results  *[0:20 · clock 3:25]*
+### Slide 9 — Compression results  *[0:15 · clock 3:20]*
 
 *[Green rows.]* CSEE compresses 6.4 times and RAS-BFP 8.1 times, against 2
-for the O-RAN standard. RAS-BFP matches SVD but encodes three to four times
-faster, and CSEE reaches about 32 times at its knee.
+for the O-RAN standard, and RAS-BFP encodes three to four times faster than
+SVD.
 
-### Slide 10 — Inversion screening  *[0:15 · clock 3:40]*
+### Slide 10 — Developing a new ML-based inversion method  *[0:35 · clock 3:55]*
 
-Precoding needs an inverse every slot. Our learned inverters unroll
-Newton–Schulz, and the best has half LAPACK's tail latency. The lesson:
-Newton–Schulz with a good initial guess.
+Our second big challenge was matrix inversion. Precoding needs a fresh
+inverse every slot, and that repeated cost adds up. *[Steps 1 and 2.]* We
+first tried direct methods, such as LU, QR, SVD and LAPACK, and a neural
+network that predicts the inverse directly. Direct methods stayed too
+expensive, and the learned inverse was slow and inaccurate. *[Steps 3 to 5.]*
+So we focused on Newton–Schulz, an iterative method built only from matrix
+multiplies, and trained networks to give it a better initial guess.
+*[Chart.]* InverseNet-Ultra has the lowest mean latency and half LAPACK's
+tail latency.
 
-### Slide 11 — RMT-WS  *[0:30 · clock 4:10]*
+**Newton–Schulz with a good initial guess gives the best performance.**
+
+### Slide 11 — RMT-WS  *[0:30 · clock 4:25]*
 
 That became RMT-WS. *[Follow the flowchart.]* We equilibrate the Gram
 matrix to remove the near–far spread. A moment-matched Marchenko–Pastur law
@@ -133,21 +141,18 @@ and Newton–Schulz converges quadratically using only multiplies. Between
 slots we warm start, and a two-probe residual certificate picks the steps or
 falls back to a cold start.
 
-### Slide 12 — Interval coverage and cost  *[0:15 · clock 4:25]*
+### Slide 12 — Interval coverage and cost  *[0:10 · clock 4:35]*
 
-*[Left table.]* The interval covers the upper edge in 100 percent of cases on
-every channel type. *[Right table.]* To stay within 1 percent of the exact
-sum-rate we need 6 complex multiplies, where Neumann-type methods need more
-than 10.
+*[Right table.]* To stay within 1 percent of the exact sum-rate we need 6
+complex multiplies, where Neumann-type methods need more than 10.
 
-### Slide 13 — Tracking at every speed  *[0:20 · clock 4:45]*
+### Slide 13 — Tracking at every speed  *[0:15 · clock 4:50]*
 
 At walking speed we need 2.25 multiplies per slot. At 120 kilometres per
 hour the certificate falls back to a cold start, with 24 times lower loss than
-warm Gauss–Seidel. *[Plot.]* Our Doppler law predicts the warm-start residual,
-with a fitted slope of exactly 1.
+warm Gauss–Seidel.
 
-### Slide 14 — Where should precoding run?  *[0:20 · clock 5:05]*
+### Slide 14 — Where should precoding run?  *[0:20 · clock 5:10]*
 
 *[Arrow a.]* If the DU precodes, it sends 64 antenna streams, 118 gigabits per
 second. *[Arrow b.]* If the radio unit precodes, we send 16 layers plus 8-bit
@@ -157,7 +162,7 @@ sum-rate.
 **But the weights must be refreshed every slot, so the precoder has to be
 fast.**
 
-### Slide 15 — Fused kernel design  *[0:25 · clock 5:30]*
+### Slide 15 — Fused kernel design  *[0:25 · clock 5:35]*
 
 So we wrote it in C with AVX-512 and OpenMP. *[Walk the pipeline.]* Each
 resource block is one fused pass in L1 cache: Gram, Gauss–Jordan inverse,
@@ -165,10 +170,10 @@ weights, power scaling. Real and imaginary planes are split so complex
 arithmetic vectorises, and no pivoting is needed because the Gram is positive
 definite. Weight formation runs at half the AVX-512 peak.
 
-### Slide 16 — Kernel results  *[0:15 · clock 5:45]*
+### Slide 16 — Kernel results  *[0:10 · clock 5:45]*
 
-*[Highlighted row.]* For 16 users and 64 antennas, numpy and LAPACK need 3.2
-milliseconds; our kernel needs 0.226, 14 times faster.
+*[Highlighted row.]* For 16 users and 64 antennas: 0.226 milliseconds,
+against 3.2 for numpy and LAPACK.
 
 **For the first time, the whole precoder fits inside the half-millisecond
 slot.**
@@ -342,9 +347,9 @@ Thank you. We're happy to take questions.
 ## If you are running late
 
 - At the 6:20 handover you should be on slide 18. If you are more than
-  30 seconds behind, say only the bold line on slides 10, 12, 23, 24, 26, 27
+  30 seconds behind, say only the bold line on slides 12, 23, 24, 26, 27
   and 34.
-- Never skip slides 2, 8, 11, 17, 20, 22, 30 and 32. They carry the story and
+- Never skip slides 2, 8, 10, 11, 17, 20, 22, 30 and 32. They carry the story and
   the numbers examiners ask about.
 
 ## Numbers to have ready
@@ -356,6 +361,7 @@ Thank you. We're happy to take questions.
 | libcmat, inverse only vs LAPACK | 9.8× / 13.9× / 13.8× at 8 / 16 / 32 users |
 | libcmat, single core | 2.5–4× faster than numpy + LAPACK |
 | RU-side precoding | −72 % fronthaul, 99.7 % of sum-rate |
+| InverseNet-Ultra vs LAPACK (n = 100) | 0.47 / 0.57 ms vs 0.57 / 1.13 ms (mean / p95) |
 | RMT-WS cost | 6 multiplies vs more than 10 for Neumann-type methods |
 | Link oversubscription | sum of peaks = 2.44 × capacity |
 | B1 vs point forecast | −11 to −43 %, 20/20 seeds |
