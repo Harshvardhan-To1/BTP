@@ -1,0 +1,15 @@
+{
+ "numpy O-RAN BFP (b=9) | 1 thr": 24.38090499890677,
+ "numpy PCA / exact SVD + RMT rank | 1 thr": 248.80377599947678,
+ "numpy RAS-BFP pilot sketch | 1 thr": 80.61240900133271,
+ "C O-RAN BFP (b=9) | 1 thr": 3.8458400013041683,
+ "C RAS-BFP pilot sketch, full refresh | 1 thr": 34.87175699956424,
+ "C RAS-BFP pilot sketch, 25 % refresh | 1 thr": 12.694974999249098,
+ "numpy O-RAN BFP (b=9) | 4 thr": 24.0553200001159,
+ "numpy PCA / exact SVD + RMT rank | 4 thr": 242.93602400030068,
+ "numpy RAS-BFP pilot sketch | 4 thr": 84.20105899858754,
+ "C O-RAN BFP (b=9) | 4 thr": 7.993064000402228,
+ "C RAS-BFP pilot sketch, full refresh | 4 thr": 10.360562999267131,
+ "C RAS-BFP pilot sketch, 25 % refresh | 4 thr": 3.7577600014628842,
+ "projection_gflop_per_slot": 0.372965376
+}

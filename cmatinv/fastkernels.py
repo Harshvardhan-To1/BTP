@@ -56,3 +56,18 @@ def rzf_fp16(H, alpha, power, W=None, threads=4):
     W = np.empty((S, K, M), np.complex64) if W is None else W
     _lib.rzf_fused_fp16(H.ctypes.data, W.ctypes.data, S, K, M, alpha, power, threads)
     return W
+
+
+def _baselines():
+    lib = ctypes.CDLL(os.path.join(_here, "..", "kernels", "librzfbase.so"))
+    for f in (lib.rzf_lapack, lib.rzf_eigen):
+        f.argtypes = _lib.rzf_fused_chol.argtypes
+    return lib
+
+
+def rzf_library(H, alpha, power, which="lapack", W=None, threads=4):
+    """Library baselines with the rzf_chol contract: 'lapack' (OpenBLAS cgemm + LAPACK cposv) or 'eigen' (LLT)."""
+    S, K, M = H.shape
+    W = np.empty((S, K, M), np.complex64) if W is None else W
+    getattr(_baselines(), "rzf_" + which)(H.ctypes.data, W.ctypes.data, S, K, M, alpha, power, threads)
+    return W
