@@ -157,10 +157,10 @@ complex multiplies, where Neumann-type methods need more than 10.
 At walking speed we need 2.25 multiplies per slot, and at 120 kilometres per
 hour the certificate's fallback gives 24 times lower loss.
 
-### Slide 14 — Where should precoding run?  *[0:20 · clock 5:10]*
+### Slide 14 — Downlink: where should precoding run?  *[0:20 · clock 5:10]*
 
-*[Arrow a.]* If the DU precodes, it sends 64 antenna streams, 118 gigabits per
-second. *[Arrow b.]* If the radio unit precodes, we send 16 layers plus 8-bit
+In the downlink, *[arrow a]* if the DU precodes, it sends 64 antenna
+streams, 118 gigabits per second. *[Arrow b.]* If the radio unit precodes, we send 16 layers plus 8-bit
 weights, 33 gigabits per second: 72 percent less, at 99.7 percent of the
 sum-rate.
 
