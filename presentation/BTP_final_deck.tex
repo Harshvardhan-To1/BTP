@@ -15,6 +15,8 @@
 \usepackage{fontawesome5}
 \usepackage[most]{tcolorbox}
 \usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 \usetikzlibrary{arrows.meta,positioning,calc,shapes.geometric,shapes.misc,fit,backgrounds,decorations.pathreplacing,shadows}
 \graphicspath{{../report/figures/}{../results/fhlm/figures/}{../results/v2/}}
 
@@ -419,38 +421,48 @@ Truncated SVD ($r{=}12$) & 8.1$\times$ & 1$\times$ \\
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{Inversion screening: learn the iteration, not the inverse}
+\begin{frame}{Developing a new ML-based inversion method}
+\centering
+\begin{tikzpicture}[font=\scriptsize,>=Stealth,
+   st/.style={draw,rounded corners=3pt,align=center,text width=2.3cm,minimum height=1.6cm,inner sep=1.5pt,line width=0.7pt},
+   tag/.style={font=\tiny\bfseries,text=white,rounded corners=2pt,inner sep=2pt}]
+  \node[st,draw=muted,fill=gray!8]            (s1) at (0,0)     {\textbf{Direct inversion}\\[1pt]LU, QR, SVD, Gauss--Jordan, LAPACK\\[2pt]\textcolor{accent}{exact, but $O(n^3)$, serial pivoting, heavy tails}};
+  \node[st,draw=accent,fill=accent!6]         (s2) at (2.65,0)  {\textbf{Learned inverse}\\[1pt]MLP predicts $A^{-1}$ directly\\[2pt]\textcolor{accent}{slow (4.7\,ms) and inaccurate (residual 0.58)}};
+  \node[st,draw=iitblue,fill=iitblue!6]       (s3) at (5.3,0)   {\textbf{Newton--Schulz}\\[1pt]$X_{k+1} = X_k(2I - AX_k)$\\[2pt]\textcolor{good!60!black}{GEMM-only, quadratic}\\\textcolor{accent}{many steps from a generic start}};
+  \node[st,draw=iitblueL,fill=iitblueL!8]     (s4) at (7.95,0)  {\textbf{InverseNet-NS}\\[1pt]8 unrolled steps, learned $(\beta_k,\gamma_k)$ and scale\\[2pt]\textcolor{good!60!black}{tight tail: p95 1.06\,ms}};
+  \node[st,draw=good,fill=good!10,line width=1.3pt] (s5) at (10.6,0) {\textbf{InverseNet-Ultra}\\[1pt]hyper-net predicts $X_0$ from 4 norms\\[2pt]\textcolor{good!60!black}{2 fewer steps\\\textbf{0.47\,ms}, residual $10^{-6}$}};
+  \foreach \a/\b in {s1/s2,s2/s3,s3/s4,s4/s5} \draw[->,very thick,muted] (\a.east) -- (\b.west);
+  \foreach \s/\n/\c in {s1/1/muted,s2/2/accent,s3/3/iitblue,s4/4/iitblueL,s5/5/good}
+    \node[tag,fill=\c,anchor=south] at (\s.north) {STEP \n};
+  \draw[decorate,decoration={brace,amplitude=4pt,mirror},thick,muted] ([yshift=-3pt]s1.south west) -- ([yshift=-3pt]s2.south east) node[midway,below=4pt,font=\tiny,text=muted]{too slow / too inaccurate};
+  \draw[decorate,decoration={brace,amplitude=4pt,mirror},thick,good] ([yshift=-3pt]s3.south west) -- ([yshift=-3pt]s5.south east) node[midway,below=4pt,font=\tiny,text=good!60!black]{keep the iteration, learn only its parameters and starting point};
+\end{tikzpicture}\\[2pt]
 \begin{columns}[c]
-\begin{column}{0.42\textwidth}
-\centering\small
-\begin{tabular}{lcc}
-\toprule
-Method ($n{=}100$) & Mean & p95 \\
-\midrule
-\ours \textbf{InverseNet-Ultra} & \textbf{0.47} & \textbf{0.57} \\
-LAPACK \texttt{getri} & 0.57 & 1.13 \\
-\ours InverseNet-NS & 0.97 & 1.06 \\
-Newton--Schulz & 1.27 & 1.71 \\
-Gauss--Jordan & 1.97 & 3.40 \\
-LU (scipy) & 3.36 & 6.09 \\
-SVD & 10.2 & 20.8 \\
-QR & 20.3 & 64.5 \\
-\bottomrule
-\end{tabular}\\[2pt]
-{\scriptsize ms, CPU, one matrix per Python call, 200 held-out $A = G/\sqrt n + 2I$}
-\end{column}
 \begin{column}{0.56\textwidth}
-\footnotesize
-\textbf{Why:} MMSE equalisation, RZF precoding and our encoders need an inverse \emph{every slot}. Our learned inverters unroll Newton--Schulz and learn only its coefficients:
-\[ X_{k+1} = X_k(\beta_k I - \gamma_k A X_k) \]
+\centering
+\begin{tikzpicture}
+\begin{axis}[xbar, xmode=log, log origin=infty, width=0.92\linewidth, bar width=2.8pt,
+   y=0.29cm, enlarge y limits=0.09, xmin=0.2, xmax=150,
+   symbolic y coords={qr,svd,lu,gj,ns,insn,lapack,inul},
+   ytick=data, yticklabels={QR,SVD,LU (scipy),Gauss--Jordan,Newton--Schulz,InverseNet-NS,LAPACK getri,\textbf{InverseNet-Ultra}}, yticklabel style={font=\tiny}, xticklabel style={font=\tiny},
+   xlabel={latency [ms], log scale}, xlabel style={font=\tiny,yshift=3pt},
+   legend style={font=\tiny,at={(0.5,1.02)},anchor=south,draw=none,legend columns=2,/tikz/every even column/.append style={column sep=8pt}},
+   legend cell align=left, axis line style={muted}, tick style={muted}]
+\addplot[fill=iitblue!70,draw=none,bar shift=1.5pt] coordinates {(20.3,qr) (10.2,svd) (3.36,lu) (1.97,gj) (1.27,ns) (0.97,insn) (0.57,lapack) (0.47,inul)};
+\addplot[fill=gold!90!black,draw=none,bar shift=-1.5pt] coordinates {(64.5,qr) (20.8,svd) (6.09,lu) (3.40,gj) (1.71,ns) (1.06,insn) (1.13,lapack) (0.57,inul)};
+\legend{mean, p95}
+\end{axis}
+\end{tikzpicture}\\[-4pt]
+{\tiny $n{=}100$, 200 held-out $A = G/\sqrt n + 2I$, CPU, one matrix per call}
+\end{column}
+\begin{column}{0.42\textwidth}
+\scriptsize
 \begin{itemize}
-  \item \textbf{InverseNet-NS}: 8 steps, learned $(\beta_k,\gamma_k)$ and initial scale.
-  \item \textbf{InverseNet-Ultra}: a tiny hyper-network predicts $X_0$ from 4 matrix norms $\Rightarrow$ 2 steps fewer.
-  \item Lowest mean latency, \textbf{2$\times$ lower p95} than LAPACK; fixed cost of batched GEMMs (GPU/NPU friendly).
+  \item $(HH^H{+}\alpha I)^{-1}$ is needed \textbf{every slot}; direct methods pay $O(n^3)$ with pivoting each time.
+  \item Learning $A^{-1}$ directly fails; learning \emph{the iteration} works: the error squares each step, so a better $X_0$ removes steps.
+  \item \textbf{InverseNet-Ultra}: lowest mean and \textbf{2$\times$ lower p95 than LAPACK} (0.57 vs 1.13\,ms), batched GEMMs only.
+  \item \bl{Newton--Schulz + a good initial guess wins}; RMT-WS (next) derives that guess for complex RZF Grams.
 \end{itemize}
-\begin{takeaway}
-\footnotesize Outcome: the \textbf{Newton--Schulz family with a good initial guess}, which RMT-WS develops for the real complex RZF workload.
-\end{takeaway}
 \end{column}
 \end{columns}
 \end{frame}
