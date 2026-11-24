@@ -4,8 +4,8 @@ Script for `presentation/BTP_final_deck.pdf` (title slide, 37 numbered slides,
 thank-you slide, backup). Slide numbers below are the numbers in the
 bottom-right corner of each slide. Every number in the script matches the deck.
 
-The spoken text is about 1,630 words. At a relaxed 140 words a minute it
-runs about **11 minutes 35 seconds**, and at 150 words a minute about 10:50.
+The spoken text is about 1,670 words. At a relaxed 140 words a minute it
+runs about **11 minutes 55 seconds**, and at 150 words a minute about 11:05.
 The per-slide targets add up to **11:40**, leaving 20 seconds of slack. Each
 slide has a target time and a running clock, so you can check whether you
 are on schedule.
@@ -131,26 +131,31 @@ tail latency.
 
 **Newton–Schulz with a good initial guess gives the best performance.**
 
-### Slide 11 — RMT-WS  *[0:30 · clock 4:25]*
+### Slide 11 — RMT-WS  *[0:35 · clock 4:30]*
 
-That became RMT-WS. *[Follow the flowchart.]* We equilibrate the Gram
-matrix to remove the near–far spread. A moment-matched Marchenko–Pastur law
-gives its eigenvalue interval in order K-squared work, with no
-eigen-decomposition. A Chebyshev start is minimax-optimal on that interval,
-and Newton–Schulz converges quadratically using only multiplies. Between
-slots we warm start, and a two-probe residual certificate picks the steps or
-falls back to a cold start.
+Based on these results we developed our own method, RMT-WS, for the real
+precoding workload: complex Gram matrices for 273 resource blocks every slot.
+The idea is to give Newton–Schulz a better starting point, so it needs fewer
+iterations. *[Follow the flowchart.]* We first equilibrate the matrix to
+remove the near–far power spread. Instead of an eigen-decomposition, the
+Marchenko–Pastur law estimates the eigenvalue range, and a Chebyshev
+polynomial on that range gives the initial inverse. Newton–Schulz then
+refines it. Between slots we warm start from the previous inverse, and a
+residual certificate checks it, switching to a fresh start if it is not
+reliable.
 
-### Slide 12 — Interval coverage and cost  *[0:10 · clock 4:35]*
+**Mathematical estimation, fast iterations and an accuracy check, in one
+method.**
+
+### Slide 12 — Interval coverage and cost  *[0:10 · clock 4:40]*
 
 *[Right table.]* To stay within 1 percent of the exact sum-rate we need 6
 complex multiplies, where Neumann-type methods need more than 10.
 
-### Slide 13 — Tracking at every speed  *[0:15 · clock 4:50]*
+### Slide 13 — Tracking at every speed  *[0:10 · clock 4:50]*
 
-At walking speed we need 2.25 multiplies per slot. At 120 kilometres per
-hour the certificate falls back to a cold start, with 24 times lower loss than
-warm Gauss–Seidel.
+At walking speed we need 2.25 multiplies per slot, and at 120 kilometres per
+hour the certificate's fallback gives 24 times lower loss.
 
 ### Slide 14 — Where should precoding run?  *[0:20 · clock 5:10]*
 
