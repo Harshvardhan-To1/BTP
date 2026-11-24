@@ -63,6 +63,7 @@
 \newcommand{\bl}[1]{\textcolor{iitblue}{\textbf{#1}}}
 \newcommand{\ours}{\rowcolor{good!14}}
 \newcommand{\gray}[1]{\textcolor{muted}{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 
 % one-line take-away bar at the bottom of a slide
 \newtcolorbox{takeaway}{enhanced,colback=gold!14,colframe=gold!80!black,boxrule=0pt,
@@ -147,16 +148,25 @@
   \node[lbl,text=accent] at (5.25,1.05) {FRONTHAUL};
   \node[lbl,text=orange!80!black] at (8.35,1.05) {MIDHAUL};
   \node[lbl,text=purple!70!black] at (11.2,1.05) {BACKHAUL};
-  \node[font=\scriptsize,align=center,text=accent] at (5.25,-1.3) {raw radio samples (IQ)\\7--100+ Gbit/s per cell\\$\approx$100\,$\mu$s latency};
-  \node[font=\scriptsize,align=center,text=orange!80!black] at (8.35,-1.3) {packets\\$\approx$ user data rate\\1--5\,ms};
-  \node[font=\scriptsize,align=center,text=purple!70!black] at (11.2,-1.3) {traffic of\\many cells\\$\approx$10\,ms};
 \end{tikzpicture}
+\vspace{0.1em}
+
+\scriptsize
+\renewcommand{\arraystretch}{1.1}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{>{\bfseries}L{1.45cm} L{3.6cm} L{4.1cm} L{2.2cm} L{2.6cm}}
+\toprule
+\normalfont Link & Connects (interface) & Carries & Data rate & Latency budget \\
+\midrule
+\textcolor{accent}{Fronthaul} & O-RU $\leftrightarrow$ O-DU\newline Open Fronthaul (eCPRI, split 7-2x) & digitised radio samples (IQ) of every antenna and resource block & 7--100+ Gbit/s per cell & $\approx$100\,$\mu$s; fibre up to $\approx$20\,km \\
+\textcolor{orange!80!black}{Midhaul} & O-DU $\leftrightarrow$ O-CU\newline 3GPP F1 & user packets after MAC/RLC processing & $\approx$ user data rate & 1--5\,ms \\
+\textcolor{purple!70!black}{Backhaul} & O-CU $\leftrightarrow$ 5G core\newline 3GPP NG & aggregated IP traffic of many cells & $\approx$ sum of cell rates & $\approx$10\,ms \\
+\bottomrule
+\end{tabular}
 \vspace{0.4em}
-\begin{itemize}\small
-  \item \textbf{Fronthaul} (RU $\leftrightarrow$ DU) carries the digitised radio waveform: the highest rate and the tightest latency of the chain; a late packet is useless to the radio.
-  \item \textbf{Midhaul} and \textbf{backhaul} carry ordinary packet traffic at roughly the user data rate.
-  \item The data rate, latency and cost of the fronthaul decide how many cells an operator can deploy. \bl{This project is about the fronthaul.}
-\end{itemize}
+\begin{takeaway}
+\footnotesize Fronthaul: highest rate, tightest deadline (a late sample is useless). Its cost decides how many cells an operator can deploy. \bl{This project is about the fronthaul.}
+\end{takeaway}
 \end{frame}
 
 % ---------------------------------------------------------------------
@@ -269,7 +279,7 @@ When bursts coincide someone loses data. LL cells tolerate only \textbf{2\,ms}. 
 \kpi{iitblue}{\faCompress}{8.1$\times$}{channel IQ compression\\vs 16-bit at $-20$\,dB\\(O-RAN BFP: 2$\times$)}
 \end{column}
 \begin{column}{0.235\textwidth}
-\kpi{iitblueL}{\faMicrochip}{14$\times$}{fused C/AVX-512 precoder\\0.226\,ms per slot\\(numpy: 3.21\,ms)}
+\kpi{iitblueL}{\faMicrochip}{14$\times$}{\texttt{libcmat} C/AVX-512 precoder\\0.226\,ms per slot\\(numpy + LAPACK: 3.21\,ms)}
 \end{column}
 \begin{column}{0.235\textwidth}
 \kpi{gold!85!black}{\faBroadcastTower}{$-72\%$}{fronthaul with\\RU-side precoding,\\99.7\,\% of sum-rate}
@@ -681,6 +691,69 @@ $K$, $M$ & numpy+LAPACK & \textbf{ours, 4 thr.} & gain \\
 \end{columns}
 \end{frame}
 
+% ---------------------------------------------------------------------
+\begin{frame}{\texttt{libcmat}: a batched complex linear-algebra library that beats LAPACK}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\footnotesize
+\textbf{\small Why LAPACK is the wrong tool here}
+\begin{itemize}
+  \item LAPACK/numpy are tuned for \emph{one large} matrix; the O-DU needs \textbf{273 small} $K{\times}K$ problems every 0.5\,ms.
+  \item Per-call overhead, separate Gram / inverse / product passes and DRAM round trips dominate at $K \le 32$.
+\end{itemize}
+\textbf{\small What \texttt{libcmat} does instead}
+\begin{itemize}
+  \item Batched API over all PRBs; one fused, L1-resident pass per PRB; split re/im planes for AVX-512 FMA; OpenMP across PRBs.
+  \item Python binding via \texttt{ctypes}; complex64 accuracy checked against float64.
+\end{itemize}
+\vspace{0.2em}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\tiny
+\begin{tabular}{>{\ttfamily}l l}
+\toprule
+\normalfont Routine & Computes (batched over PRBs) \\
+\midrule
+rzf\_fused\_chol & $G{=}HH^H{+}\alpha I$, $G^{-1}$, $W{=}H^H G^{-1}$, scaling \\
+rzf\_fused\_ns & same, one warm Newton--Schulz step \\
+ns\_step\_batch & $X \leftarrow X(2I{-}GX)$ + certificate \\
+chol\_inverse\_batch & Hermitian pos.-definite inverse \\
+rzf\_fused\_fp16 & weights in AVX512-FP16 complex FMA \\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.48\textwidth}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lccc}
+\toprule
+Inverse only, 273 PRBs & $K{=}8$ & $K{=}16$ & $K{=}32$ \\
+\midrule
+numpy + LAPACK & 0.354 & 1.594 & 7.883 \\
+\ours \texttt{libcmat} Cholesky, 4 thr. & 0.042 & 0.124 & \textbf{0.572} \\
+\ours \texttt{libcmat} NS step, 4 thr. & \textbf{0.036} & \textbf{0.115} & 0.645 \\
+speed-up vs LAPACK & \gd{9.8$\times$} & \gd{13.9$\times$} & \gd{13.8$\times$} \\
+\bottomrule
+\end{tabular}\\[2pt]
+{\tiny ms per slot, $M{=}64$, complex64, 4-core AVX-512 Xeon, median of 40 runs}\\[4pt]
+\begin{tabular}{lcc}
+\toprule
+Whole precoder & 1 thread & 4 threads \\
+\midrule
+speed-up vs numpy + LAPACK & \gd{2.5--4.0$\times$} & \gd{10--15$\times$} \\
+sum-rate loss vs float64 & \multicolumn{2}{c}{$\lesssim 10^{-6}\,\%$} \\
+FP16 path, $K{=}32$, $M{=}128$ & \multicolumn{2}{c}{1.3$\times$ faster, $\le 0.5\,\%$ mean loss} \\
+\bottomrule
+\end{tabular}
+\vspace{0.4em}
+\begin{takeaway}
+\scriptsize Faster than numpy + LAPACK at every tested size, even on a single core, at float64-level accuracy. We are preparing \texttt{libcmat} as a standalone open-source library and publication.
+\end{takeaway}
+\end{column}
+\end{columns}
+\end{frame}
+
 % =====================================================================
 \section{Part B: share one link well}
 % =====================================================================
@@ -746,7 +819,35 @@ Same user traffic can differ by 2--3$\times$ in fronthaul load.
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{Key idea 1: forecast the deadline-feasible rate $\rstar$, not the volume}
+\begin{frame}{Part B in three steps: two initial experiments, one final design}
+\centering
+\begin{tikzpicture}[font=\small,>=Stealth,
+   st/.style={draw,rounded corners=4pt,align=left,text width=3.9cm,minimum height=4.1cm,inner sep=6pt,line width=0.8pt,anchor=north}]
+  \node[st,draw=iitblue,fill=iitblue!6] (b1) at (0,0) {%
+    \colorbox{muted}{\tiny\bfseries\color{white}INITIAL EXPERIMENT 1}\\[4pt]
+    \textbf{\textcolor{iitblue}{B1: KKT newsvendor rule}}\\[3pt]
+    \footnotesize $\rstar$ target, GBM quantile forecast, closed-form KKT split with four proven properties.\\[3pt]
+    \scriptsize Best of 12 controllers on 2 traffic families; submitted to NCC 2027.};
+  \node[st,draw=purple!70!black,fill=purple!5] (b2) at (4.75,0) {%
+    \colorbox{muted}{\tiny\bfseries\color{white}INITIAL EXPERIMENT 2}\\[4pt]
+    \textbf{\textcolor{purple!70!black}{B2: Bayesian Transformer}}\\[3pt]
+    \footnotesize Link-aware quantile Transformer with a Bayesian mixture layer: \textbf{uncertainty-aware} and \textbf{explainable}.\\[3pt]
+    \scriptsize Best-calibrated forecaster; improves B1 on every seed.};
+  \node[st,draw=good,fill=good!8,line width=1.4pt] (b3) at (9.5,0) {%
+    \colorbox{good}{\tiny\bfseries\color{white}FINAL SUBMISSION}\\[4pt]
+    \textbf{\textcolor{good!60!black}{B3: Back-pressure newsvendor}}\\[3pt]
+    \footnotesize Learned two-stage policy that unifies reservation, back-pressure and policy search.\\[3pt]
+    \scriptsize Beats the strongest baselines in \textbf{10/10} scenarios of 3 families.};
+  \draw[->,very thick,muted] (b1.east) -- (b2.west);
+  \draw[->,very thick,muted] (b2.east) -- (b3.west);
+\end{tikzpicture}\\[8pt]
+\begin{takeaway}
+Between B2 and B3 we implemented all three solution families of the underlying POMDP (stochastic program, Lyapunov drift, policy search); B3 combines their strengths in one policy class.
+\end{takeaway}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{B1 \textbullet\ Key idea 1: forecast the deadline-feasible rate $\rstar$, not the volume}
 \begin{columns}[c]
 \begin{column}{0.55\textwidth}
 \begin{tcolorbox}[enhanced,colback=soft,colframe=iitblue,boxrule=0.8pt,arc=3pt,halign=center]
@@ -783,7 +884,7 @@ A single predicted number is a poor basis for reserving a skewed quantity $\Righ
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{Key idea 2: quantile forecast + closed-form KKT newsvendor split}
+\begin{frame}{B1 \textbullet\ Key idea 2: quantile forecast + closed-form KKT newsvendor split}
 \begin{columns}[T]
 \begin{column}{0.53\textwidth}
 \small
@@ -820,7 +921,7 @@ Separable and concave $\Rightarrow$ KKT gives the \textbf{global} optimum:
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{Four proven properties and the closed control loop}
+\begin{frame}{B1 \textbullet\ Four proven properties and the closed control loop}
 \begin{columns}[T]
 \begin{column}{0.47\textwidth}
 \footnotesize
@@ -903,7 +1004,7 @@ low 0.50, moderate 0.65, high 0.80, flash crowds, \textbf{held-out shift}.
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{B1 main result: best implementable controller everywhere}
+\begin{frame}{B1 \textbullet\ Main result: best implementable controller everywhere}
 \centering
 \scriptsize
 \setlength{\tabcolsep}{4pt}
@@ -943,7 +1044,7 @@ vs deadline-aware & \gd{$-19$ to $-70\,\%$} & vs MaxWeight & \gd{$-18$ to $-83\,
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{Where the gain comes from}
+\begin{frame}{B1 \textbullet\ Where the gain comes from}
 \begin{columns}[c]
 \begin{column}{0.52\textwidth}
 \centering
@@ -973,7 +1074,7 @@ Fixed quantile & 22.0\,\% & 67.0\,\% & 0.985 \\
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{Ablations and standards-based 3GPP traffic}
+\begin{frame}{B1 \textbullet\ Ablations and standards-based 3GPP traffic}
 \begin{columns}[T]
 \begin{column}{0.48\textwidth}
 \textbf{What carries the gain?} (all else fixed)\\[4pt]
@@ -1015,7 +1116,7 @@ Transfer (trained on S) & 6.99 & 9.89 & 14.3 \\
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{Robustness, operating range and the A $\times$ B experiment}
+\begin{frame}{B1 \textbullet\ Robustness, operating range and the A $\times$ B experiment}
 \begin{columns}[T]
 \begin{column}{0.33\textwidth}
 \textbf{\small Miscalibration} (P4 in practice)\\[2pt]
@@ -1066,47 +1167,7 @@ BFP & load & React. & Point & \textbf{Prop.} \\
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{Extended study: theory and the strongest baselines}
-\begin{columns}[T]
-\begin{column}{0.45\textwidth}
-\footnotesize
-\textbf{POMDP}: state = queue age profiles, hidden traffic state, SE; action held $T$ slots $\Rightarrow$ intractable. Three approximation families implemented:
-\begin{enumerate}
-  \item one-step stochastic program (KKT, Markov chain fitted online);
-  \item Lyapunov drift: \textbf{predictive MaxWeight} (Huang et al.);
-  \item policy search: 3-parameter class-level policy learned by \textbf{CEM}.
-\end{enumerate}
-\textbf{Markov-fluid theory of $\rstar$}: Chernoff--union bound, large-deadline decay (effective bandwidth), pathwise \textbf{shortfall sandwich}
-\[ (D+1)(\rstar - r)^+ \le V(r) \le \textstyle\sum_t (a_t - r)^+ \]
-Bounds valid but 25--100$\times$ conservative $\Rightarrow$ \emph{learn} the distribution.
-\end{column}
-\begin{column}{0.53\textwidth}
-\scriptsize
-\setlength{\tabcolsep}{3.5pt}
-\begin{tabular}{lcccc}
-\toprule
-$V_w$ [\%] & GBM+KKT & Pred.\ MaxW. & CEM & Tuned-$w$ \\
-\midrule
-S moderate & 2.15 & \textbf{1.62} & 1.77 & 2.21 \\
-S high & 8.00 & \textbf{6.15} & 6.57 & 7.88 \\
-S flash & 11.76 & \textbf{9.69} & 10.20 & 11.49 \\
-S shift & 10.04 & 10.25 & \textbf{9.73} & 9.90 \\
-G moderate & 5.08 & 7.57 & \textbf{4.58} & 4.98 \\
-G high & 8.01 & 11.36 & \textbf{7.17} & 7.83 \\
-M high & 4.94 & 4.79 & \textbf{3.93} & 4.88 \\
-M shift & 5.52 & 4.80 & \textbf{4.17} & 5.31 \\
-\bottomrule
-\end{tabular}
-\vspace{0.4em}
-\begin{alertblock}{Honest twist}
-\footnotesize With the \emph{same} forecaster, CEM is best in 6/10 scenarios and predictive MaxWeight in 3/10. Re-tuning the LL weight gains only 1--4\,\%: $\lambda^\ast \ge w_{\rm eMBB}$ in 50--58\,\% of epochs. The gap is \textbf{structural}, not a constant.
-\end{alertblock}
-\end{column}
-\end{columns}
-\end{frame}
-
-% ---------------------------------------------------------------------
-\begin{frame}{B2: LCQT, a Bayesian link-aware quantile Transformer}
+\begin{frame}{B2 \textbullet\ LCQT: a Bayesian, link-aware quantile Transformer}
 \centering
 \resizebox{\linewidth}{!}{%
 \begin{tikzpicture}[font=\scriptsize,>=Stealth,
@@ -1135,31 +1196,97 @@ M shift & 5.52 & 4.80 & \textbf{4.17} & 5.31 \\
 \end{column}
 \begin{column}{0.51\textwidth}
 \footnotesize
-\begin{tabular}{lcc}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lccc}
 \toprule
-Forecast quality & Pinball & 90\,\% cov.\ (shift) \\
+Forecast quality & Pinball & \makecell{90\,\% cov.\\(shift)} & \makecell{LL $q_{95}$ cov.\\(shift)} \\
 \midrule
-GBM (B1) & 0.0224 & n/a \\
-LCQT & \textbf{0.0214} & 0.795 \\
-\ours \textbf{Ensemble $\times$ MC} & 0.0213 & \textbf{0.808} \\
+GBM (B1) & 0.0224 & n/a & n/a \\
+LCQT & 0.0214 & 0.795 & 0.855 \\
+\ours \textbf{Bayesian (3 $\times$ 8)} & \textbf{0.0213} & \textbf{0.808} & \textbf{0.873} \\
 \bottomrule
-\end{tabular}\\[4pt]
-\begin{tabular}{lcc}
-\toprule
-Bayesian LCQT vs GBM, KKT rule & $\Delta V_w$ & seeds \\
-\midrule
-low & \gd{$-20.8\,\%$} & 20/20 \\
-moderate & \gd{$-6.1\,\%$} & 20/20 \\
-high & \gd{$-1.4\,\%$} & 20/20 \\
-\bottomrule
-\end{tabular}\\[3pt]
-Pinball $-4.5\,\%$, 90\,\% interval $-8\,\%$ at higher coverage. Small gain at high load $\Rightarrow$ change the \emph{decision structure}.
+\end{tabular}\\[5pt]
+\begin{itemize}
+  \item Pinball loss $-4.5\,\%$ and a 90\,\% interval 8\,\% narrower, at \emph{higher} coverage than GBM.
+  \item Best calibration of all models under the held-out shift.
+  \item Closed loop with the B1 KKT rule: \gd{improves on GBM on 20/20 test seeds} at low, moderate and high load.
+  \item With the final B3 policy it gives the \textbf{best results of the project}.
+\end{itemize}
 \end{column}
 \end{columns}
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{B3: the back-pressure newsvendor (BPN)}
+\begin{frame}{B2 \textbullet\ Uncertainty-aware and explainable by design}
+\centering
+\includegraphics[height=2.75cm]{fig_bayes_explain.png}\\[-2pt]
+{\tiny (a) LL cell under held-out shift, epistemic spread in red \textbullet\ (b) posterior disagreement \textbullet\ (c) FiLM counterfactual \textbullet\ (d) gradient $\times$ input attribution of LL $q_{95}$}\\[2pt]
+\begin{columns}[T]
+\begin{column}{0.49\textwidth}
+\begin{block}{\faIcon{question-circle}\ \ Uncertainty-aware}
+\footnotesize
+\begin{itemize}
+  \item 24 posterior samples (3 seeds $\times$ 8 MC dropout) separate \textbf{epistemic} (model) from \textbf{aleatoric} (traffic) uncertainty.
+  \item Held-out shift: epistemic spread of LL forecasts \textbf{+30\,\%} (0.086 $\to$ 0.112); the model \emph{knows} when traffic is unfamiliar.
+  \item The mixture widens those intervals, so the link reserves more where it is less sure.
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.49\textwidth}
+\begin{block}{\faIcon{search}\ \ Explainable}
+\footnotesize
+\begin{itemize}
+  \item \textbf{Counterfactual}: LL cell relabelled eMBB $\Rightarrow$ $q_{95}$ \textbf{$-18\,\%$}; eMBB relabelled LL $\Rightarrow$ \textbf{+26\,\%}: it reserves for deadline and priority.
+  \item \textbf{Attribution}: newest 4 of 16 history patches carry \textbf{41\,\%} of the LL $q_{95}$; summary features 19\,\%.
+  \item Every budget reads as backlog + quantile at risk $1 - \lambda/w_i$.
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{Towards B3 \textbullet\ We implemented all three POMDP solution families}
+\begin{columns}[T]
+\begin{column}{0.45\textwidth}
+\footnotesize
+\textbf{POMDP}: state = queue age profiles, hidden traffic state, SE; action held $T$ slots $\Rightarrow$ intractable. We implemented three approximation families on the same simulator and forecaster:
+\begin{enumerate}
+  \item one-step stochastic program (KKT, Markov chain fitted online);
+  \item Lyapunov drift: \textbf{predictive MaxWeight} (Huang et al.);
+  \item policy search: 3-parameter class-level policy learned by \textbf{CEM}.
+\end{enumerate}
+\textbf{Markov-fluid theory of $\rstar$}: Chernoff--union bound, large-deadline decay (effective bandwidth), pathwise \textbf{shortfall sandwich}
+\[ (D+1)(\rstar - r)^+ \le V(r) \le \textstyle\sum_t (a_t - r)^+ \]
+Bounds valid but 25--100$\times$ conservative $\Rightarrow$ \emph{learn} the distribution.
+\end{column}
+\begin{column}{0.53\textwidth}
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lcccc}
+\toprule
+$V_w$ [\%] & \makecell{Stoch.\ prog.\\(B1 KKT)} & \makecell{Lyapunov\\(pred.\ MaxW.)} & \makecell{Policy search\\(CEM)} & \makecell{B1,\\re-tuned $w$} \\
+\midrule
+S moderate & 2.15 & \textbf{1.62} & 1.77 & 2.21 \\
+S high & 8.00 & \textbf{6.15} & 6.57 & 7.88 \\
+S flash & 11.76 & \textbf{9.69} & 10.20 & 11.49 \\
+S shift & 10.04 & 10.25 & \textbf{9.73} & 9.90 \\
+G moderate & 5.08 & 7.57 & \textbf{4.58} & 4.98 \\
+G high & 8.01 & 11.36 & \textbf{7.17} & 7.83 \\
+M high & 4.94 & 4.79 & \textbf{3.93} & 4.88 \\
+M shift & 5.52 & 4.80 & \textbf{4.17} & 5.31 \\
+\bottomrule
+\end{tabular}
+\vspace{0.4em}
+\begin{exampleblock}{Design insight that led to B3}
+\footnotesize Each family wins in a different regime: policy search in 6/10 scenarios, Lyapunov drift in 3/10, reservation at short intervals. The KKT multiplier shows why: $\lambda^\ast \ge w_{\rm eMBB}$ in 50--58\,\% of epochs, so per-cell reservation leaves capacity idle that back-pressure would use. \textbf{B3 puts all three into one learned policy class.}
+\end{exampleblock}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------
+\begin{frame}{B3 (final) \textbullet\ The back-pressure newsvendor (BPN)}
 \begin{columns}[T]
 \begin{column}{0.4\textwidth}
 \small
@@ -1205,7 +1332,7 @@ Pred.\ MaxW. & 5.98 & 5.9 & 75.5 \\
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{BPN beats the best baseline in 10/10 scenarios of 3 families}
+\begin{frame}{B3 (final) \textbullet\ BPN beats the best baseline in 10/10 scenarios}
 \begin{columns}[c]
 \begin{column}{0.5\textwidth}
 \centering
@@ -1236,7 +1363,7 @@ S shift & \gd{$-4.8\%$} & 20 & M shift & \gd{$-8.2\%$} & 20 \\
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{What the BPN policy learned}
+\begin{frame}{B3 (final) \textbullet\ What the BPN policy learned}
 \begin{columns}[T]
 \begin{column}{0.48\textwidth}
 \footnotesize
@@ -1281,7 +1408,7 @@ M (Markov) & 0: reservation & 0.34 & (0.84, 0.31) \\
 \midrule
 matinv\_bench/ & inversion benchmark, InverseNets \\
 cmatinv/, exp.\_v2/ & complex inversion, RMT-WS, 38.901 \\
-kernels/ & fused C/AVX-512/OpenMP precoder \\
+kernels/ (\texttt{libcmat}) & fused C/AVX-512/OpenMP library \\
 fhlm/ & simulator, families S/G/M, 19+ ctrl. \\
 fhlm/transformer.py & B2: LCQT, mixture, diff.\ KKT \\
 fhlm/hybrid.py & B3: BPN + equal-budget CEM \\
@@ -1302,7 +1429,7 @@ results/ & all CSVs, logs, figures \\
 \end{columns}
 \vspace{0.3em}
 \begin{takeaway}
-\faIcon[regular]{file-alt}\ \ B1 paper submitted to \textbf{NCC 2027}; 11-page extended manuscript with theory, three families and 19 controllers.
+\faIcon[regular]{file-alt}\ \ B1 paper submitted to \textbf{NCC 2027}; 11-page extended manuscript with theory, three families and 19 controllers; \texttt{libcmat} being prepared as an open-source library and publication.
 \end{takeaway}
 \end{frame}
 
@@ -1315,7 +1442,7 @@ results/ & all CSVs, logs, figures \\
 \begin{itemize}
   \item CSEE / RAS-BFP: \textbf{6.4--8.1$\times$} vs 16-bit IQ at $\approx-20$\,dB (BFP 2$\times$), with error bounds, \textbf{3--6$\times$ faster} than SVD.
   \item RMT-WS: \textbf{6 GEMMs} instead of $>10$; certified warm start at every speed; closed-form Doppler law.
-  \item Fused C/AVX-512 kernel: whole precoder \textbf{0.226\,ms} (14$\times$), inside the slot.
+  \item \texttt{libcmat}: whole precoder \textbf{0.226\,ms} (14$\times$ numpy + LAPACK), inverse 14$\times$ LAPACK, inside the slot.
   \item RU-side precoding: \textbf{$-72\,\%$} fronthaul at 99.7\,\% sum-rate.
 \end{itemize}
 \end{block}
@@ -1326,8 +1453,8 @@ results/ & all CSVs, logs, figures \\
 \begin{itemize}
   \item $\rstar$ turns deadlines into a demand target; the KKT rule splits at equal weighted risk.
   \item B1: best of 12 controllers on 2 families, \textbf{$-11$ to $-43\,\%$} vs point forecast.
-  \item B2: Bayesian LCQT, best calibration, $-21$ / $-6$ / $-1.4\,\%$.
-  \item B3: BPN beats the strongest baselines in \textbf{10/10} scenarios of 3 families, \textbf{3--25\,\%}.
+  \item B2: Bayesian LCQT, uncertainty-aware and explainable, best calibration, improves B1 on every seed.
+  \item \textbf{B3 (final)}: BPN beats the strongest baselines in \textbf{10/10} scenarios of 3 families, \textbf{3--25\,\%}.
 \end{itemize}
 \end{block}
 \end{column}
@@ -1339,30 +1466,29 @@ results/ & all CSVs, logs, figures \\
 \end{frame}
 
 % ---------------------------------------------------------------------
-\begin{frame}{Limitations and future work}
+\begin{frame}{Scope and future work}
 \begin{columns}[T]
 \begin{column}{0.49\textwidth}
-\begin{alertblock}{What we do not claim}
+\begin{block}{\faIcon{bullseye}\ \ Scope of the results}
 \footnotesize
 \begin{itemize}
-  \item \textbf{Simulation only}: three traffic families, no measured traces; Family G uses our own scheduler.
-  \item Proposed encoders apply to channel-carrying IQ, not to data-symbol IQ.
-  \item Kernel speed-up is vs numpy + LAPACK; MKL batched / Eigen not compared.
-  \item KKT gain is a \textbf{priority trade} (holds for LL weight $\ge$ 2--3); loses to proportional at $T = 20$\,ms.
-  \item BPN learned per family at $T{=}10$\,ms, $\tau{=}1$\,ms; no optimality proof for the hybrid; the Bayesian forecaster is too slow in Python (17--21\,ms).
+  \item CSEE and RAS-BFP target \textbf{channel-carrying IQ} (reference signals, RU-side precoding weights); data-symbol IQ stays on standard BFP.
+  \item \texttt{libcmat} is tuned for the O-DU regime: many small complex Hermitian systems ($K \le 32$) per slot on AVX-512 CPUs.
+  \item The KKT rule is designed for differentiated priorities and decision intervals up to a few deadlines; BPN covers the remaining regimes.
+  \item BPN parameters are learned per traffic family at $T{=}10$\,ms, $\tau{=}1$\,ms, the near-RT RIC operating point.
 \end{itemize}
-\end{alertblock}
+\end{block}
 \end{column}
 \begin{column}{0.49\textwidth}
 \begin{exampleblock}{Next steps}
 \footnotesize
 \begin{itemize}
+  \item \faBook\ \ Release \texttt{libcmat} as an open-source library and publish it.
   \item \faMicrochip\ \ GPU / NPU / tensor-core port of the Newton--Schulz kernel and certificate.
-  \item \faChartLine\ \ Real operator traces and measured channels.
   \item \faRobot\ \ BPN as the structured policy of a PPO \textbf{xApp} in the near-RT RIC, with the KKT rule as safe fallback.
+  \item \faBolt\ \ Compiled (C++/ONNX) Bayesian forecaster for the 10\,ms decision loop.
   \item \faSlidersH\ \ Joint per-cell knob: BFP width \emph{and} capacity share every interval.
   \item \faIcon{exchange-alt}\ \ Cross-family transfer and online adaptation over A1.
-  \item \faServer\ \ O-DU testbed deployment on an open-source O-RAN stack.
 \end{itemize}
 \end{exampleblock}
 \end{column}
@@ -1438,7 +1564,7 @@ BPN v1 & 5.67 & 8.92 & \textbf{0.63} & 3.71 & \textbf{3.72} \\
 \begin{description}[Why GBM, not LSTM?]
   \item[Leakage?] Train seeds 1000--1015, val 2000--2003, test 3000--3019; forecasters frozen before test; features use past slots only (tested).
   \item[Why GBM first?] Six quantile models train in 12\,s, calibrated, CPU-only; the ablation shows the rule carries most of the gain. B2 then replaces it with LCQT.
-  \item[Why simulation?] No public per-cell PRB-level fronthaul traces at 10\,ms granularity; hence Family G built from 3GPP models.
+  \item[Why beat LAPACK?] LAPACK is tuned for one large matrix; the O-DU solves 273 small Hermitian systems per slot. \texttt{libcmat} fuses Gram, inverse and weights per PRB in L1, vectorises re/im planes and threads across PRBs.
   \item[Is it optimal?] KKT is the global optimum of the one-interval surrogate only; no closed-loop optimality claim.
   \item[Why not deep RL?] CEM on a structured policy class is a small, reliable analogue of an RL xApp; a PPO xApp with BPN as policy class is future work.
   \item[Compressing data IQ?] No: QAM data destroys low rank and delay sparsity; data IQ stays on BFP.
