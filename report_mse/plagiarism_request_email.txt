@@ -1,0 +1,35 @@
+[DRAFT — NOT SENT. Send only after explicit authorization.]
+
+To: library.turnitin@iiti.ac.in
+Subject: EE - BTP midsem report (230002027, 230002041)
+
+Dear Library Team,
+
+We request an official plagiarism (similarity) check for our joint B.Tech.
+Project Mid-Semester Evaluation report, submitted for the Department of
+Electrical Engineering, academic year 2026-27.
+
+Details:
+- Students: Harshvardhan Choudhary (Roll No. 230002027) and
+  Mayank Yadav (Roll No. 230002041)
+- Supervisor: Dr. Sumit Gautam, Department of Electrical Engineering,
+  IIT Indore
+- Project title: "Fronthaul Load Management in Split Radio Access Networks:
+  Benchmarking Classical and Learned Matrix Inversion for Slot-Level Compute
+  Budgeting" (provisional working title; the officially approved title,
+  project number, and specialization will be confirmed with our supervisor —
+  these administrative details were not available to us at the time of this
+  request)
+- Manuscript: BTP_MSE_Report.pdf (7 pages), attached
+
+Our MSE submission deadline is Friday, 25 September 2026, 12:00 noon. We
+would be grateful for the similarity report at your earliest convenience,
+and we apologize for the short notice.
+
+Please let us know if any additional information or a different file format
+is required.
+
+Thank you and regards,
+Harshvardhan Choudhary (230002027)
+Mayank Yadav (230002041)
+Department of Electrical Engineering, IIT Indore
