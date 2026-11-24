@@ -1,7 +1,7 @@
 # Final Deck — 12-Minute Presentation Script
 
-Script for `presentation/BTP_final_deck.pdf` (title slide, 37 numbered slides,
-thank-you slide, backup). Slide numbers below are the numbers in the
+Script for `presentation/BTP_final_deck.pdf` (title slide, 38 numbered slides
+ending with the references, thank-you slide). Slide numbers below are the numbers in the
 bottom-right corner of each slide. Every number in the script matches the deck.
 
 The spoken text is about 1,670 words. At a relaxed 140 words a minute it
@@ -17,14 +17,14 @@ How to use it:
 - **Bold** marks the one sentence per slide to keep if you are running late.
 - The script suggests a handover between the two speakers at Part B. Move
   it if you split the talk differently.
-- Backup slides are not in the 12 minutes. Use them only for questions.
+- The references slide (38) is not spoken; just move past it.
 
 | Section | Slides | Time | Clock at end |
 |---|---|---|---|
 | Opening and background | Title, 1–6 | 2:15 | 2:15 |
 | Part A | 7–17 | 4:05 | 6:20 |
 | Part B | 18–34 | 4:30 | 10:50 |
-| Wrap-up | 35–37, Thank you | 0:50 | 11:40 |
+| Wrap-up | 35–38, Thank you | 0:50 | 11:40 |
 
 ---
 
@@ -264,6 +264,7 @@ all 20 seeds.
 
 *[Plot.]* Reactive control is always one interval late. Our rule raises the
 budget as soon as a burst begins, because that is when the forecast widens.
+*[Bottom box.]* The ablations confirm the rule carries the gain; ML adds on top.
 
 ### Slide 27 — Tested on realistic 3GPP traffic  *[0:10 · clock 8:55]*
 
@@ -345,6 +346,10 @@ scenarios.
 Next, we will release and publish libcmat, port it to GPUs, and deploy BPN as
 an xApp in the near-real-time RIC.
 
+### Slide 38 — Key references  *[0:00 · clock 11:35]*
+
+Not spoken. Move straight on.
+
 ### Thank you  *[0:05 · clock 11:40]*
 
 Thank you. We're happy to take questions.
@@ -375,5 +380,4 @@ Thank you. We're happy to take questions.
 | B2 uncertainty under shift | LL epistemic spread +30 %, best calibration |
 | B3 (BPN) vs best baseline | 10/10 scenarios, −3 to −25 %, p ≤ 0.024 |
 
-For questions, use the backup slides (paired reductions, BPN on Families G
-and M, likely questions, references) and `presentation/PartB_study_guide.pdf`.
+For questions, use `presentation/PartB_study_guide.pdf`.
